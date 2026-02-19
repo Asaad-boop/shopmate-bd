@@ -95,6 +95,9 @@ export default function WebOrdersPage() {
 
   const { data: bdCourierData, isLoading: bdLoading } = useBDCourierBulk(customerPhones, customerPhones.length > 0);
 
+  // Auto-refresh BD Courier data every 2 minutes
+  const bdRefetchInterval = 2 * 60 * 1000;
+
   // Fetch order items for all these orders
   const orderIds = orders?.map((o) => o.id) || [];
   const { data: allItems } = useQuery({
@@ -410,25 +413,31 @@ export default function WebOrdersPage() {
                         </TableCell>
                         {/* Success Rate */}
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className="relative w-10 h-10">
-                              <svg className="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
-                                <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
-                                <circle
-                                  cx="18" cy="18" r="15" fill="none"
-                                  stroke={sr.percent >= 70 ? "hsl(142 76% 36%)" : sr.percent >= 40 ? "hsl(48 96% 53%)" : "hsl(0 84% 60%)"}
-                                  strokeWidth="3"
-                                  strokeDasharray={`${sr.percent * 0.942} 94.2`}
-                                  strokeLinecap="round"
-                                />
-                              </svg>
-                              <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold">{sr.percent}%</span>
+                          {sr.loading ? (
+                            <Skeleton className="h-10 w-24" />
+                          ) : sr.noData ? (
+                            <span className="text-xs text-muted-foreground">🆕 New</span>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <div className="relative w-9 h-9 flex-shrink-0">
+                                <svg className="w-9 h-9 -rotate-90" viewBox="0 0 36 36">
+                                  <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
+                                  <circle
+                                    cx="18" cy="18" r="15" fill="none"
+                                    stroke={getSuccessColor(sr.percent)}
+                                    strokeWidth="3"
+                                    strokeDasharray={`${sr.percent * 0.942} 94.2`}
+                                    strokeLinecap="round"
+                                  />
+                                </svg>
+                              </div>
+                              <div className="text-xs space-y-0.5">
+                                <p>Success: <span className="font-semibold" style={{ color: getSuccessColor(sr.percent) }}>{sr.percent}%</span></p>
+                                <p>Order: <span className="font-medium">{sr.delivered}/{sr.total}</span></p>
+                                <p>Rating: <span className="font-medium">{sr.rating * 20}</span></p>
+                              </div>
                             </div>
-                            <div className="text-xs">
-                              <p>{sr.delivered}/{sr.total}</p>
-                              <p className="text-muted-foreground">{"⭐".repeat(Math.min(sr.rating, 5))}</p>
-                            </div>
-                          </div>
+                          )}
                         </TableCell>
                         {/* Tags */}
                         <TableCell>
