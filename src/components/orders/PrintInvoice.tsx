@@ -64,17 +64,12 @@ function getCSS(size: "a4" | "a5") {
     .inv-table .payable td:last-child { font-size: ${isA5 ? '14px' : '18px'}; font-weight: 800; }
     
 
-    /* Delivery Info Box */
-    .delivery-info-box { background: #EFF6FF; border: 1.5px dashed #93c5fd; border-radius: ${6 * f}px; padding: ${10 * f}px; margin-bottom: ${10 * f}px; display: flex; gap: ${16 * f}px; }
-    .delivery-info-box .di-label { font-size: ${isA5 ? '7px' : '9px'}; color: #666; margin-bottom: 1px; }
-    .delivery-info-box .di-value { font-size: ${isA5 ? '9px' : '12px'}; font-weight: 700; color: #111; }
-    .delivery-info-box .di-value.mono { font-family: monospace; letter-spacing: 0.5px; }
-    .delivery-info-box .di-col { flex: 1; }
+    
 
     /* Rider Note Box */
     .rider-note-box { background: #FFF5F5; border: 1.5px dashed #fca5a5; border-radius: ${6 * f}px; padding: ${10 * f}px; margin-top: ${8 * f}px; }
     .rider-note-box .rn-title { font-size: ${isA5 ? '8px' : '10px'}; font-weight: 700; color: #dc2626; margin-bottom: ${4 * f}px; }
-    .rider-note-box .rn-text { font-size: ${isA5 ? '7px' : '9px'}; color: #333; line-height: 1.5; }
+    .rider-note-box .rn-text { font-size: ${isA5 ? '8px' : '11px'}; color: #333; line-height: 1.5; font-weight: 700; }
 
     /* SECTION 3: Items table */
     .items-table { width: 100%; border-collapse: collapse; margin-bottom: ${10 * f}px; font-size: ${isA5 ? '8px' : '10.5px'}; }
@@ -176,21 +171,10 @@ function buildInvoiceHTML(order: any, company: CompanySettings | undefined, inv:
             <tr><td>Item Count:</td><td>${totalQty}</td></tr>
             <tr><td>Payment:</td><td><strong>${getPaymentLabel(order.payment_method)}</strong></td></tr>
             <tr class="payable"><td>Payable:</td><td>BDT ${Number(order.total_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 1 })}</td></tr>
+            <tr><td>Delivery Partner:</td><td>${order.pathao_consignment_id ? 'Pathao' : (order.courier_status ? 'Courier' : '—')}</td></tr>
+            <tr><td>Tracking ID:</td><td style="font-family:monospace;letter-spacing:0.5px">${order.pathao_consignment_id || order.pathao_tracking_code || '—'}</td></tr>
           </table>
         </div>
-      </div>
-
-      <!-- Delivery Info Box -->
-      <div class="delivery-info-box">
-        <div class="di-col">
-          <div class="di-label">Delivery Partner:</div>
-          <div class="di-value">${order.pathao_consignment_id ? 'Pathao' : (order.courier_status ? 'Courier' : '—')}</div>
-          <div style="margin-top:${6 * (inv?.defaultPaperSize === 'a5' ? 0.7 : 1)}px">
-            <div class="di-label">Tracking ID:</div>
-            <div class="di-value mono">${order.pathao_consignment_id || order.pathao_tracking_code || '—'}</div>
-          </div>
-        </div>
-        <div class="di-col"></div>
       </div>
 
       <!-- SECTION 3: Items Table -->
@@ -267,18 +251,19 @@ function buildInvoiceHTML(order: any, company: CompanySettings | undefined, inv:
             : ''}
         </div>
       </div>
+
+      <!-- Rider Note Box -->
+      <div class="rider-note-box">
+        <div class="rn-title">🚫 Note for Rider / রাইডারের জন্য নির্দেশনা:</div>
+        <div class="rn-text">${inv?.riderNote || `মার্চেন্টের অনুমতি ছাড়া প্রোডাক্ট খোলা সম্পূর্ণ নিষিদ্ধ, খুলে দেখতে চাইলে আগে কল করুন: ${company?.phone || ''} WhatsApp: ${company?.whatsapp || ''}`}</div>
+      </div>
+
       <div class="footer-bottom">
         <div class="thanks">THANK YOU FOR CHOOSING US</div>
         <div>
           ${company?.website ? `<div class="f-line">VISIT: <strong>${company.website}</strong></div>` : ''}
           ${company?.phone ? `<div class="f-line">SUPPORT: <strong>${company.phone}</strong></div>` : ''}
         </div>
-      </div>
-
-      <!-- Rider Note Box -->
-      <div class="rider-note-box">
-        <div class="rn-title">🚫 Note for Rider / রাইডারের জন্য নির্দেশনা:</div>
-        <div class="rn-text">${inv?.riderNote || `মার্চেন্টের অনুমতি ছাড়া প্রোডাক্ট খোলা সম্পূর্ণ নিষিদ্ধ, খুলে দেখতে চাইলে আগে কল করুন: ${company?.phone || ''} WhatsApp: ${company?.whatsapp || ''}`}</div>
       </div>
 
       <!-- SECTION 6: Terms -->
