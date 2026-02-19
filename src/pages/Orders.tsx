@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCompanySettings } from "@/hooks/use-company-settings";
 import { supabase } from "@/integrations/supabase/client";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -43,6 +44,7 @@ export default function OrdersPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { settings: companySettings } = useCompanySettings();
 
   const [search, setSearch] = useState("");
   const [statusTab, setStatusTab] = useState("all");
@@ -199,10 +201,10 @@ export default function OrdersPage() {
   // Bulk print
   const handleBulkPrint = (type: "invoice" | "picking" | "packing" | "barcode") => {
     const selected = orders?.filter((o) => selectedIds.has(o.id)) || [];
-    if (type === "invoice") selected.forEach(printInvoice);
-    if (type === "picking") printPickingList(selected);
-    if (type === "packing") selected.forEach(printPackingSlip);
-    if (type === "barcode") printBarcodeLabels(selected);
+    if (type === "invoice") selected.forEach((o) => printInvoice(o, companySettings));
+    if (type === "picking") printPickingList(selected, companySettings);
+    if (type === "packing") selected.forEach((o) => printPackingSlip(o, companySettings));
+    if (type === "barcode") printBarcodeLabels(selected, companySettings);
   };
 
   // Send to Pathao
@@ -519,10 +521,10 @@ export default function OrdersPage() {
                                 </DropdownMenuSubContent>
                               </DropdownMenuSub>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => printInvoice(order)}>
+                              <DropdownMenuItem onClick={() => printInvoice(order, companySettings)}>
                                 <Printer className="w-3.5 h-3.5 mr-2" /> Print Invoice
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => printBarcodeLabels([order])}>
+                              <DropdownMenuItem onClick={() => printBarcodeLabels([order], companySettings)}>
                                 <Tag className="w-3.5 h-3.5 mr-2" /> Print Barcode
                               </DropdownMenuItem>
                             </DropdownMenuContent>
