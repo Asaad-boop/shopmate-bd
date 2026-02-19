@@ -20,10 +20,9 @@ import {
   Plus,
   List,
   FileText,
-  Bell,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 
 interface NavItem {
   label: string;
@@ -114,7 +113,7 @@ export function AppSidebar() {
                 <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center flex-shrink-0">
                   <Package className="w-5 h-5 text-sidebar-primary-foreground" />
                 </div>
-                <span className="font-bold text-lg text-sidebar-accent-foreground truncate">
+                <span className="font-bold text-lg text-white truncate">
                   {company?.name || "EcomHub"}
                 </span>
               </>
@@ -130,7 +129,7 @@ export function AppSidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1">
+      <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-0.5">
         {navItems.map((item) => {
           if (item.children) {
             const groupActive = isGroupActive(item);
@@ -157,7 +156,7 @@ export function AppSidebar() {
                   )}
                 </button>
                 {!collapsed && expanded && (
-                  <div className="mt-1 ml-4 pl-4 border-l border-sidebar-border space-y-1">
+                  <div className="mt-0.5 ml-4 pl-4 border-l border-sidebar-border space-y-0.5">
                     {item.children.map((child) => (
                       <Link
                         key={child.path}
@@ -165,7 +164,7 @@ export function AppSidebar() {
                         className={cn(
                           "flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors",
                           isActive(child.path)
-                            ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
+                            ? "bg-sidebar-primary/15 text-sidebar-primary border-l-2 border-sidebar-primary -ml-[1px] font-medium"
                             : "text-sidebar-muted hover:text-sidebar-accent-foreground hover:bg-sidebar-accent"
                         )}
                       >
@@ -186,7 +185,7 @@ export function AppSidebar() {
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                 isActive(item.path!)
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                  ? "bg-sidebar-primary/15 text-sidebar-primary border-l-2 border-sidebar-primary -ml-[1px]"
                   : "text-sidebar-muted hover:text-sidebar-accent-foreground hover:bg-sidebar-accent"
               )}
             >
@@ -196,6 +195,24 @@ export function AppSidebar() {
           );
         })}
       </nav>
+
+      {/* Bottom user section */}
+      {!collapsed && (
+        <div className="p-3 border-t border-sidebar-border">
+          <div className="flex items-center gap-3 px-2 py-2">
+            <div className="w-8 h-8 rounded-full bg-sidebar-primary flex items-center justify-center text-sidebar-primary-foreground text-sm font-semibold">
+              A
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-sidebar-accent-foreground truncate">Admin</p>
+              <p className="text-xs text-sidebar-muted truncate">admin@store.com</p>
+            </div>
+            <button className="p-1.5 rounded-md hover:bg-sidebar-accent text-sidebar-muted hover:text-sidebar-accent-foreground transition-colors">
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }
