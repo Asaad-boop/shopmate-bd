@@ -223,31 +223,35 @@ export default function WebOrdersPage() {
         )}
       </div>
 
-      {/* Status Tabs - Pill style */}
-      <div className="flex flex-wrap gap-1.5 p-1.5 rounded-xl bg-slate-100/80">
-        {WEB_STATUSES.map((s) => (
-          <button
-            key={s.key}
-            onClick={() => { setActiveTab(s.key); setSelected([]); }}
-            className={cn(
-              "flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition-all duration-200",
-              activeTab === s.key
-                ? "bg-white shadow-sm text-foreground ring-1 ring-black/[0.04]"
-                : "text-muted-foreground hover:text-foreground hover:bg-white/60"
-            )}
-          >
-            <span className="text-xs">{s.emoji}</span>
-            <span className="hidden sm:inline">{s.label}</span>
-            <span className={cn(
-              "ml-1 h-5 min-w-[20px] px-1.5 text-[11px] font-semibold rounded-full inline-flex items-center justify-center",
-              activeTab === s.key
-                ? "bg-primary text-white"
-                : "bg-slate-200/80 text-slate-500"
-            )}>
-              {statusCounts[s.key] || 0}
-            </span>
-          </button>
-        ))}
+      {/* Status Tabs - Pill style like reference */}
+      <div className="flex items-center justify-center">
+        <div className="inline-flex items-center gap-0.5 p-1 rounded-full bg-slate-100/70 border border-slate-200/60">
+          {WEB_STATUSES.map((s) => (
+            <button
+              key={s.key}
+              onClick={() => { setActiveTab(s.key); setSelected([]); }}
+              className={cn(
+                "relative px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap",
+                activeTab === s.key
+                  ? "bg-white shadow-sm text-foreground"
+                  : "text-slate-400 hover:text-foreground"
+              )}
+            >
+              <span className="hidden sm:inline">{s.label}</span>
+              <span className="sm:hidden">{s.emoji}</span>
+              {(statusCounts[s.key] || 0) > 0 && (
+                <span className={cn(
+                  "ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full inline-flex items-center justify-center",
+                  activeTab === s.key
+                    ? "bg-primary text-white"
+                    : "bg-slate-200/80 text-slate-400"
+                )}>
+                  {statusCounts[s.key]}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Search + Bulk Actions */}
