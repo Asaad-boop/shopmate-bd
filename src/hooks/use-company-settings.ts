@@ -16,6 +16,8 @@ export interface CompanySettings {
   whatsapp: string;
   tin: string;
   bin: string;
+  whatsappReviewLink: string;
+  facebookGroupLink: string;
 }
 
 const COMPANY_KEYS = [
@@ -33,6 +35,8 @@ const COMPANY_KEYS = [
   "company_whatsapp",
   "company_tin",
   "company_bin",
+  "company_whatsapp_review_link",
+  "company_facebook_group_link",
 ];
 
 export function useCompanySettings() {
@@ -63,6 +67,8 @@ export function useCompanySettings() {
         whatsapp: map.company_whatsapp || "",
         tin: map.company_tin || "",
         bin: map.company_bin || "",
+        whatsappReviewLink: map.company_whatsapp_review_link || "",
+        facebookGroupLink: map.company_facebook_group_link || "",
       } as CompanySettings;
     },
     staleTime: 5 * 60 * 1000,

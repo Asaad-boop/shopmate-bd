@@ -90,18 +90,16 @@ function getCSS(size: "a4" | "a5") {
     .in-words { text-align: right; font-size: ${isA5 ? '8px' : '10.5px'}; margin-top: ${4 * f}px; color: #333; }
     .in-words strong { color: #111; }
 
-    /* SECTION 5: Footer */
-    .footer-section { margin-top: auto; padding-top: ${10 * f}px; border-top: 2px solid #111; display: flex; justify-content: space-between; align-items: flex-end; gap: ${12 * f}px; }
-    .footer-left { }
-    .footer-left svg { height: ${isA5 ? '35px' : '60px'}; margin-bottom: ${4 * f}px; }
-    .footer-left .thanks { font-size: ${isA5 ? '9px' : '12px'}; font-weight: 800; text-transform: uppercase; }
-    .footer-left .feedback { font-size: ${isA5 ? '6.5px' : '8.5px'}; color: #666; text-transform: uppercase; }
-    .footer-left .f-email { font-size: ${isA5 ? '7px' : '9px'}; color: #333; margin-top: 2px; }
-    .footer-right { text-align: right; }
-    .footer-right .social { display: flex; gap: 6px; justify-content: flex-end; margin-bottom: 4px; }
-    .footer-right .social span { width: ${isA5 ? '14px' : '18px'}; height: ${isA5 ? '14px' : '18px'}; border-radius: 4px; background: #111; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: ${isA5 ? '7px' : '9px'}; font-weight: 700; }
-    .footer-right .f-line { font-size: ${isA5 ? '7px' : '9px'}; color: #333; }
-    .footer-right .f-line strong { font-size: ${isA5 ? '7.5px' : '9.5px'}; }
+    /* SECTION 5: Footer - Community */
+    .community-section { margin-top: auto; padding: ${10 * f}px; background: #F0FDF4; border: 1px solid #bbf7d0; border-radius: ${8 * f}px; display: flex; gap: ${16 * f}px; }
+    .community-col { flex: 1; }
+    .community-col .cm-title { font-size: ${isA5 ? '10px' : '13px'}; font-weight: 800; color: #111; margin-bottom: ${3 * f}px; }
+    .community-col .cm-sub { font-size: ${isA5 ? '7px' : '9px'}; color: #555; margin-bottom: ${6 * f}px; line-height: 1.4; }
+    .community-col .cm-link { display: inline-flex; align-items: center; gap: ${4 * f}px; font-size: ${isA5 ? '8px' : '10.5px'}; font-weight: 600; color: #166534; text-decoration: none; padding: ${isA5 ? '3px 8px' : '5px 12px'}; border: 1px solid #86efac; border-radius: ${6 * f}px; background: #fff; }
+    .community-divider { width: 1px; background: #bbf7d0; }
+    .footer-bottom { margin-top: ${8 * f}px; display: flex; justify-content: space-between; align-items: center; padding-top: ${6 * f}px; border-top: 1px solid #ddd; }
+    .footer-bottom .thanks { font-size: ${isA5 ? '9px' : '12px'}; font-weight: 800; text-transform: uppercase; }
+    .footer-bottom .f-line { font-size: ${isA5 ? '7px' : '9px'}; color: #333; }
 
     /* SECTION 6: Terms */
     .terms-section { margin-top: ${8 * f}px; padding-top: ${6 * f}px; border-top: 1px solid #ddd; }
@@ -226,20 +224,28 @@ function buildInvoiceHTML(order: any, company: CompanySettings | undefined, inv:
         </div>
       </div>
 
-      <!-- SECTION 5: Footer -->
-      <div class="footer-section">
-        <div class="footer-left">
-          ${inv?.showBarcode !== false ? `<svg id="bc-footer-${index}"></svg>` : ''}
-          <div class="thanks">THANK YOU FOR CHOOSING US</div>
-          <div class="feedback">YOUR FEEDBACK KEEPS US IMPROVING</div>
-          ${company?.email ? `<div class="f-email">${company.email}</div>` : ''}
+      <!-- SECTION 5: Community & Review -->
+      <div class="community-section">
+        <div class="community-col">
+          <div class="cm-title">আমাদের মতামত দিন</div>
+          <div class="cm-sub">আপনার মতামত আমাদের আরো ভালো করতে সাহায্য করে</div>
+          ${company?.whatsappReviewLink
+            ? `<a class="cm-link" href="${company.whatsappReviewLink}">💬 WhatsApp এ মতামত দিন</a>`
+            : (company?.whatsapp ? `<a class="cm-link" href="https://wa.me/${company.whatsapp.replace(/[^0-9]/g, '')}">💬 WhatsApp এ মতামত দিন</a>` : '')}
         </div>
-        <div class="footer-right">
-          <div class="social">
-            ${company?.facebook ? '<span>f</span>' : ''}
-            ${company?.website ? '<span>🌐</span>' : ''}
-          </div>
-          ${company?.website ? `<div class="f-line">VISIT US: <strong>${company.website}</strong></div>` : ''}
+        <div class="community-divider"></div>
+        <div class="community-col">
+          <div class="cm-title">আমাদের সাথে থাকুন</div>
+          <div class="cm-sub">আমাদের গ্রুপে যোগ দিন, পান এক্সক্লুসিভ অফার!</div>
+          ${company?.facebookGroupLink
+            ? `<a class="cm-link" href="${company.facebookGroupLink}">👥 Facebook Group এ Join করুন</a>`
+            : ''}
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <div class="thanks">THANK YOU FOR CHOOSING US</div>
+        <div>
+          ${company?.website ? `<div class="f-line">VISIT: <strong>${company.website}</strong></div>` : ''}
           ${company?.phone ? `<div class="f-line">SUPPORT: <strong>${company.phone}</strong></div>` : ''}
         </div>
       </div>
@@ -269,7 +275,6 @@ export function printInvoice(order: any, company?: CompanySettings, inv?: Invoic
       ${buildInvoiceHTML(order, company, inv, 0)}
       <script>
         try{JsBarcode("#bc-delivery-0","${order.order_number}",{format:"CODE128",height:${size === 'a5' ? 35 : 55},displayValue:false,margin:0});}catch(e){}
-        try{JsBarcode("#bc-footer-0","${order.order_number}",{format:"CODE128",height:${size === 'a5' ? 30 : 50},displayValue:false,margin:0});}catch(e){}
       <\/script>
     </body></html>
   `;
@@ -282,7 +287,6 @@ export function printBulkInvoices(orders: any[], company?: CompanySettings, inv?
   const invoicesHTML = orders.map((o, i) => buildInvoiceHTML(o, company, inv, i)).join('');
   const barcodeScripts = orders.map((o, i) => `
     try{JsBarcode("#bc-delivery-${i}","${o.order_number}",{format:"CODE128",height:${size === 'a5' ? 35 : 55},displayValue:false,margin:0});}catch(e){}
-    try{JsBarcode("#bc-footer-${i}","${o.order_number}",{format:"CODE128",height:${size === 'a5' ? 30 : 50},displayValue:false,margin:0});}catch(e){}
   `).join('\n');
 
   const html = `

@@ -18,6 +18,7 @@ export default function CompanyProfileSection() {
   const [form, setForm] = useState({
     name: "", tagline: "", phone: "", phone2: "", email: "", website: "",
     address1: "", address2: "", city: "", facebook: "", whatsapp: "", tin: "", bin: "",
+    whatsappReviewLink: "", facebookGroupLink: "",
   });
   const [logoUrl, setLogoUrl] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -29,6 +30,7 @@ export default function CompanyProfileSection() {
         phone2: settings.phone2, email: settings.email, website: settings.website,
         address1: settings.address1, address2: settings.address2, city: settings.city,
         facebook: settings.facebook, whatsapp: settings.whatsapp, tin: settings.tin, bin: settings.bin,
+        whatsappReviewLink: settings.whatsappReviewLink, facebookGroupLink: settings.facebookGroupLink,
       });
       setLogoUrl(settings.logo);
     }
@@ -111,6 +113,8 @@ export default function CompanyProfileSection() {
         company_whatsapp: form.whatsapp,
         company_tin: form.tin,
         company_bin: form.bin,
+        company_whatsapp_review_link: form.whatsappReviewLink,
+        company_facebook_group_link: form.facebookGroupLink,
       };
       for (const [key, value] of Object.entries(pairs)) {
         await saveSetting(key, value);
@@ -248,6 +252,16 @@ export default function CompanyProfileSection() {
           <div className="space-y-1.5">
             <Label>BIN Number</Label>
             <Input value={form.bin} onChange={(e) => update("bin", e.target.value)} placeholder="Business ID Number" />
+          </div>
+          <div className="sm:col-span-2 space-y-1.5">
+            <Label>WhatsApp Review Link</Label>
+            <Input value={form.whatsappReviewLink} onChange={(e) => update("whatsappReviewLink", e.target.value)} placeholder="https://wa.me/88017XXXXXXXX" />
+            <p className="text-xs text-muted-foreground">Link shown on invoice for customer feedback via WhatsApp</p>
+          </div>
+          <div className="sm:col-span-2 space-y-1.5">
+            <Label>Facebook Group Link</Label>
+            <Input value={form.facebookGroupLink} onChange={(e) => update("facebookGroupLink", e.target.value)} placeholder="https://facebook.com/groups/yourgroup" />
+            <p className="text-xs text-muted-foreground">Link shown on invoice for customers to join your Facebook group</p>
           </div>
         </div>
 
