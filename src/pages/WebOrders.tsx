@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatBDT, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Search, Phone, MessageCircle, ExternalLink, Radio } from "lucide-react";
+import { useBDCourierBulk, getSuccessColor } from "@/hooks/use-bd-courier";
 import {
   DropdownMenu as DropdownMenuRoot,
   DropdownMenuContent as DDContent,
@@ -83,6 +84,16 @@ export default function WebOrdersPage() {
       return data;
     },
   });
+
+  // Collect customer phones for BD Courier lookup
+  const customerPhones = useMemo(() => {
+    if (!orders) return [];
+    return orders
+      .map((o) => (o.customers as any)?.phone)
+      .filter(Boolean) as string[];
+  }, [orders]);
+
+  const { data: bdCourierData, isLoading: bdLoading } = useBDCourierBulk(customerPhones, customerPhones.length > 0);
 
   // Fetch order items for all these orders
   const orderIds = orders?.map((o) => o.id) || [];
@@ -196,16 +207,18 @@ export default function WebOrdersPage() {
     return `${Math.floor(hrs / 24)}d ago`;
   };
 
-  // Success rate for customer
+  // Success rate from BD Courier
   const getSuccessRate = (customer: any) => {
-    if (!customer) return { percent: 0, delivered: 0, total: 0, rating: 0 };
-    const total = customer.total_orders || 0;
-    const spent = customer.total_spent || 0;
-    // Estimate delivered as 80% of total for display (real logic would query delivered orders)
-    const delivered = Math.round(total * 0.8);
-    const percent = total > 0 ? Math.round((delivered / total) * 100) : 0;
-    const rating = spent > 10000 ? 5 : spent > 5000 ? 4 : spent > 2000 ? 3 : spent > 500 ? 2 : 1;
-    return { percent, delivered, total, rating };
+    if (!customer?.phone) return { percent: 0, delivered: 0, total: 0, rating: 0, loading: false, noData: true };
+    const bdData = bdCourierData?.[customer.phone];
+    if (!bdData || bdData.error) {
+      return { percent: 0, delivered: 0, total: 0, rating: 0, loading: bdLoading, noData: !bdData };
+    }
+    const percent = bdData.success_rate || 0;
+    const total = bdData.total_orders || 0;
+    const delivered = bdData.successful_orders || 0;
+    const rating = percent >= 90 ? 5 : percent >= 70 ? 4 : percent >= 50 ? 3 : percent >= 30 ? 2 : 1;
+    return { percent, delivered, total, rating, loading: false, noData: false };
   };
 
   return (
