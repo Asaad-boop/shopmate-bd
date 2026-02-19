@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -19,9 +18,6 @@ import {
   DropdownMenuItem as DDItem,
   DropdownMenuTrigger as DDTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
 
 const WEB_STATUSES = [
   { key: "all", label: "All", emoji: "📋", color: "bg-muted text-foreground" },
@@ -43,7 +39,6 @@ export default function WebOrdersPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [lastSynced, setLastSynced] = useState<Date>(new Date());
 
-  // Check if Shopify is connected
   const { data: shopifyConnected } = useQuery({
     queryKey: ["shopify-connected"],
     queryFn: async () => {
@@ -52,7 +47,6 @@ export default function WebOrdersPage() {
     },
   });
 
-  // Realtime subscription for new shopify orders
   useEffect(() => {
     const channel = supabase
       .channel("web-orders-realtime")
@@ -70,7 +64,6 @@ export default function WebOrdersPage() {
     return () => { supabase.removeChannel(channel); };
   }, [queryClient, toast]);
 
-  // Fetch all web orders (shopify channel or orders with web_order_status set)
   const { data: orders, isLoading } = useQuery({
     queryKey: ["web-orders"],
     queryFn: async () => {
@@ -85,20 +78,13 @@ export default function WebOrdersPage() {
     },
   });
 
-  // Collect customer phones for BD Courier lookup
   const customerPhones = useMemo(() => {
     if (!orders) return [];
-    return orders
-      .map((o) => (o.customers as any)?.phone)
-      .filter(Boolean) as string[];
+    return orders.map((o) => (o.customers as any)?.phone).filter(Boolean) as string[];
   }, [orders]);
 
   const { data: bdCourierData, isLoading: bdLoading } = useBDCourierBulk(customerPhones, customerPhones.length > 0);
 
-  // Auto-refresh BD Courier data every 2 minutes
-  const bdRefetchInterval = 2 * 60 * 1000;
-
-  // Fetch order items for all these orders
   const orderIds = orders?.map((o) => o.id) || [];
   const { data: allItems } = useQuery({
     queryKey: ["web-order-items", orderIds.length],
@@ -114,7 +100,6 @@ export default function WebOrdersPage() {
     enabled: orderIds.length > 0,
   });
 
-  // Fetch latest note per order
   const { data: latestNotes } = useQuery({
     queryKey: ["web-order-latest-notes", orderIds.length],
     queryFn: async () => {
@@ -125,7 +110,6 @@ export default function WebOrdersPage() {
         .in("order_id", orderIds)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      // Group by order_id, take first (latest)
       const map = new Map<string, typeof data[0]>();
       data.forEach((n) => {
         if (n.order_id && !map.has(n.order_id)) map.set(n.order_id, n);
@@ -135,7 +119,6 @@ export default function WebOrdersPage() {
     enabled: orderIds.length > 0,
   });
 
-  // Items grouped by order
   const itemsByOrder = useMemo(() => {
     const map = new Map<string, typeof allItems>();
     allItems?.forEach((item) => {
@@ -147,7 +130,6 @@ export default function WebOrdersPage() {
     return map;
   }, [allItems]);
 
-  // Status counts
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { all: 0 };
     WEB_STATUSES.forEach((s) => { if (s.key !== "all") counts[s.key] = 0; });
@@ -159,7 +141,6 @@ export default function WebOrdersPage() {
     return counts;
   }, [orders]);
 
-  // Filter
   const filtered = useMemo(() => {
     let list = orders || [];
     if (activeTab !== "all") {
@@ -176,7 +157,6 @@ export default function WebOrdersPage() {
     return list;
   }, [orders, activeTab, search]);
 
-  // Bulk update
   const bulkMutation = useMutation({
     mutationFn: async (newStatus: string) => {
       const { error } = await supabase
@@ -210,7 +190,6 @@ export default function WebOrdersPage() {
     return `${Math.floor(hrs / 24)}d ago`;
   };
 
-  // Success rate from BD Courier
   const getSuccessRate = (customer: any) => {
     if (!customer?.phone) return { percent: 0, delivered: 0, total: 0, rating: 0, loading: false, noData: true };
     const bdData = bdCourierData?.[customer.phone];
@@ -225,15 +204,16 @@ export default function WebOrdersPage() {
   };
 
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="space-y-5">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Web Orders</h1>
-          <p className="text-sm text-muted-foreground">Website & Shopify orders — confirm via phone call</p>
+          <h1 className="text-2xl font-bold text-foreground">Web Orders</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Website & Shopify orders — confirm via phone call</p>
         </div>
         {shopifyConnected && (
           <div className="flex items-center gap-3">
-            <Badge className="bg-green-500 hover:bg-green-600 text-white gap-1.5">
+            <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5 rounded-full px-3 py-1 text-xs font-medium shadow-sm">
               <Radio className="w-3 h-3 animate-pulse" /> Live Sync
             </Badge>
             <span className="text-xs text-muted-foreground">
@@ -243,244 +223,244 @@ export default function WebOrdersPage() {
         )}
       </div>
 
-      {/* Status Tabs */}
-      <div className="flex flex-wrap gap-1.5 bg-muted/50 p-1.5 rounded-xl">
+      {/* Status Tabs - Pill style */}
+      <div className="flex flex-wrap gap-1.5 p-1.5 rounded-xl bg-slate-100/80">
         {WEB_STATUSES.map((s) => (
           <button
             key={s.key}
             onClick={() => { setActiveTab(s.key); setSelected([]); }}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all",
+              "flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition-all duration-200",
               activeTab === s.key
-                ? "bg-background shadow-sm text-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                ? "bg-white shadow-sm text-foreground ring-1 ring-black/[0.04]"
+                : "text-muted-foreground hover:text-foreground hover:bg-white/60"
             )}
           >
-            <span>{s.emoji}</span>
+            <span className="text-xs">{s.emoji}</span>
             <span className="hidden sm:inline">{s.label}</span>
-            <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] px-1.5 text-xs">
+            <span className={cn(
+              "ml-1 h-5 min-w-[20px] px-1.5 text-[11px] font-semibold rounded-full inline-flex items-center justify-center",
+              activeTab === s.key
+                ? "bg-primary text-white"
+                : "bg-slate-200/80 text-slate-500"
+            )}>
               {statusCounts[s.key] || 0}
-            </Badge>
+            </span>
           </button>
         ))}
       </div>
 
-      {/* Filter Bar */}
-      <Card>
-        <CardContent className="pt-4">
-          <div className="flex flex-wrap gap-3 items-center">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by phone, name, order ID..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            {selected.length > 0 && (
-              <DropdownMenuRoot>
-                <DDTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    Bulk Actions ({selected.length})
-                  </Button>
-                </DDTrigger>
-                <DDContent>
-                  {WEB_STATUSES.filter((s) => s.key !== "all").map((s) => (
-                    <DDItem key={s.key} onClick={() => bulkMutation.mutate(s.key)}>
-                      {s.emoji} Move to {s.label}
-                    </DDItem>
-                  ))}
-                </DDContent>
-              </DropdownMenuRoot>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Search + Bulk Actions */}
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="relative flex-1 min-w-[240px]">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by phone, name, order ID..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10 h-10 rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-colors"
+          />
+        </div>
+        {selected.length > 0 && (
+          <DropdownMenuRoot>
+            <DDTrigger asChild>
+              <Button variant="outline" size="sm" className="rounded-lg">
+                Bulk Actions ({selected.length})
+              </Button>
+            </DDTrigger>
+            <DDContent>
+              {WEB_STATUSES.filter((s) => s.key !== "all").map((s) => (
+                <DDItem key={s.key} onClick={() => bulkMutation.mutate(s.key)}>
+                  {s.emoji} Move to {s.label}
+                </DDItem>
+              ))}
+            </DDContent>
+          </DropdownMenuRoot>
+        )}
+      </div>
 
       {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="p-4 space-y-3">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <Skeleton key={i} className="h-14 w-full" />
-              ))}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-10">
-                      <Checkbox
-                        checked={filtered.length > 0 && selected.length === filtered.length}
-                        onCheckedChange={toggleAll}
-                      />
-                    </TableHead>
-                    <TableHead>Created At</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Note</TableHead>
-                    <TableHead>Order Items</TableHead>
-                    <TableHead>Success Rate</TableHead>
-                    <TableHead>Tags</TableHead>
-                    <TableHead>Site</TableHead>
-                    <TableHead className="w-20">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((order) => {
-                    const customer = order.customers as any;
-                    const items = itemsByOrder.get(order.id) || [];
-                    const note = latestNotes instanceof Map ? latestNotes.get(order.id) : null;
-                    const sr = getSuccessRate(customer);
-                    const tags = (order as any).tags || [];
+      <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+        {isLoading ? (
+          <div className="p-5 space-y-3">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className="h-14 w-full rounded-lg" />
+            ))}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  <th className="px-4 py-3 text-left w-10">
+                    <Checkbox
+                      checked={filtered.length > 0 && selected.length === filtered.length}
+                      onCheckedChange={toggleAll}
+                      className="rounded"
+                    />
+                  </th>
+                  {["Created At", "Customer", "Note", "Order Items", "Success Rate", "Tags", "Site", "Actions"].map((h) => (
+                    <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {filtered.map((order) => {
+                  const customer = order.customers as any;
+                  const items = itemsByOrder.get(order.id) || [];
+                  const note = latestNotes instanceof Map ? latestNotes.get(order.id) : null;
+                  const sr = getSuccessRate(customer);
+                  const tags = (order as any).tags || [];
 
-                    return (
-                      <TableRow key={order.id} className="group">
-                        <TableCell>
-                          <Checkbox
-                            checked={selected.includes(order.id)}
-                            onCheckedChange={() => toggleSelect(order.id)}
-                          />
-                        </TableCell>
-                        {/* Created At */}
-                        <TableCell>
-                          <div className="text-sm">{formatDateTime(order.created_at)}</div>
-                          <div className="text-xs text-muted-foreground">{order.order_number}</div>
-                        </TableCell>
-                        {/* Customer */}
-                        <TableCell>
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-sm font-medium">{customer?.phone || "-"}</span>
-                              {customer?.phone && (
-                                <>
-                                  <a href={`tel:${customer.phone}`} className="text-primary hover:text-primary/80">
-                                    <Phone className="w-3.5 h-3.5" />
-                                  </a>
-                                  <a
-                                    href={`https://wa.me/${customer.phone?.replace(/[^0-9]/g, "")}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-green-600 hover:text-green-500"
-                                  >
-                                    <MessageCircle className="w-3.5 h-3.5" />
-                                  </a>
-                                </>
-                              )}
-                            </div>
-                            <div className="text-sm">{customer?.full_name || "-"}</div>
-                            <div className="text-xs text-muted-foreground truncate max-w-[160px]">
-                              {customer?.address || customer?.district || "-"}
-                            </div>
-                          </div>
-                        </TableCell>
-                        {/* Note */}
-                        <TableCell>
-                          {note ? (
-                            <div>
-                              <p className="text-sm truncate max-w-[150px]">{note.content}</p>
-                              <p className="text-xs text-muted-foreground">{timeAgo(note.created_at)}</p>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">No notes</span>
-                          )}
-                        </TableCell>
-                        {/* Order Items */}
-                        <TableCell>
-                          <div className="space-y-1">
-                            {items.slice(0, 2).map((item) => (
-                              <div key={item.id} className="flex items-center gap-2 text-sm">
-                                <div className="w-8 h-8 rounded bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
-                                  {(item.products as any)?.image_url ? (
-                                    <img src={(item.products as any).image_url} alt="" className="w-full h-full object-cover" />
-                                  ) : (
-                                    <span className="text-[10px] text-muted-foreground">IMG</span>
-                                  )}
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="truncate text-xs font-medium max-w-[100px]">{(item.products as any)?.sku || "-"}</p>
-                                  <p className="text-xs text-muted-foreground">×{item.quantity} • {formatBDT(item.unit_price)}</p>
-                                </div>
-                              </div>
-                            ))}
-                            {items.length > 2 && (
-                              <span className="text-xs text-muted-foreground">+{items.length - 2} more</span>
-                            )}
-                            {items.length === 0 && <span className="text-xs text-muted-foreground">No items</span>}
-                          </div>
-                        </TableCell>
-                        {/* Success Rate */}
-                        <TableCell>
-                          {sr.loading ? (
-                            <Skeleton className="h-14 w-28" />
-                          ) : sr.noData ? (
-                            <span className="text-xs text-muted-foreground">🆕 New</span>
-                          ) : (
-                            <div className="flex items-center gap-3">
-                              <div className="relative w-11 h-11 flex-shrink-0">
-                                <svg className="w-11 h-11 -rotate-90" viewBox="0 0 36 36">
-                                  <circle cx="18" cy="18" r="14" fill="none" stroke="hsl(var(--muted))" strokeWidth="2.5" />
-                                  <circle
-                                    cx="18" cy="18" r="14" fill="none"
-                                    stroke={getSuccessColor(sr.percent)}
-                                    strokeWidth="2.5"
-                                    strokeDasharray={`${sr.percent * 0.88} 88`}
-                                    strokeLinecap="round"
-                                  />
-                                </svg>
-                              </div>
-                              <div className="text-xs leading-relaxed">
-                                <p className="text-muted-foreground">Success:</p>
-                                <p className="font-bold text-sm" style={{ color: getSuccessColor(sr.percent) }}>{sr.percent}%</p>
-                                <p className="text-muted-foreground">Order: <span className="font-semibold text-foreground">{sr.delivered}/{sr.total}</span></p>
-                                <p className="text-muted-foreground">Rating: <span className="font-semibold text-foreground">{sr.rating * 20}</span></p>
-                              </div>
-                            </div>
-                          )}
-                        </TableCell>
-                        {/* Tags */}
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {tags.map((t: string, i: number) => (
-                              <Badge key={i} variant="outline" className="text-[10px] h-5">{t}</Badge>
-                            ))}
-                            {tags.length === 0 && (
-                              <span className="text-xs text-muted-foreground">—</span>
+                  return (
+                    <tr key={order.id} className="group hover:bg-slate-50/60 transition-colors">
+                      <td className="px-4 py-3.5">
+                        <Checkbox
+                          checked={selected.includes(order.id)}
+                          onCheckedChange={() => toggleSelect(order.id)}
+                          className="rounded"
+                        />
+                      </td>
+                      {/* Created At */}
+                      <td className="px-4 py-3.5">
+                        <div className="text-sm font-medium text-foreground">{formatDateTime(order.created_at)}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{order.order_number}</div>
+                      </td>
+                      {/* Customer */}
+                      <td className="px-4 py-3.5">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-semibold text-foreground">{customer?.phone || "-"}</span>
+                            {customer?.phone && (
+                              <>
+                                <a href={`tel:${customer.phone}`} className="text-primary hover:text-primary/80 transition-colors">
+                                  <Phone className="w-3.5 h-3.5" />
+                                </a>
+                                <a
+                                  href={`https://wa.me/${customer.phone?.replace(/[^0-9]/g, "")}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-emerald-500 hover:text-emerald-600 transition-colors"
+                                >
+                                  <MessageCircle className="w-3.5 h-3.5" />
+                                </a>
+                              </>
                             )}
                           </div>
-                        </TableCell>
-                        {/* Site */}
-                        <TableCell>
-                          <Badge variant="secondary" className="text-xs capitalize">{order.channel}</Badge>
-                        </TableCell>
-                        {/* Actions */}
-                        <TableCell>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => navigate(`/web-orders/${order.id}`)}
-                          >
-                            <ExternalLink className="w-3.5 h-3.5 mr-1" /> Open
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {filtered.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={9} className="text-center text-muted-foreground py-12">
-                        No orders found in this status
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                          <div className="text-sm text-foreground">{customer?.full_name || "-"}</div>
+                          <div className="text-xs text-muted-foreground truncate max-w-[160px]">
+                            {customer?.address || customer?.district || "-"}
+                          </div>
+                        </div>
+                      </td>
+                      {/* Note */}
+                      <td className="px-4 py-3.5">
+                        {note ? (
+                          <div>
+                            <p className="text-sm text-foreground truncate max-w-[150px]">{note.content}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{timeAgo(note.created_at)}</p>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-300">No notes</span>
+                        )}
+                      </td>
+                      {/* Order Items */}
+                      <td className="px-4 py-3.5">
+                        <div className="space-y-1.5">
+                          {items.slice(0, 2).map((item) => (
+                            <div key={item.id} className="flex items-center gap-2 text-sm">
+                              <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                {(item.products as any)?.image_url ? (
+                                  <img src={(item.products as any).image_url} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                  <span className="text-[10px] text-slate-300">IMG</span>
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="truncate text-xs font-medium text-foreground max-w-[100px]">{(item.products as any)?.sku || "-"}</p>
+                                <p className="text-xs text-muted-foreground">×{item.quantity} • {formatBDT(item.unit_price)}</p>
+                              </div>
+                            </div>
+                          ))}
+                          {items.length > 2 && (
+                            <span className="text-xs text-muted-foreground">+{items.length - 2} more</span>
+                          )}
+                          {items.length === 0 && <span className="text-xs text-slate-300">No items</span>}
+                        </div>
+                      </td>
+                      {/* Success Rate */}
+                      <td className="px-4 py-3.5">
+                        {sr.loading ? (
+                          <Skeleton className="h-12 w-24 rounded-lg" />
+                        ) : sr.noData ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-slate-400 bg-slate-50 px-2 py-1 rounded-full">🆕 New</span>
+                        ) : (
+                          <div className="flex items-center gap-2.5">
+                            <div className="relative w-10 h-10 flex-shrink-0">
+                              <svg className="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
+                                <circle cx="18" cy="18" r="14" fill="none" stroke="hsl(var(--muted) / 0.3)" strokeWidth="2.5" />
+                                <circle
+                                  cx="18" cy="18" r="14" fill="none"
+                                  stroke={getSuccessColor(sr.percent)}
+                                  strokeWidth="2.5"
+                                  strokeDasharray={`${sr.percent * 0.88} 88`}
+                                  strokeLinecap="round"
+                                />
+                              </svg>
+                            </div>
+                            <div className="text-xs leading-relaxed">
+                              <p className="font-bold text-sm" style={{ color: getSuccessColor(sr.percent) }}>{sr.percent}%</p>
+                              <p className="text-muted-foreground">{sr.delivered}/{sr.total} orders</p>
+                              <p className="text-muted-foreground">Rating: {sr.rating * 20}</p>
+                            </div>
+                          </div>
+                        )}
+                      </td>
+                      {/* Tags */}
+                      <td className="px-4 py-3.5">
+                        <div className="flex flex-wrap gap-1">
+                          {tags.map((t: string, i: number) => (
+                            <Badge key={i} variant="outline" className="text-[10px] h-5 rounded-full border-slate-200 text-slate-500">{t}</Badge>
+                          ))}
+                          {tags.length === 0 && (
+                            <span className="text-xs text-slate-300">—</span>
+                          )}
+                        </div>
+                      </td>
+                      {/* Site */}
+                      <td className="px-4 py-3.5">
+                        <Badge className="text-[11px] capitalize rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 border-0 font-medium">
+                          {order.channel}
+                        </Badge>
+                      </td>
+                      {/* Actions */}
+                      <td className="px-4 py-3.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => navigate(`/web-orders/${order.id}`)}
+                          className="rounded-lg border-primary text-primary hover:bg-primary hover:text-white transition-all duration-200 text-xs h-8 px-3"
+                        >
+                          <ExternalLink className="w-3 h-3 mr-1" /> Open
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="text-center text-muted-foreground py-16 text-sm">
+                      No orders found in this status
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
