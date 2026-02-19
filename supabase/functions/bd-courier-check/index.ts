@@ -86,12 +86,13 @@ Deno.serve(async (req) => {
         if (response.ok) {
           const data = await response.json();
           
-          // Parse BD Courier response
-          const totalDelivered = data.total_delivered || data.success || 0;
-          const totalOrders = data.total_parcel || data.total || 0;
-          const totalReturned = data.total_returned || data.returned || 0;
-          const totalCancelled = data.total_cancelled || data.cancelled || 0;
-          const successRate = totalOrders > 0 ? Math.round((totalDelivered / totalOrders) * 100) : 0;
+          // Parse BD Courier response - data is nested under courierData.summary
+          const summary = data?.courierData?.summary || {};
+          const totalOrders = summary.total_parcel || 0;
+          const totalDelivered = summary.success_parcel || 0;
+          const totalCancelled = summary.cancelled_parcel || 0;
+          const totalReturned = totalCancelled; // BD Courier uses cancelled_parcel for returns
+          const successRate = summary.success_ratio ? Math.round(summary.success_ratio) : (totalOrders > 0 ? Math.round((totalDelivered / totalOrders) * 100) : 0);
 
           const record = {
             phone,
