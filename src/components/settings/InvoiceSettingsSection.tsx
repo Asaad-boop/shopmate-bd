@@ -92,46 +92,9 @@ export default function InvoiceSettingsSection() {
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label>VAT Registration Number</Label>
-            <Input
-              value={form.vatNumber}
-              onChange={(e) => setForm({ ...form, vatNumber: e.target.value })}
-              placeholder="003131714-0401"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>VAT Percentage (%)</Label>
-            <Input
-              type="number"
-              value={form.vatPercentage}
-              onChange={(e) => setForm({ ...form, vatPercentage: e.target.value })}
-              placeholder="0"
-              min="0"
-              max="100"
-            />
-          </div>
-          <div className="sm:col-span-2 space-y-1.5">
-            <Label>MUSHOK / Custom Text</Label>
-            <Input
-              value={form.mushokText}
-              onChange={(e) => setForm({ ...form, mushokText: e.target.value })}
-              placeholder="MUSHOK 6.3"
-            />
-          </div>
         </div>
 
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Show VAT on Invoice</Label>
-              <p className="text-xs text-muted-foreground">Display VAT information and percentage on printed invoices</p>
-            </div>
-            <Switch
-              checked={form.showVat}
-              onCheckedChange={(v) => setForm({ ...form, showVat: v })}
-            />
-          </div>
           <div className="flex items-center justify-between">
             <div>
               <Label>Show Barcode</Label>
