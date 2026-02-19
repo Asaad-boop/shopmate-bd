@@ -27,14 +27,15 @@ export const channelConfig: Record<string, { label: string; emoji: string; color
   manual: { label: 'Manual', emoji: '✍️', color: 'bg-gray-100 text-gray-800' },
 };
 
-export const orderStatusConfig: Record<string, { label: string; color: string }> = {
-  pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-800' },
-  confirmed: { label: 'Confirmed', color: 'bg-blue-100 text-blue-800' },
-  processing: { label: 'Processing', color: 'bg-purple-100 text-purple-800' },
-  shipped: { label: 'Shipped', color: 'bg-indigo-100 text-indigo-800' },
-  delivered: { label: 'Delivered', color: 'bg-green-100 text-green-800' },
-  cancelled: { label: 'Cancelled', color: 'bg-red-100 text-red-800' },
-  returned: { label: 'Returned', color: 'bg-orange-100 text-orange-800' },
+export const orderStatusConfig: Record<string, { label: string; color: string; emoji: string }> = {
+  pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-800', emoji: '🕐' },
+  packed: { label: 'Packed', color: 'bg-blue-100 text-blue-800', emoji: '📦' },
+  shipped: { label: 'Shipped', color: 'bg-indigo-100 text-indigo-800', emoji: '🚚' },
+  delivered: { label: 'Delivered', color: 'bg-green-100 text-green-800', emoji: '✅' },
+  cancelled: { label: 'Cancelled', color: 'bg-red-100 text-red-800', emoji: '❌' },
+  pending_return: { label: 'Pending Return', color: 'bg-orange-100 text-orange-800', emoji: '🔄' },
+  returned: { label: 'Returned', color: 'bg-gray-100 text-gray-800', emoji: '↩️' },
+  damage_return: { label: 'Damage Return', color: 'bg-red-200 text-red-900', emoji: '💥' },
 };
 
 export const paymentStatusConfig: Record<string, { label: string; color: string }> = {
