@@ -236,7 +236,7 @@ function buildInvoiceHTML(order: any, company: CompanySettings | undefined, inv:
       <!-- Rider Note Box -->
       <div class="rider-note-box">
         <div class="rn-title">🚫 Note for Rider / রাইডারের জন্য নির্দেশনা:</div>
-        <div class="rn-text">${inv?.riderNote || `মার্চেন্টের অনুমতি ছাড়া প্রোডাক্ট খোলা সম্পূর্ণ নিষিদ্ধ, খুলে দেখতে চাইলে আগে কল করুন: 09638779900 WhatsApp : +880 1964-437520`}</div>
+        <div class="rn-text">${inv?.riderNote || `মার্চেন্টের অনুমতি ছাড়া প্রোডাক্ট খোলা সম্পূর্ণ নিষিদ্ধ, খুলে দেখতে চাইলে আগে কল করুন: 09638779900 <span style="white-space:nowrap;">WhatsApp: +8801964437520</span>`}</div>
       </div>
 
       <!-- SECTION 5: Community & Review -->
