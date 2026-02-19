@@ -41,11 +41,12 @@ function getCSS(size: "a4" | "a5") {
     .top-left { display: flex; flex-direction: column; gap: ${2 * f}px; max-width: 35%; }
     .top-left img { max-height: ${isA5 ? '35px' : '55px'}; object-fit: contain; }
     .top-left .co-name { font-size: ${isA5 ? '14px' : '20px'}; font-weight: 800; letter-spacing: -0.5px; }
-    .top-right { display: flex; gap: ${isA5 ? '12px' : '24px'}; text-align: left; }
+    .top-right { display: flex; gap: ${isA5 ? '12px' : '24px'}; text-align: left; align-items: flex-start; }
     .top-right .col { font-size: ${isA5 ? '7px' : '9.5px'}; line-height: 1.5; color: #333; }
     .top-right .col strong { font-size: ${isA5 ? '7.5px' : '10px'}; color: #111; display: block; margin-bottom: 2px; }
-    .top-right .col .vat-num { font-family: monospace; letter-spacing: 1.5px; font-size: ${isA5 ? '8px' : '11px'}; font-weight: 700; color: #111; }
-    .top-right .col .mushok { font-size: ${isA5 ? '9px' : '13px'}; font-weight: 800; color: #111; margin-top: 2px; }
+    .top-barcode { text-align: right; }
+    .top-barcode svg { height: ${isA5 ? '35px' : '50px'}; width: ${isA5 ? '120px' : '180px'}; }
+    .top-barcode .bc-label { font-size: ${isA5 ? '7px' : '9px'}; color: #333; font-family: monospace; text-align: center; margin-top: 1px; }
 
     /* SECTION 2: Invoice info */
     .invoice-info { display: flex; justify-content: space-between; gap: ${16 * f}px; margin-bottom: ${14 * f}px; }
@@ -62,8 +63,7 @@ function getCSS(size: "a4" | "a5") {
     .inv-table td:first-child { color: #666; font-weight: 500; width: 35%; }
     .inv-table td:last-child { font-weight: 600; }
     .inv-table .payable td:last-child { font-size: ${isA5 ? '14px' : '18px'}; font-weight: 800; }
-    .barcode-area { margin-top: ${6 * f}px; text-align: center; }
-    .barcode-area svg { width: 100%; height: ${isA5 ? '30px' : '45px'}; }
+    
 
     /* SECTION 3: Items table */
     .items-table { width: 100%; border-collapse: collapse; margin-bottom: ${10 * f}px; font-size: ${isA5 ? '8px' : '10.5px'}; }
@@ -75,7 +75,7 @@ function getCSS(size: "a4" | "a5") {
     .items-table .img-cell { width: ${isA5 ? '30px' : '50px'}; }
     .items-table .img-cell img { width: ${isA5 ? '28px' : '44px'}; height: ${isA5 ? '28px' : '44px'}; object-fit: cover; border-radius: 6px; border: 1px solid #eee; }
     .items-table .img-cell .initial { width: ${isA5 ? '28px' : '44px'}; height: ${isA5 ? '28px' : '44px'}; border-radius: 6px; background: #e2e8f0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: ${isA5 ? '10px' : '14px'}; color: #64748b; }
-    .items-table .qty-highlight { font-weight: 800; color: #dc2626; background: #fef2f2; padding: 2px 6px; border-radius: 4px; }
+    .items-table .qty-highlight { font-weight: 800; color: #fff; background: #FF0000; padding: 3px 8px; border-radius: 4px; min-width: 30px; display: inline-block; text-align: center; font-size: ${isA5 ? '10px' : '13px'}; box-shadow: 0 0 8px rgba(255,0,0,0.6); }
     .items-table .r { text-align: right; }
     .note-row { background: #fef9c3 !important; }
     .note-row td { font-weight: 600; font-size: ${isA5 ? '8px' : '10.5px'}; color: #854d0e; padding: ${isA5 ? '4px 6px' : '8px 10px'}; }
@@ -94,7 +94,7 @@ function getCSS(size: "a4" | "a5") {
     /* SECTION 5: Footer */
     .footer-section { margin-top: auto; padding-top: ${10 * f}px; border-top: 2px solid #111; display: flex; justify-content: space-between; align-items: flex-end; gap: ${12 * f}px; }
     .footer-left { }
-    .footer-left svg { height: ${isA5 ? '22px' : '30px'}; margin-bottom: ${4 * f}px; }
+    .footer-left svg { height: ${isA5 ? '35px' : '60px'}; margin-bottom: ${4 * f}px; }
     .footer-left .thanks { font-size: ${isA5 ? '9px' : '12px'}; font-weight: 800; text-transform: uppercase; }
     .footer-left .feedback { font-size: ${isA5 ? '6.5px' : '8.5px'}; color: #666; text-transform: uppercase; }
     .footer-left .f-email { font-size: ${isA5 ? '7px' : '9px'}; color: #333; margin-top: 2px; }
@@ -146,7 +146,8 @@ function buildInvoiceHTML(order: any, company: CompanySettings | undefined, inv:
             <strong>HQ</strong>
             ${addr || 'Company Address'}<br>
             ${company?.phone ? `Hotline: ${company.phone}` : ''}
-
+          </div>
+          ${inv?.showBarcode !== false ? `<div class="top-barcode"><svg id="bc-top-${index}"></svg><div class="bc-label">${order.order_number}</div></div>` : ''}
         </div>
       </div>
 
@@ -168,10 +169,6 @@ function buildInvoiceHTML(order: any, company: CompanySettings | undefined, inv:
             <tr><td>Payment:</td><td><strong>${getPaymentLabel(order.payment_method)}</strong></td></tr>
             <tr class="payable"><td>Payable:</td><td>BDT ${Number(order.total_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 1 })}</td></tr>
           </table>
-          ${inv?.showBarcode !== false ? `
-          <div class="barcode-area">
-            <svg id="bc-main-${index}"></svg>
-          </div>` : ''}
         </div>
       </div>
 
@@ -273,8 +270,8 @@ export function printInvoice(order: any, company?: CompanySettings, inv?: Invoic
     </head><body>
       ${buildInvoiceHTML(order, company, inv, 0)}
       <script>
-        try{JsBarcode("#bc-main-0","${order.order_number}",{format:"CODE128",height:${size === 'a5' ? 28 : 40},displayValue:true,fontSize:${size === 'a5' ? 8 : 11},margin:0,textMargin:2});}catch(e){}
-        try{JsBarcode("#bc-footer-0","${order.order_number}",{format:"CODE128",height:${size === 'a5' ? 18 : 25},displayValue:false,margin:0});}catch(e){}
+        try{JsBarcode("#bc-top-0","${order.order_number}",{format:"CODE128",height:${size === 'a5' ? 30 : 45},displayValue:false,margin:0,width:${size === 'a5' ? 1.2 : 1.5}});}catch(e){}
+        try{JsBarcode("#bc-footer-0","${order.order_number}",{format:"CODE128",height:${size === 'a5' ? 30 : 50},displayValue:false,margin:0});}catch(e){}
       <\/script>
     </body></html>
   `;
@@ -286,8 +283,8 @@ export function printBulkInvoices(orders: any[], company?: CompanySettings, inv?
   const size = paperSize || inv?.defaultPaperSize || "a4";
   const invoicesHTML = orders.map((o, i) => buildInvoiceHTML(o, company, inv, i)).join('');
   const barcodeScripts = orders.map((o, i) => `
-    try{JsBarcode("#bc-main-${i}","${o.order_number}",{format:"CODE128",height:${size === 'a5' ? 28 : 40},displayValue:true,fontSize:${size === 'a5' ? 8 : 11},margin:0,textMargin:2});}catch(e){}
-    try{JsBarcode("#bc-footer-${i}","${o.order_number}",{format:"CODE128",height:${size === 'a5' ? 18 : 25},displayValue:false,margin:0});}catch(e){}
+    try{JsBarcode("#bc-top-${i}","${o.order_number}",{format:"CODE128",height:${size === 'a5' ? 30 : 45},displayValue:false,margin:0,width:${size === 'a5' ? 1.2 : 1.5}});}catch(e){}
+    try{JsBarcode("#bc-footer-${i}","${o.order_number}",{format:"CODE128",height:${size === 'a5' ? 30 : 50},displayValue:false,margin:0});}catch(e){}
   `).join('\n');
 
   const html = `
