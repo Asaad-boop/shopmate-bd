@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatBDT } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -81,6 +81,21 @@ export function PathaoBookingModal({
   const createOrder = usePathaoCreateOrder();
   const getPrice = usePathaoPrice();
 
+  // Fetch saved Pathao defaults
+  const { data: pathaoDefaults } = useQuery({
+    queryKey: ["pathao-defaults"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("settings")
+        .select("key, value")
+        .in("key", ["pathao_default_store", "pathao_delivery_type", "pathao_default_weight"]);
+      const map: Record<string, string> = {};
+      data?.forEach((s: any) => { map[s.key] = s.value || ""; });
+      return map;
+    },
+    staleTime: 60 * 1000,
+  });
+
   // Pre-fill on open
   useEffect(() => {
     if (open && customer && order) {
@@ -94,8 +109,22 @@ export function PathaoBookingModal({
       const desc = items?.map((i) => (i.products as any)?.name).filter(Boolean).join(", ") || "";
       setItemDescription(desc);
       setCalculatedPrice(null);
+
+      // Auto-calculate weight from product weight_kg
+      const totalWeight = items?.reduce((sum, i) => {
+        const productWeight = (i.products as any)?.weight_kg || 0;
+        return sum + productWeight * i.quantity;
+      }, 0) || 0;
+
+      // Use calculated weight if available, otherwise fall back to saved default
+      const savedWeight = pathaoDefaults?.pathao_default_weight || "0.5";
+      setItemWeight(totalWeight > 0 ? String(Math.round(totalWeight * 10) / 10) : savedWeight);
+
+      // Apply saved defaults for store and delivery type
+      if (pathaoDefaults?.pathao_default_store) setStoreId(pathaoDefaults.pathao_default_store);
+      if (pathaoDefaults?.pathao_delivery_type) setDeliveryType(pathaoDefaults.pathao_delivery_type);
     }
-  }, [open, customer, order, items]);
+  }, [open, customer, order, items, pathaoDefaults]);
 
   // Reset zone/area when city changes
   useEffect(() => { setZoneId(null); setAreaId(null); }, [cityId]);
