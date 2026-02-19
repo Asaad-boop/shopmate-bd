@@ -5,16 +5,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { formatBDT, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
-  ArrowLeft, Phone, MessageCircle, Send, Clock, Printer, Pencil,
-  MoreHorizontal, MapPin, Package, Wallet, CheckCircle2, RefreshCw,
-  Copy, ExternalLink,
+  ArrowLeft, Phone, MessageCircle, Send, Clock, MapPin,
+  Package, Wallet, CheckCircle2, RefreshCw, Copy, ExternalLink,
+  Plus, Minus, X, Search, ShieldCheck,
 } from "lucide-react";
 import {
   AlertDialog as AlertDialogRoot,
@@ -31,27 +33,20 @@ import { useBDCourierSingle, getRiskLevel, getSuccessColor } from "@/hooks/use-b
 
 /* ──────────────── STATUS CONFIG ──────────────── */
 const STATUS_BUTTONS = [
-  { key: "processing", label: "Processing", emoji: "🟡", border: "border-l-yellow-500", text: "text-yellow-700", bg: "bg-yellow-500", bgLight: "bg-yellow-50" },
-  { key: "confirm", label: "Confirm", emoji: "🟢", border: "border-l-green-500", text: "text-green-700", bg: "bg-green-500", bgLight: "bg-green-50" },
-  { key: "good_but_no_response", label: "Good But No Response", emoji: "🔵", border: "border-l-blue-500", text: "text-blue-700", bg: "bg-blue-500", bgLight: "bg-blue-50" },
-  { key: "no_response", label: "No Response", emoji: "🔴", border: "border-l-red-500", text: "text-red-700", bg: "bg-red-500", bgLight: "bg-red-50" },
-  { key: "on_hold", label: "On Hold", emoji: "⏸️", border: "border-l-indigo-500", text: "text-indigo-700", bg: "bg-indigo-500", bgLight: "bg-indigo-50" },
-  { key: "advance_payment", label: "Advance Payment", emoji: "🟠", border: "border-l-orange-500", text: "text-orange-700", bg: "bg-orange-500", bgLight: "bg-orange-50" },
-  { key: "cancel", label: "Cancel", emoji: "❌", border: "border-l-red-700", text: "text-red-800", bg: "bg-red-700", bgLight: "bg-red-50" },
+  { key: "processing", label: "Processing", emoji: "🟡", bg: "bg-yellow-500", text: "text-yellow-700", border: "border-yellow-400", light: "bg-yellow-50" },
+  { key: "confirm", label: "Confirm", emoji: "🟢", bg: "bg-green-500", text: "text-green-700", border: "border-green-400", light: "bg-green-50" },
+  { key: "good_but_no_response", label: "Good No Resp", emoji: "🔵", bg: "bg-blue-500", text: "text-blue-700", border: "border-blue-400", light: "bg-blue-50" },
+  { key: "no_response", label: "No Response", emoji: "🔴", bg: "bg-red-500", text: "text-red-700", border: "border-red-400", light: "bg-red-50" },
+  { key: "on_hold", label: "On Hold", emoji: "⏸️", bg: "bg-indigo-500", text: "text-indigo-700", border: "border-indigo-400", light: "bg-indigo-50" },
+  { key: "advance_payment", label: "Advance", emoji: "🟠", bg: "bg-orange-500", text: "text-orange-700", border: "border-orange-400", light: "bg-orange-50" },
 ] as const;
 
 const CALL_OPTIONS = [
-  { key: "answered", label: "Answered", emoji: "✅", ring: "ring-green-400 text-green-700 hover:bg-green-50" },
-  { key: "no_answer", label: "No Answer", emoji: "📵", ring: "ring-orange-400 text-orange-700 hover:bg-orange-50" },
-  { key: "busy", label: "Busy", emoji: "🔴", ring: "ring-red-400 text-red-700 hover:bg-red-50" },
-  { key: "voicemail", label: "Voicemail", emoji: "📩", ring: "ring-gray-400 text-gray-600 hover:bg-gray-50" },
+  { key: "answered", label: "Answered", emoji: "✅", active: "bg-green-500 text-white ring-green-500", idle: "text-green-700 ring-green-300 hover:bg-green-50" },
+  { key: "no_answer", label: "No Answer", emoji: "📵", active: "bg-orange-500 text-white ring-orange-500", idle: "text-orange-700 ring-orange-300 hover:bg-orange-50" },
+  { key: "busy", label: "Busy", emoji: "🔴", active: "bg-red-500 text-white ring-red-500", idle: "text-red-700 ring-red-300 hover:bg-red-50" },
+  { key: "voicemail", label: "Voicemail", emoji: "📩", active: "bg-gray-500 text-white ring-gray-500", idle: "text-gray-600 ring-gray-300 hover:bg-gray-50" },
 ];
-
-const segmentBorder: Record<string, string> = {
-  vip: "border-l-amber-400",
-  regular: "border-l-blue-400",
-  new: "border-l-green-400",
-};
 
 /* ──────────────── HELPERS ──────────────── */
 const timeAgo = (dateStr: string) => {
@@ -63,15 +58,6 @@ const timeAgo = (dateStr: string) => {
   return `${Math.floor(hrs / 24)}d ago`;
 };
 
-const noteTypeIcon = (type: string) => {
-  switch (type) {
-    case "call_log": return "📞";
-    case "status_change": return "🔄";
-    case "activity": return "⚡";
-    default: return "📝";
-  }
-};
-
 const noteTypeDot = (type: string) => {
   switch (type) {
     case "call_log": return "bg-blue-500";
@@ -80,6 +66,20 @@ const noteTypeDot = (type: string) => {
     default: return "bg-gray-400";
   }
 };
+
+const segmentColors: Record<string, { bg: string; text: string; ring: string }> = {
+  vip: { bg: "bg-amber-100", text: "text-amber-800", ring: "ring-amber-300" },
+  regular: { bg: "bg-blue-100", text: "text-blue-800", ring: "ring-blue-300" },
+  new: { bg: "bg-green-100", text: "text-green-800", ring: "ring-green-300" },
+};
+
+const avatarColors = [
+  "from-blue-500 to-indigo-600",
+  "from-emerald-500 to-teal-600",
+  "from-orange-500 to-red-500",
+  "from-purple-500 to-pink-600",
+  "from-cyan-500 to-blue-600",
+];
 
 /* ──────────────── COMPONENT ──────────────── */
 export default function WebOrderDetail() {
@@ -111,7 +111,7 @@ export default function WebOrderDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("order_items")
-        .select("*, products(name, sku, image_url)")
+        .select("*, products(name, sku, image_url, stock_quantity)")
         .eq("order_id", id!);
       if (error) throw error;
       return data;
@@ -215,21 +215,15 @@ export default function WebOrderDetail() {
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
-  /* ── Loading / Not Found ── */
+  /* ── Loading ── */
   if (isLoading) {
     return (
-      <div className="space-y-6 animate-fade-in max-w-7xl mx-auto">
-        <Skeleton className="h-16 w-full rounded-xl" />
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          <div className="lg:col-span-3 space-y-6">
-            <Skeleton className="h-48 w-full rounded-xl" />
-            <Skeleton className="h-32 w-full rounded-xl" />
-            <Skeleton className="h-64 w-full rounded-xl" />
-          </div>
-          <div className="lg:col-span-2 space-y-6">
-            <Skeleton className="h-72 w-full rounded-xl" />
-            <Skeleton className="h-48 w-full rounded-xl" />
-          </div>
+      <div className="space-y-4 animate-fade-in">
+        <Skeleton className="h-14 w-full rounded-xl" />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          <div className="lg:col-span-3 space-y-4"><Skeleton className="h-60 rounded-xl" /><Skeleton className="h-48 rounded-xl" /></div>
+          <div className="lg:col-span-6 space-y-4"><Skeleton className="h-96 rounded-xl" /></div>
+          <div className="lg:col-span-3 space-y-4"><Skeleton className="h-72 rounded-xl" /><Skeleton className="h-48 rounded-xl" /></div>
         </div>
       </div>
     );
@@ -239,449 +233,714 @@ export default function WebOrderDetail() {
 
   const currentStatus = order.web_order_status || "processing";
   const statusConfig = STATUS_BUTTONS.find((s) => s.key === currentStatus);
-
   const callLogs = notes?.filter((n) => n.note_type === "call_log") || [];
+  const segment = customer?.segment || "regular";
+  const segColor = segmentColors[segment] || segmentColors.regular;
+  const avatarGrad = avatarColors[(customer?.full_name?.charCodeAt(0) || 0) % avatarColors.length];
+  const initial = (customer?.full_name || "?")[0].toUpperCase();
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 animate-fade-in pb-12">
-      {/* ═══════════ HEADER BAR ═══════════ */}
-      <div className="flex items-center gap-4 bg-card rounded-2xl p-4 shadow-sm border border-border/50">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/web-orders")} className="rounded-xl hover:bg-muted">
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold tracking-tight">{order.order_number}</h1>
-            <Badge variant="secondary" className="capitalize rounded-full px-3 text-xs font-medium">
-              {order.channel}
+    <div className="animate-fade-in pb-8">
+      {/* ═══════════ TOP HEADER ═══════════ */}
+      <div className="bg-card border-b border-border px-5 py-3 -mx-4 -mt-4 mb-5 lg:-mx-6 lg:-mt-6">
+        <div className="max-w-[1600px] mx-auto flex items-center gap-3 flex-wrap">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/web-orders")} className="rounded-lg h-9 w-9 shrink-0">
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <h1 className="text-lg font-bold tracking-tight">{order.order_number}</h1>
+          <Badge variant="secondary" className="capitalize rounded-md px-2 py-0.5 text-[11px] font-semibold bg-blue-100 text-blue-700 border-0">
+            {order.channel}
+          </Badge>
+          {statusConfig && (
+            <Badge className={cn("rounded-md px-2.5 py-0.5 text-[11px] font-semibold text-white border-0", statusConfig.bg)}>
+              {statusConfig.emoji} {currentStatus.replace(/_/g, " ").toUpperCase()}
             </Badge>
-            {statusConfig && (
-              <Badge className={cn("rounded-full px-3 py-1 text-xs font-semibold text-white", statusConfig.bg)}>
-                {statusConfig.emoji} {currentStatus.replace(/_/g, " ").toUpperCase()}
-              </Badge>
-            )}
+          )}
+          <div className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
+            <span>Created: {timeAgo(order.created_at || "")}</span>
+            <span className="hidden sm:inline">•</span>
+            <span className="hidden sm:inline">Updated: {timeAgo(order.updated_at || "")}</span>
+            <Badge variant="outline" className="rounded-md text-[10px] font-semibold uppercase">WEB</Badge>
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">{formatDateTime(order.created_at)}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" className="rounded-xl" title="Print">
-            <Printer className="w-4 h-4" />
-          </Button>
-          <Button variant="outline" size="icon" className="rounded-xl" title="Edit">
-            <Pencil className="w-4 h-4" />
-          </Button>
-          <Button variant="outline" size="icon" className="rounded-xl" title="More">
-            <MoreHorizontal className="w-4 h-4" />
-          </Button>
         </div>
       </div>
 
-      {/* ═══════════ MAIN GRID ═══════════ */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* ──── LEFT COLUMN ──── */}
-        <div className="lg:col-span-3 space-y-6">
+      {/* ═══════════ 3-COLUMN LAYOUT ═══════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 max-w-[1600px] mx-auto">
 
-          {/* Card: Customer Info */}
-          <Card className={cn("rounded-2xl shadow-sm border-l-4 transition-shadow hover:shadow-md", segmentBorder[customer?.segment || "regular"] || "border-l-blue-400")}>
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="space-y-3 flex-1">
+        {/* ──────── LEFT SIDEBAR ──────── */}
+        <div className="lg:col-span-3 space-y-4 order-2 lg:order-1">
+
+          {/* Customer Card */}
+          <Card className="rounded-xl border-border/60 shadow-sm overflow-hidden">
+            <CardContent className="p-0">
+              {/* Avatar header */}
+              <div className="flex items-center gap-3 p-4 pb-3">
+                <div className={cn("w-12 h-12 rounded-full bg-gradient-to-br flex items-center justify-center text-white font-bold text-lg shrink-0", avatarGrad)}>
+                  {initial}
+                </div>
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-bold">{customer?.full_name || "Unknown"}</h2>
-                    <Badge variant="outline" className="capitalize rounded-full text-xs">{customer?.segment || "regular"}</Badge>
+                    <h3 className="font-bold text-sm truncate">{customer?.full_name || "Unknown"}</h3>
+                    <span className={cn("inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold capitalize", segColor.bg, segColor.text)}>
+                      {segment}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium">{customer?.phone || "-"}</span>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className="text-xs text-muted-foreground font-mono">{customer?.phone || "-"}</span>
                     {customer?.phone && (
                       <>
-                        <a href={`tel:${customer.phone}`} className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-100 text-green-700 hover:bg-green-200 transition-colors">
-                          <Phone className="w-3.5 h-3.5" />
+                        <a href={`tel:${customer.phone}`} className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-green-100 text-green-700 hover:bg-green-200 transition-colors">
+                          <Phone className="w-3 h-3" />
                         </a>
                         <a href={`https://wa.me/${customer.phone?.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-100 text-green-700 hover:bg-green-200 transition-colors">
-                          <MessageCircle className="w-3.5 h-3.5" />
+                          className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-green-100 text-green-700 hover:bg-green-200 transition-colors">
+                          <MessageCircle className="w-3 h-3" />
                         </a>
                       </>
                     )}
-                    {customer?.phone2 && <span className="text-xs text-muted-foreground ml-2">Alt: {customer.phone2}</span>}
-                  </div>
-                  <div className="flex items-start gap-1.5 text-sm text-muted-foreground">
-                    <MapPin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-                    <span>{customer?.address || "-"}, {[customer?.district, customer?.thana].filter(Boolean).join(", ") || "-"}</span>
                   </div>
                 </div>
               </div>
-              <Separator className="my-4" />
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <div className="flex items-center justify-center gap-1.5 text-muted-foreground text-xs mb-1">
-                    <Package className="w-3.5 h-3.5" /> Orders
+              {/* Address */}
+              {customer?.address && (
+                <div className="px-4 pb-3">
+                  <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                    <MapPin className="w-3 h-3 mt-0.5 shrink-0" />
+                    <span className="line-clamp-2">{customer.address}, {[customer?.thana, customer?.district].filter(Boolean).join(", ")}</span>
                   </div>
-                  <p className="font-bold text-lg">{customer?.total_orders || 0}</p>
                 </div>
-                <div className="border-x border-border">
-                  <div className="flex items-center justify-center gap-1.5 text-muted-foreground text-xs mb-1">
-                    <Wallet className="w-3.5 h-3.5" /> Spent
-                  </div>
-                  <p className="font-bold text-lg">{formatBDT(customer?.total_spent)}</p>
+              )}
+              {/* Stats */}
+              <div className="grid grid-cols-3 border-t border-border/60">
+                <div className="p-3 text-center border-r border-border/60">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Orders</p>
+                  <p className="font-bold text-sm mt-0.5">{customer?.total_orders || 0}</p>
                 </div>
-                <div>
-                  <div className="flex items-center justify-center gap-1.5 text-muted-foreground text-xs mb-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Success
-                  </div>
-                  <p className="font-bold text-lg">{bdReport ? `${Math.round(bdReport.success_rate)}%` : "--"}</p>
+                <div className="p-3 text-center border-r border-border/60">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Spent</p>
+                  <p className="font-bold text-sm mt-0.5">{formatBDT(customer?.total_spent)}</p>
+                </div>
+                <div className="p-3 text-center">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Success</p>
+                  <p className="font-bold text-sm mt-0.5" style={{ color: bdReport ? getSuccessColor(bdReport.success_rate) : undefined }}>
+                    {bdReport ? `${Math.round(bdReport.success_rate)}%` : "--"}
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Card: BD Courier Report */}
-          <Card className="rounded-2xl shadow-sm transition-shadow hover:shadow-md">
-            <CardHeader className="pb-2 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-semibold">Customer Quality Check</CardTitle>
-              <Button variant="ghost" size="icon" className="rounded-full w-8 h-8" onClick={() => refetchBD()} title="Refresh">
-                <RefreshCw className={cn("w-4 h-4", bdLoading && "animate-spin")} />
+          {/* BD Courier Quality */}
+          <Card className="rounded-xl border-border/60 shadow-sm">
+            <CardHeader className="p-4 pb-3 flex flex-row items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-muted-foreground" />
+                <CardTitle className="text-xs font-semibold">Quality Check</CardTitle>
+              </div>
+              <Button variant="ghost" size="icon" className="rounded-md w-7 h-7" onClick={() => refetchBD()}>
+                <RefreshCw className={cn("w-3.5 h-3.5", bdLoading && "animate-spin")} />
               </Button>
             </CardHeader>
-            <CardContent className="px-5 pb-5">
+            <CardContent className="px-4 pb-4">
               {bdLoading ? (
-                <div className="flex items-center gap-5">
-                  <Skeleton className="w-20 h-20 rounded-full" />
-                  <div className="space-y-2 flex-1"><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-24" /><Skeleton className="h-4 w-28" /></div>
+                <div className="space-y-3">
+                  <Skeleton className="h-16 w-full rounded-lg" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Skeleton className="h-14 rounded-lg" />
+                    <Skeleton className="h-14 rounded-lg" />
+                  </div>
                 </div>
               ) : !bdReport ? (
-                <div className="text-center py-6">
-                  <p className="text-3xl mb-2">🆕</p>
-                  <p className="text-sm font-medium text-muted-foreground">New Customer — No courier history</p>
+                <div className="text-center py-4">
+                  <p className="text-2xl mb-1">🆕</p>
+                  <p className="text-xs text-muted-foreground">New Customer</p>
                 </div>
               ) : (
-                <div className="flex items-center gap-6">
-                  {/* Circular gauge */}
-                  <div className="relative w-20 h-20 flex-shrink-0">
-                    <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
-                      <circle cx="40" cy="40" r="32" fill="none" stroke="hsl(var(--muted))" strokeWidth="6" />
-                      <circle cx="40" cy="40" r="32" fill="none"
-                        stroke={getSuccessColor(bdReport.success_rate)}
-                        strokeWidth="6"
-                        strokeDasharray={`${bdReport.success_rate * 2.01} 201`}
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-lg font-bold" style={{ color: getSuccessColor(bdReport.success_rate) }}>
-                        {Math.round(bdReport.success_rate)}%
+                <div className="space-y-3">
+                  {/* Overall gauge */}
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/40">
+                    <div className="relative w-14 h-14 shrink-0">
+                      <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
+                        <circle cx="28" cy="28" r="22" fill="none" stroke="hsl(var(--muted))" strokeWidth="5" />
+                        <circle cx="28" cy="28" r="22" fill="none"
+                          stroke={getSuccessColor(bdReport.success_rate)}
+                          strokeWidth="5"
+                          strokeDasharray={`${bdReport.success_rate * 1.382} 138.2`}
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-sm font-bold" style={{ color: getSuccessColor(bdReport.success_rate) }}>
+                          {Math.round(bdReport.success_rate)}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className={cn("inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold", riskInfo.bg, riskInfo.color)}>
+                        {riskInfo.label}
                       </span>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        {bdReport.total_orders} total orders
+                      </p>
                     </div>
                   </div>
-                  {/* Stats */}
-                  <div className="flex-1 grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                    <div className="flex justify-between"><span className="text-muted-foreground">Total Orders</span><span className="font-semibold">{bdReport.total_orders}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Successful</span><span className="font-semibold text-green-600">{bdReport.successful_orders}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Returned</span><span className="font-semibold text-orange-600">{bdReport.returned_orders}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Cancelled</span><span className="font-semibold text-red-600">{bdReport.cancelled_orders}</span></div>
-                  </div>
-                  {/* Risk badge */}
-                  <Badge className={cn("rounded-full px-3 py-1 text-xs font-semibold", riskInfo.bg, riskInfo.color)}>
-                    {riskInfo.label}
-                  </Badge>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Card: Call Log */}
-          <Card className="rounded-2xl shadow-sm transition-shadow hover:shadow-md">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Phone className="w-4 h-4" /> Call Log
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-5 pb-5 space-y-4">
-              <div className="flex gap-2 flex-wrap">
-                {CALL_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.key}
-                    onClick={() => setCallResult(opt.key)}
-                    className={cn(
-                      "px-4 py-2 rounded-full text-sm font-medium ring-1 ring-inset transition-all duration-200 hover:scale-105",
-                      callResult === opt.key
-                        ? "ring-2 bg-current/10 shadow-sm scale-105"
-                        : "ring-border bg-card",
-                      opt.ring,
-                    )}
-                  >
-                    {opt.emoji} {opt.label}
-                  </button>
-                ))}
-                {callResult && (
-                  <Button
-                    size="sm"
-                    onClick={() => callLogMutation.mutate()}
-                    disabled={callLogMutation.isPending}
-                    className="rounded-full px-5 animate-fade-in"
-                  >
-                    <Send className="w-3.5 h-3.5 mr-1.5" /> Log Call
-                  </Button>
-                )}
-              </div>
-              {/* Mini timeline of previous calls */}
-              {callLogs.length > 0 && (
-                <div className="space-y-2 pt-2 border-t border-border/50">
-                  {callLogs.slice(0, 3).map((log) => (
-                    <div key={log.id} className="flex items-center gap-3 text-xs text-muted-foreground">
-                      <span>📞</span>
-                      <span className="capitalize font-medium text-foreground">{log.call_result?.replace("_", " ")}</span>
-                      <span>•</span>
-                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{timeAgo(log.created_at)}</span>
-                      <span>•</span>
-                      <span>{log.created_by || "Staff"}</span>
+                  {/* Stats grid */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="p-2.5 rounded-lg bg-green-50 border border-green-100">
+                      <p className="text-[10px] text-green-600 font-medium">Successful</p>
+                      <p className="text-lg font-bold text-green-700">{bdReport.successful_orders}</p>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Card: Order Items */}
-          <Card className="rounded-2xl shadow-sm transition-shadow hover:shadow-md">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold">Order Items</CardTitle>
-            </CardHeader>
-            <CardContent className="px-5 pb-5">
-              <div className="space-y-3">
-                {items?.map((item) => {
-                  const product = item.products as any;
-                  const initial = (product?.name || "?")[0].toUpperCase();
-                  return (
-                    <div key={item.id} className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl transition-colors hover:bg-muted">
-                      <div className="w-12 h-12 rounded-xl bg-card border border-border flex items-center justify-center overflow-hidden flex-shrink-0">
-                        {product?.image_url ? (
-                          <img src={product.image_url} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-sm font-bold text-muted-foreground">{initial}</span>
+                    <div className="p-2.5 rounded-lg bg-red-50 border border-red-100">
+                      <p className="text-[10px] text-red-600 font-medium">Returned</p>
+                      <p className="text-lg font-bold text-red-700">{bdReport.returned_orders}</p>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-orange-50 border border-orange-100 col-span-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] text-orange-600 font-medium">Cancelled</p>
+                          <p className="text-lg font-bold text-orange-700">{bdReport.cancelled_orders}</p>
+                        </div>
+                        {bdReport.last_fetched_at && (
+                          <span className="text-[9px] text-muted-foreground">
+                            Updated {timeAgo(bdReport.last_fetched_at)}
+                          </span>
                         )}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm truncate">{product?.name || "Unknown"}</p>
-                        <p className="text-xs text-muted-foreground">SKU: {product?.sku || "-"}</p>
-                      </div>
-                      <Badge variant="secondary" className="rounded-full text-xs">×{item.quantity}</Badge>
-                      <div className="text-right text-sm">
-                        <p className="text-muted-foreground">{formatBDT(item.unit_price)}</p>
-                        <p className="font-semibold">{formatBDT(item.total_price)}</p>
-                      </div>
                     </div>
-                  );
-                })}
-                {(!items || items.length === 0) && <p className="text-center text-muted-foreground py-6 text-sm">No items</p>}
-              </div>
-              <Separator className="my-4" />
-              <div className="space-y-2 text-sm max-w-xs ml-auto">
-                <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatBDT(order.subtotal)}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span className="text-red-500">-{formatBDT(order.discount)}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Delivery</span><span>{formatBDT(order.delivery_charge)}</span></div>
-                <Separator />
-                <div className="flex justify-between font-bold text-lg">
-                  <span>Total</span>
-                  <span className="text-green-600">{formatBDT(order.total_amount)}</span>
+                  </div>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* Card: Notes */}
-          <Card className="rounded-2xl shadow-sm transition-shadow hover:shadow-md">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold">Notes & Comments</CardTitle>
+          {/* Order Summary (sticky) */}
+          <div className="lg:sticky lg:top-4">
+            <Card className="rounded-xl border-border/60 shadow-sm">
+              <CardHeader className="p-4 pb-3">
+                <CardTitle className="text-xs font-semibold">Order Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4 space-y-3">
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Status</span>
+                    {statusConfig && (
+                      <span className={cn("inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold text-white", statusConfig.bg)}>
+                        {statusConfig.emoji} {currentStatus.replace(/_/g, " ").toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Payment</span>
+                    <span className="capitalize font-medium">{order.payment_method || "COD"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Payment Status</span>
+                    <Badge variant="outline" className={cn("rounded text-[10px] px-1.5 py-0",
+                      order.payment_status === "paid" ? "border-green-300 text-green-700 bg-green-50" :
+                      "border-orange-300 text-orange-700 bg-orange-50"
+                    )}>
+                      {order.payment_status || "pending"}
+                    </Badge>
+                  </div>
+                </div>
+                <Separator className="my-2" />
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatBDT(order.subtotal)}</span></div>
+                  {(order.discount || 0) > 0 && (
+                    <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span className="text-red-500">-{formatBDT(order.discount)}</span></div>
+                  )}
+                  <div className="flex justify-between"><span className="text-muted-foreground">Delivery</span><span>{formatBDT(order.delivery_charge)}</span></div>
+                </div>
+                <Separator className="my-2" />
+                <div className="flex justify-between items-baseline">
+                  <span className="font-semibold text-sm">Total</span>
+                  <span className="text-xl font-bold text-green-600">{formatBDT(order.total_amount)}</span>
+                </div>
+                <Button className="w-full rounded-lg mt-2 bg-green-600 hover:bg-green-700 text-white font-semibold h-10">
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  Create Order
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* ──────── MAIN CONTENT ──────── */}
+        <div className="lg:col-span-6 order-1 lg:order-2">
+          <Tabs defaultValue="overview" className="space-y-4">
+            <TabsList className="w-full justify-start rounded-lg bg-muted/60 h-10 p-1">
+              <TabsTrigger value="overview" className="rounded-md text-xs data-[state=active]:shadow-sm">📋 Overview</TabsTrigger>
+              <TabsTrigger value="products" className="rounded-md text-xs data-[state=active]:shadow-sm">📦 Products</TabsTrigger>
+              <TabsTrigger value="calls" className="rounded-md text-xs data-[state=active]:shadow-sm">📞 Call Log</TabsTrigger>
+              <TabsTrigger value="activity" className="rounded-md text-xs data-[state=active]:shadow-sm">🕐 Activity</TabsTrigger>
+            </TabsList>
+
+            {/* ── TAB: Overview ── */}
+            <TabsContent value="overview" className="space-y-4">
+              {/* Customer Details editable */}
+              <Card className="rounded-xl border-border/60 shadow-sm">
+                <CardHeader className="p-4 pb-3">
+                  <CardTitle className="text-xs font-semibold">Customer Details</CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Mobile Number</label>
+                      <div className="flex gap-1.5">
+                        <Input value={customer?.phone || ""} readOnly className="rounded-lg h-9 text-sm font-mono flex-1" />
+                        {customer?.phone && (
+                          <>
+                            <a href={`tel:${customer.phone}`} className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 transition-colors shrink-0">
+                              <Phone className="w-3.5 h-3.5" />
+                            </a>
+                            <a href={`https://wa.me/${customer.phone?.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer"
+                              className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 transition-colors shrink-0">
+                              <MessageCircle className="w-3.5 h-3.5" />
+                            </a>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Name</label>
+                      <Input value={customer?.full_name || ""} readOnly className="rounded-lg h-9 text-sm" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Address</label>
+                      <Textarea value={order.delivery_address || customer?.address || ""} readOnly rows={2} className="rounded-lg text-sm resize-none" />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-medium text-muted-foreground mb-1 block">District</label>
+                      <Input value={order.delivery_district || customer?.district || ""} readOnly className="rounded-lg h-9 text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Thana</label>
+                      <Input value={order.delivery_thana || customer?.thana || ""} readOnly className="rounded-lg h-9 text-sm" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Order Items quick view */}
+              <Card className="rounded-xl border-border/60 shadow-sm">
+                <CardHeader className="p-4 pb-3 flex flex-row items-center justify-between">
+                  <CardTitle className="text-xs font-semibold">Ordered Products ({items?.length || 0})</CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-4">
+                  <div className="space-y-2">
+                    {items?.map((item) => {
+                      const product = item.products as any;
+                      const pInitial = (product?.name || "?")[0].toUpperCase();
+                      return (
+                        <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                          <div className="w-10 h-10 rounded-lg bg-card border border-border flex items-center justify-center overflow-hidden shrink-0">
+                            {product?.image_url ? (
+                              <img src={product.image_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-xs font-bold text-muted-foreground">{pInitial}</span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-xs truncate">{product?.name || "Unknown"}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[10px] text-blue-600 font-mono">{product?.sku || "-"}</span>
+                              {product?.stock_quantity != null && (
+                                <span className={cn("text-[10px] font-medium", product.stock_quantity < 10 ? "text-red-500" : "text-muted-foreground")}>
+                                  Stock: {product.stock_quantity}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="bg-muted rounded-md px-2 py-0.5 text-xs font-bold">×{item.quantity}</span>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-xs text-muted-foreground">{formatBDT(item.unit_price)}</p>
+                            <p className="text-sm font-bold">{formatBDT(item.total_price)}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {(!items || items.length === 0) && (
+                      <p className="text-center text-muted-foreground py-6 text-xs">No items</p>
+                    )}
+                  </div>
+                  {/* Totals */}
+                  <div className="mt-4 pt-3 border-t border-border/50">
+                    <div className="space-y-1.5 text-xs max-w-xs ml-auto">
+                      <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatBDT(order.subtotal)}</span></div>
+                      {(order.discount || 0) > 0 && (
+                        <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span className="text-red-500">-{formatBDT(order.discount)}</span></div>
+                      )}
+                      <div className="flex justify-between"><span className="text-muted-foreground">Delivery</span><span>{formatBDT(order.delivery_charge)}</span></div>
+                      <Separator />
+                      <div className="flex justify-between font-bold text-base">
+                        <span>Total</span>
+                        <span className="text-green-600">{formatBDT(order.total_amount)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Order Info */}
+              <Card className="rounded-xl border-border/60 shadow-sm">
+                <CardHeader className="p-4 pb-3">
+                  <CardTitle className="text-xs font-semibold">Order Information</CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-4 space-y-2.5 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Payment Method</span>
+                    <span className="capitalize font-medium">{order.payment_method || "-"}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Delivery Area</span>
+                    <span className="font-medium">{order.delivery_district || "-"}{order.delivery_thana ? `, ${order.delivery_thana}` : ""}</span>
+                  </div>
+                  {order.pathao_tracking_code && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Tracking</span>
+                      <div className="flex items-center gap-1">
+                        <code className="text-[11px] bg-muted px-2 py-0.5 rounded font-mono">{order.pathao_tracking_code}</code>
+                        <Button variant="ghost" size="icon" className="w-6 h-6 rounded"
+                          onClick={() => { navigator.clipboard.writeText(order.pathao_tracking_code!); toast({ title: "Copied!" }); }}>
+                          <Copy className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {order.shopify_order_number && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Shopify</span>
+                      <div className="flex items-center gap-1">
+                        <span className="font-medium">#{order.shopify_order_number}</span>
+                        <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                      </div>
+                    </div>
+                  )}
+                  {order.notes && (
+                    <>
+                      <Separator />
+                      <div>
+                        <p className="text-muted-foreground text-[10px] mb-1">Shopify Notes</p>
+                        <p className="text-xs bg-muted/50 rounded-lg p-2.5">{order.notes}</p>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* ── TAB: Products ── */}
+            <TabsContent value="products" className="space-y-4">
+              <Card className="rounded-xl border-border/60 shadow-sm">
+                <CardHeader className="p-4 pb-3 flex flex-row items-center justify-between">
+                  <CardTitle className="text-xs font-semibold">Ordered Products ({items?.length || 0})</CardTitle>
+                  <Button size="sm" variant="outline" className="rounded-lg h-8 text-xs gap-1.5">
+                    <Plus className="w-3 h-3" /> Add Product
+                  </Button>
+                </CardHeader>
+                <CardContent className="px-4 pb-4">
+                  <div className="space-y-3">
+                    {items?.map((item) => {
+                      const product = item.products as any;
+                      const pInitial = (product?.name || "?")[0].toUpperCase();
+                      return (
+                        <div key={item.id} className="flex items-center gap-4 p-4 rounded-xl border border-border/60 bg-card hover:shadow-sm transition-shadow">
+                          <div className="w-14 h-14 rounded-xl bg-muted border border-border flex items-center justify-center overflow-hidden shrink-0">
+                            {product?.image_url ? (
+                              <img src={product.image_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-base font-bold text-muted-foreground">{pInitial}</span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm">{product?.name || "Unknown"}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[10px] bg-blue-50 text-blue-700 rounded px-1.5 py-0.5 font-mono font-medium">{product?.sku || "-"}</span>
+                              {product?.stock_quantity != null && (
+                                <span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium",
+                                  product.stock_quantity < 10 ? "bg-red-50 text-red-600" : "bg-muted text-muted-foreground"
+                                )}>
+                                  Stock: {product.stock_quantity}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <Button variant="outline" size="icon" className="w-7 h-7 rounded-md"><Minus className="w-3 h-3" /></Button>
+                            <span className="w-8 text-center font-bold text-sm">{item.quantity}</span>
+                            <Button variant="outline" size="icon" className="w-7 h-7 rounded-md"><Plus className="w-3 h-3" /></Button>
+                          </div>
+                          <div className="text-right shrink-0 w-20">
+                            <p className="text-xs text-muted-foreground">{formatBDT(item.unit_price)} ea</p>
+                            <p className="text-sm font-bold">{formatBDT(item.total_price)}</p>
+                          </div>
+                          <Button variant="ghost" size="icon" className="w-7 h-7 rounded-md text-muted-foreground hover:text-red-500 shrink-0">
+                            <X className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Totals row */}
+                  <div className="mt-4 pt-4 border-t border-border/50">
+                    <div className="flex items-center gap-3 flex-wrap text-xs">
+                      <div className="flex-1 min-w-[120px]">
+                        <label className="text-[10px] text-muted-foreground block mb-1">Discount</label>
+                        <Input value={order.discount || 0} readOnly className="rounded-lg h-8 text-xs" />
+                      </div>
+                      <div className="flex-1 min-w-[120px]">
+                        <label className="text-[10px] text-muted-foreground block mb-1">Delivery</label>
+                        <Input value={order.delivery_charge || 0} readOnly className="rounded-lg h-8 text-xs" />
+                      </div>
+                      <div className="flex-1 min-w-[120px]">
+                        <label className="text-[10px] text-muted-foreground block mb-1">Grand Total</label>
+                        <div className="h-8 rounded-lg bg-green-50 border border-green-200 flex items-center px-3 font-bold text-green-700 text-sm">
+                          {formatBDT(order.total_amount)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* COD warning */}
+              {order.payment_method?.toLowerCase() === "cod" && (
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+                  <span className="text-lg">⚠️</span>
+                  <p className="font-medium">Payment method is Cash on Delivery (COD). Please confirm with the customer.</p>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* ── TAB: Call Log ── */}
+            <TabsContent value="calls" className="space-y-4">
+              <Card className="rounded-xl border-border/60 shadow-sm">
+                <CardHeader className="p-4 pb-3">
+                  <CardTitle className="text-xs font-semibold flex items-center gap-2">
+                    <Phone className="w-3.5 h-3.5" /> Log a Call
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-4 space-y-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {CALL_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.key}
+                        onClick={() => setCallResult(opt.key)}
+                        className={cn(
+                          "flex flex-col items-center gap-1 px-3 py-3 rounded-xl text-xs font-semibold ring-1 ring-inset transition-all duration-200",
+                          callResult === opt.key ? opt.active : opt.idle,
+                        )}
+                      >
+                        <span className="text-lg">{opt.emoji}</span>
+                        <span>{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {callResult && (
+                    <Button
+                      onClick={() => callLogMutation.mutate()}
+                      disabled={callLogMutation.isPending}
+                      className="w-full rounded-xl h-9 animate-fade-in"
+                    >
+                      <Send className="w-3.5 h-3.5 mr-2" /> Log Call
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Previous calls */}
+              <Card className="rounded-xl border-border/60 shadow-sm">
+                <CardHeader className="p-4 pb-3">
+                  <CardTitle className="text-xs font-semibold">Call History</CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-4">
+                  {callLogs.length > 0 ? (
+                    <div className="space-y-2">
+                      {callLogs.map((log) => (
+                        <div key={log.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/30 text-xs">
+                          <span className="text-base">📞</span>
+                          <span className="capitalize font-semibold text-foreground">{log.call_result?.replace("_", " ")}</span>
+                          <span className="text-muted-foreground">•</span>
+                          <span className="text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" />{timeAgo(log.created_at)}</span>
+                          <span className="ml-auto text-muted-foreground">{log.created_by || "Staff"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <Phone className="w-6 h-6 mx-auto text-muted-foreground/30 mb-2" />
+                      <p className="text-xs text-muted-foreground">No calls logged yet</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* ── TAB: Activity ── */}
+            <TabsContent value="activity" className="space-y-4">
+              <Card className="rounded-xl border-border/60 shadow-sm">
+                <CardHeader className="p-4 pb-3">
+                  <CardTitle className="text-xs font-semibold">Activity Timeline</CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-4">
+                  {notes && notes.length > 0 ? (
+                    <div className="relative space-y-4 pl-6">
+                      <div className="absolute left-[9px] top-2 bottom-2 w-px bg-border" />
+                      {notes.map((note) => (
+                        <div key={note.id} className="relative flex gap-3">
+                          <div className={cn("absolute left-[-15px] top-1.5 w-2.5 h-2.5 rounded-full ring-2 ring-card", noteTypeDot(note.note_type))} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs">{note.content}</p>
+                            <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
+                              <span>{note.created_by || "System"}</span>
+                              <span>•</span>
+                              <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{timeAgo(note.created_at)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Clock className="w-6 h-6 mx-auto text-muted-foreground/30 mb-2" />
+                      <p className="text-xs text-muted-foreground">এখনো কোনো activity নেই</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* ──────── RIGHT SIDEBAR ──────── */}
+        <div className="lg:col-span-3 space-y-4 order-3 lg:sticky lg:top-4 lg:self-start">
+
+          {/* Status Update */}
+          <Card className="rounded-xl border-border/60 shadow-sm">
+            <CardHeader className="p-4 pb-3">
+              <CardTitle className="text-xs font-semibold">Order Actions</CardTitle>
             </CardHeader>
-            <CardContent className="px-5 pb-5 space-y-4">
+            <CardContent className="px-4 pb-4">
+              <div className="grid grid-cols-2 gap-2">
+                {STATUS_BUTTONS.map((s) => {
+                  const isActive = currentStatus === s.key;
+                  if (s.key === "confirm") {
+                    return (
+                      <AlertDialogRoot key={s.key} open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+                        <ADTrigger asChild>
+                          <button
+                            disabled={isActive || statusMutation.isPending}
+                            className={cn(
+                              "flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-[11px] font-semibold transition-all duration-200 border",
+                              isActive
+                                ? cn(s.bg, "text-white border-transparent shadow-md")
+                                : cn("bg-card", s.text, "border-border/60 hover:shadow-sm", s.light),
+                              (isActive || statusMutation.isPending) && "opacity-60 cursor-not-allowed"
+                            )}
+                          >
+                            <span>{s.emoji}</span> {s.label}
+                          </button>
+                        </ADTrigger>
+                        <ADContent className="rounded-xl">
+                          <ADHeader>
+                            <ADTitle>এই order টি confirm করবেন?</ADTitle>
+                            <ADDesc>Confirmed orders main processing queue এ চলে যাবে।</ADDesc>
+                          </ADHeader>
+                          <ADFooter>
+                            <ADCancel className="rounded-lg">Cancel</ADCancel>
+                            <ADAction onClick={() => confirmMutation.mutate()} disabled={confirmMutation.isPending} className="rounded-lg bg-green-600 hover:bg-green-700">
+                              {confirmMutation.isPending ? "Confirming..." : "✅ Confirm Order"}
+                            </ADAction>
+                          </ADFooter>
+                        </ADContent>
+                      </AlertDialogRoot>
+                    );
+                  }
+                  return (
+                    <button
+                      key={s.key}
+                      onClick={() => statusMutation.mutate(s.key)}
+                      disabled={isActive || statusMutation.isPending}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-[11px] font-semibold transition-all duration-200 border",
+                        isActive
+                          ? cn(s.bg, "text-white border-transparent shadow-md")
+                          : cn("bg-card", s.text, "border-border/60 hover:shadow-sm", s.light),
+                        (isActive || statusMutation.isPending) && "opacity-60 cursor-not-allowed"
+                      )}
+                    >
+                      <span>{s.emoji}</span> {s.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Cancel - full width */}
+              <button
+                onClick={() => statusMutation.mutate("cancel")}
+                disabled={currentStatus === "cancel" || statusMutation.isPending}
+                className={cn(
+                  "w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-[11px] font-semibold transition-all duration-200 border mt-2",
+                  currentStatus === "cancel"
+                    ? "bg-red-700 text-white border-transparent shadow-md opacity-60 cursor-not-allowed"
+                    : "bg-card text-red-700 border-border/60 hover:shadow-sm bg-red-50 hover:bg-red-100",
+                )}
+              >
+                ❌ Cancel
+              </button>
+            </CardContent>
+          </Card>
+
+          {/* Notes */}
+          <Card className="rounded-xl border-border/60 shadow-sm">
+            <CardHeader className="p-4 pb-3">
+              <CardTitle className="text-xs font-semibold">Notes</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 space-y-3">
               <div className="flex gap-2">
                 <Textarea
                   value={newNote}
                   onChange={(e) => setNewNote(e.target.value)}
-                  placeholder="কোনো নোট লিখুন..."
+                  placeholder="Add a note..."
                   rows={2}
-                  className="flex-1 rounded-xl resize-none"
+                  className="flex-1 rounded-lg resize-none text-xs"
                 />
                 <Button
                   onClick={() => noteMutation.mutate()}
                   disabled={!newNote.trim() || noteMutation.isPending}
-                  className="self-end rounded-xl"
+                  className="self-end rounded-lg"
                   size="icon"
                 >
-                  <Send className="w-4 h-4" />
+                  <Send className="w-3.5 h-3.5" />
                 </Button>
               </div>
-              {/* Previous notes as chat bubbles */}
-              {notes?.filter((n) => n.note_type === "note").map((note) => (
-                <div key={note.id} className="bg-muted/60 rounded-xl p-3 space-y-1">
-                  <p className="text-sm">{note.content}</p>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              {notes?.filter((n) => n.note_type === "note").slice(0, 5).map((note) => (
+                <div key={note.id} className="bg-muted/40 rounded-lg p-2.5 space-y-1">
+                  <p className="text-xs">{note.content}</p>
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                     <span>{note.created_by || "Staff"}</span>
                     <span>•</span>
-                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{timeAgo(note.created_at)}</span>
+                    <span>{timeAgo(note.created_at)}</span>
                   </div>
                 </div>
               ))}
             </CardContent>
           </Card>
-        </div>
 
-        {/* ──── RIGHT COLUMN (sticky) ──── */}
-        <div className="lg:col-span-2 space-y-6 lg:sticky lg:top-4 lg:self-start">
-
-          {/* Card: Status */}
-          <Card className="rounded-2xl shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold">Order Status</CardTitle>
+          {/* SMS Actions */}
+          <Card className="rounded-xl border-border/60 shadow-sm">
+            <CardHeader className="p-4 pb-3">
+              <CardTitle className="text-xs font-semibold">SMS Actions</CardTitle>
             </CardHeader>
-            <CardContent className="px-5 pb-5 space-y-2">
-              {STATUS_BUTTONS.map((s) => {
-                const isActive = currentStatus === s.key;
-
-                if (s.key === "confirm") {
-                  return (
-                    <AlertDialogRoot key={s.key} open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-                      <ADTrigger asChild>
-                        <button
-                          disabled={isActive || statusMutation.isPending}
-                          className={cn(
-                            "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border-l-4 border",
-                            isActive
-                              ? cn(s.bg, "text-white border-transparent shadow-md")
-                              : cn("bg-card border-border", s.border, s.text, "hover:shadow-sm hover:translate-x-0.5"),
-                            (isActive || statusMutation.isPending) && "opacity-60 cursor-not-allowed"
-                          )}
-                        >
-                          <span>{s.emoji}</span> {s.label}
-                        </button>
-                      </ADTrigger>
-                      <ADContent className="rounded-2xl">
-                        <ADHeader>
-                          <ADTitle>এই order টি confirm করবেন?</ADTitle>
-                          <ADDesc>
-                            Confirmed orders main processing queue এ চলে যাবে।
-                          </ADDesc>
-                        </ADHeader>
-                        <ADFooter>
-                          <ADCancel className="rounded-xl">Cancel</ADCancel>
-                          <ADAction onClick={() => confirmMutation.mutate()} disabled={confirmMutation.isPending} className="rounded-xl bg-green-600 hover:bg-green-700">
-                            {confirmMutation.isPending ? "Confirming..." : "✅ Confirm Order"}
-                          </ADAction>
-                        </ADFooter>
-                      </ADContent>
-                    </AlertDialogRoot>
-                  );
-                }
-
-                return (
-                  <button
-                    key={s.key}
-                    onClick={() => statusMutation.mutate(s.key)}
-                    disabled={isActive || statusMutation.isPending}
-                    className={cn(
-                      "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border-l-4 border",
-                      isActive
-                        ? cn(s.bg, "text-white border-transparent shadow-md")
-                        : cn("bg-card border-border", s.border, s.text, "hover:shadow-sm hover:translate-x-0.5"),
-                      (isActive || statusMutation.isPending) && "opacity-60 cursor-not-allowed"
-                    )}
-                  >
-                    <span>{s.emoji}</span> {s.label}
-                  </button>
-                );
-              })}
-            </CardContent>
-          </Card>
-
-          {/* Card: Activity Timeline */}
-          <Card className="rounded-2xl shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold">Activity Timeline</CardTitle>
-            </CardHeader>
-            <CardContent className="px-5 pb-5">
-              {notes && notes.length > 0 ? (
-                <div className="relative space-y-4 pl-6">
-                  {/* Vertical line */}
-                  <div className="absolute left-[9px] top-2 bottom-2 w-px bg-border" />
-                  {notes.map((note) => (
-                    <div key={note.id} className="relative flex gap-3">
-                      <div className={cn("absolute left-[-15px] top-1.5 w-2.5 h-2.5 rounded-full ring-2 ring-card", noteTypeDot(note.note_type))} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm">{note.content}</p>
-                        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                          <span>{note.created_by || "System"}</span>
-                          <span>•</span>
-                          <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{timeAgo(note.created_at)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Clock className="w-8 h-8 mx-auto text-muted-foreground/40 mb-2" />
-                  <p className="text-sm text-muted-foreground">এখনো কোনো activity নেই</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Card: Order Info */}
-          <Card className="rounded-2xl shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold">Order Info</CardTitle>
-            </CardHeader>
-            <CardContent className="px-5 pb-5 space-y-3 text-sm">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Payment Method</span>
-                <span className="capitalize font-medium">{order.payment_method || "-"}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Payment Status</span>
-                <Badge variant="outline" className={cn("capitalize rounded-full text-xs",
-                  order.payment_status === "paid" ? "border-green-300 text-green-700 bg-green-50" :
-                  order.payment_status === "pending" ? "border-orange-300 text-orange-700 bg-orange-50" :
-                  ""
-                )}>
-                  {order.payment_status || "-"}
-                </Badge>
-              </div>
-              <Separator />
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Delivery Area</span>
-                <span className="font-medium">{order.delivery_district || "-"}, {order.delivery_thana || "-"}</span>
-              </div>
-              {order.pathao_tracking_code && (
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Tracking</span>
-                  <div className="flex items-center gap-1.5">
-                    <code className="text-xs bg-muted px-2 py-1 rounded">{order.pathao_tracking_code}</code>
-                    <Button variant="ghost" size="icon" className="w-7 h-7 rounded-full"
-                      onClick={() => { navigator.clipboard.writeText(order.pathao_tracking_code!); toast({ title: "Copied!" }); }}>
-                      <Copy className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-              {order.shopify_order_number && (
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Shopify</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-medium">#{order.shopify_order_number}</span>
-                    <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
-                  </div>
-                </div>
-              )}
-              {order.notes && (
-                <>
-                  <Separator />
-                  <div>
-                    <p className="text-muted-foreground text-xs mb-1">Order Notes</p>
-                    <p className="text-sm bg-muted/50 rounded-xl p-3">{order.notes}</p>
-                  </div>
-                </>
-              )}
+            <CardContent className="px-4 pb-4 space-y-2">
+              <Button variant="outline" className="w-full rounded-lg h-9 text-xs justify-start gap-2">
+                📱 Send Reminder SMS
+              </Button>
+              <Button variant="outline" className="w-full rounded-lg h-9 text-xs justify-start gap-2 border-orange-200 text-orange-700 hover:bg-orange-50">
+                💰 Send Advance SMS
+              </Button>
             </CardContent>
           </Card>
         </div>
