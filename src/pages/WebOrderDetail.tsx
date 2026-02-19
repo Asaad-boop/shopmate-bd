@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import {
   ArrowLeft, Phone, MessageCircle, Send, Clock, MapPin,
   Package, Wallet, CheckCircle2, RefreshCw, Copy, ExternalLink,
-  Plus, Minus, X, Search, ShieldCheck,
+  Plus, Minus, X, Search, ShieldCheck, Truck,
 } from "lucide-react";
 import {
   AlertDialog as AlertDialogRoot,
@@ -30,6 +30,8 @@ import {
   AlertDialogTrigger as ADTrigger,
 } from "@/components/ui/alert-dialog";
 import { useBDCourierSingle, getRiskLevel, getSuccessColor } from "@/hooks/use-bd-courier";
+import { PathaoBookingModal } from "@/components/pathao/PathaoBookingModal";
+import { PathaoTrackingCard } from "@/components/pathao/PathaoTrackingCard";
 
 /* ──────────────── STATUS CONFIG ──────────────── */
 const STATUS_BUTTONS = [
@@ -90,6 +92,7 @@ export default function WebOrderDetail() {
   const [newNote, setNewNote] = useState("");
   const [callResult, setCallResult] = useState("");
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showPathaoModal, setShowPathaoModal] = useState(false);
 
   /* ── Queries ── */
   const { data: order, isLoading } = useQuery({
@@ -893,6 +896,29 @@ export default function WebOrderDetail() {
             </CardContent>
           </Card>
 
+          {/* Pathao Section */}
+          {currentStatus === "confirm" && !order.pathao_consignment_id && (
+            <Card className="rounded-xl border-green-200 bg-green-50/50 shadow-sm">
+              <CardContent className="p-4">
+                <Button
+                  onClick={() => setShowPathaoModal(true)}
+                  className="w-full rounded-lg h-10 bg-green-600 hover:bg-green-700 text-white font-semibold text-xs gap-2"
+                >
+                  <Truck className="w-4 h-4" /> Send to Pathao
+                </Button>
+                <p className="text-[10px] text-green-700 text-center mt-2">Order confirmed — ready to ship</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Pathao Tracking */}
+          {order.pathao_consignment_id && (
+            <PathaoTrackingCard
+              consignmentId={order.pathao_consignment_id}
+              trackingCode={order.pathao_tracking_code || undefined}
+            />
+          )}
+
           {/* Notes */}
           <Card className="rounded-xl border-border/60 shadow-sm">
             <CardHeader className="p-4 pb-3">
@@ -945,6 +971,15 @@ export default function WebOrderDetail() {
           </Card>
         </div>
       </div>
+
+      {/* Pathao Booking Modal */}
+      <PathaoBookingModal
+        open={showPathaoModal}
+        onOpenChange={setShowPathaoModal}
+        order={order}
+        customer={customer}
+        items={items || []}
+      />
     </div>
   );
 }
