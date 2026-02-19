@@ -25,6 +25,7 @@ export default function InvoiceSettingsSection() {
     showBarcode: true,
     mushokText: "MUSHOK 6.3",
     defaultPaperSize: "a4" as "a4" | "a5",
+    riderNote: "",
   });
 
   useEffect(() => {
@@ -38,6 +39,7 @@ export default function InvoiceSettingsSection() {
         showBarcode: invoiceSettings.showBarcode,
         mushokText: invoiceSettings.mushokText,
         defaultPaperSize: invoiceSettings.defaultPaperSize,
+        riderNote: invoiceSettings.riderNote,
       });
     }
   }, [invoiceSettings]);
@@ -62,6 +64,7 @@ export default function InvoiceSettingsSection() {
         invoice_show_barcode: String(form.showBarcode),
         invoice_mushok_text: form.mushokText,
         invoice_default_paper_size: form.defaultPaperSize,
+        invoice_rider_note: form.riderNote,
       };
       for (const [key, value] of Object.entries(pairs)) {
         await saveSetting(key, value);
@@ -147,6 +150,18 @@ export default function InvoiceSettingsSection() {
             onChange={(e) => setForm({ ...form, footerNote: e.target.value })}
             placeholder="Optional footer note"
           />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>Rider Note (রাইডারের জন্য নির্দেশনা)</Label>
+          <Textarea
+            value={form.riderNote}
+            onChange={(e) => setForm({ ...form, riderNote: e.target.value })}
+            rows={3}
+            placeholder="মার্চেন্টের অনুমতি ছাড়া প্রোডাক্ট খোলা সম্পূর্ণ নিষিদ্ধ..."
+            className="text-xs"
+          />
+          <p className="text-xs text-muted-foreground">Leave empty for default message with your phone & WhatsApp number</p>
         </div>
 
         <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="w-full sm:w-auto">

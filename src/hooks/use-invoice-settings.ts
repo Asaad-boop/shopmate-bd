@@ -10,6 +10,7 @@ export interface InvoiceSettings {
   showBarcode: boolean;
   mushokText: string;
   defaultPaperSize: "a4" | "a5";
+  riderNote: string;
 }
 
 const INVOICE_KEYS = [
@@ -21,6 +22,7 @@ const INVOICE_KEYS = [
   "invoice_show_barcode",
   "invoice_mushok_text",
   "invoice_default_paper_size",
+  "invoice_rider_note",
 ];
 
 const DEFAULT_TERMS = `1. If any defect is found (damaged/defective/wrong product) after opening the box, inform us immediately with picture/video proof.
@@ -51,6 +53,7 @@ export function useInvoiceSettings() {
         showBarcode: map.invoice_show_barcode !== "false",
         mushokText: map.invoice_mushok_text || "MUSHOK 6.3",
         defaultPaperSize: (map.invoice_default_paper_size as "a4" | "a5") || "a4",
+        riderNote: map.invoice_rider_note || "",
       } as InvoiceSettings;
     },
     staleTime: 5 * 60 * 1000,
