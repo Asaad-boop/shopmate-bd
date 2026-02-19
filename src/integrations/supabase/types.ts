@@ -255,6 +255,68 @@ export type Database = {
         }
         Relationships: []
       }
+      damage_log: {
+        Row: {
+          condition: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          order_id: string | null
+          photo_url: string | null
+          product_id: string | null
+          quantity: number | null
+        }
+        Insert: {
+          condition?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          order_id?: string | null
+          photo_url?: string | null
+          product_id?: string | null
+          quantity?: number | null
+        }
+        Update: {
+          condition?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          order_id?: string | null
+          photo_url?: string | null
+          product_id?: string | null
+          quantity?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "damage_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_summary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "damage_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "damage_log_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_profit_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "damage_log_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_movements: {
         Row: {
           created_at: string | null
