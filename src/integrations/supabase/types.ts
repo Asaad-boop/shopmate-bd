@@ -445,8 +445,10 @@ export type Database = {
           shopify_order_number: string | null
           status: string | null
           subtotal: number | null
+          tags: string[] | null
           total_amount: number | null
           updated_at: string | null
+          web_order_status: string | null
         }
         Insert: {
           assigned_to?: string | null
@@ -476,8 +478,10 @@ export type Database = {
           shopify_order_number?: string | null
           status?: string | null
           subtotal?: number | null
+          tags?: string[] | null
           total_amount?: number | null
           updated_at?: string | null
+          web_order_status?: string | null
         }
         Update: {
           assigned_to?: string | null
@@ -507,8 +511,10 @@ export type Database = {
           shopify_order_number?: string | null
           status?: string | null
           subtotal?: number | null
+          tags?: string[] | null
           total_amount?: number | null
           updated_at?: string | null
+          web_order_status?: string | null
         }
         Relationships: [
           {
@@ -1123,6 +1129,57 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      web_order_notes: {
+        Row: {
+          call_result: string | null
+          content: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          new_status: string | null
+          note_type: string
+          old_status: string | null
+          order_id: string | null
+        }
+        Insert: {
+          call_result?: string | null
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          new_status?: string | null
+          note_type?: string
+          old_status?: string | null
+          order_id?: string | null
+        }
+        Update: {
+          call_result?: string | null
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          new_status?: string | null
+          note_type?: string
+          old_status?: string | null
+          order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "web_order_notes_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_summary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "web_order_notes_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
