@@ -136,6 +136,25 @@ Deno.serve(async (req) => {
       case "price_plan":
         return callPathao("POST", "/aladdin/api/v1/merchant/price-plan", params.price_data);
 
+      /* ── Test Connection ── */
+      case "test_connection": {
+        const token = await getToken();
+        // Read cached token to get expiry
+        const { data: cachedRow } = await supabaseAdmin
+          .from("settings")
+          .select("value")
+          .eq("key", "pathao_token")
+          .maybeSingle();
+        let expiresAt = null;
+        if (cachedRow?.value) {
+          try { expiresAt = JSON.parse(cachedRow.value).expires_at; } catch {}
+        }
+        return new Response(
+          JSON.stringify({ success: true, token_preview: token.slice(0, 10) + "...", expires_at: expiresAt }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: `Unknown action: ${action}` }),
