@@ -1,0 +1,1 @@
+UPDATE orders SET web_order_status = 'processing' WHERE id = 'bfff3707-364d-4930-a14d-35e86d3a0ea1';
