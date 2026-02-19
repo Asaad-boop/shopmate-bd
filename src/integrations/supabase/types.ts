@@ -162,6 +162,45 @@ export type Database = {
           },
         ]
       }
+      customer_qc_cache: {
+        Row: {
+          cancelled_orders: number | null
+          created_at: string | null
+          id: string
+          last_fetched_at: string | null
+          phone: string
+          raw_data: Json | null
+          returned_orders: number | null
+          success_rate: number | null
+          successful_orders: number | null
+          total_orders: number | null
+        }
+        Insert: {
+          cancelled_orders?: number | null
+          created_at?: string | null
+          id?: string
+          last_fetched_at?: string | null
+          phone: string
+          raw_data?: Json | null
+          returned_orders?: number | null
+          success_rate?: number | null
+          successful_orders?: number | null
+          total_orders?: number | null
+        }
+        Update: {
+          cancelled_orders?: number | null
+          created_at?: string | null
+          id?: string
+          last_fetched_at?: string | null
+          phone?: string
+          raw_data?: Json | null
+          returned_orders?: number | null
+          success_rate?: number | null
+          successful_orders?: number | null
+          total_orders?: number | null
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           address: string | null

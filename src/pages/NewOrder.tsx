@@ -6,12 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { formatBDT } from "@/lib/format";
-
+import { useBDCourierSingle, getRiskLevel } from "@/hooks/use-bd-courier";
+import { cn } from "@/lib/utils";
 interface OrderItem {
   product_id: string;
   product_name: string;
@@ -213,24 +216,29 @@ export default function NewOrder() {
             <CardContent className="space-y-4">
               <div className="relative">
                 <Label>Phone Number</Label>
-                <Input
-                  value={form.customer_phone}
-                  onChange={(e) => setForm({ ...form, customer_phone: e.target.value })}
-                  placeholder="01XXXXXXXXX"
-                />
-                {customers && customers.length > 0 && (
-                  <div className="absolute z-10 w-full bg-card border border-border rounded-md mt-1 shadow-lg">
-                    {customers.map((c) => (
-                      <button
-                        key={c.id}
-                        className="w-full text-left px-4 py-2 hover:bg-muted text-sm"
-                        onClick={() => selectCustomer(c)}
-                      >
-                        {c.full_name} - {c.phone}
-                      </button>
-                    ))}
+                <div className="flex gap-2 items-start">
+                  <div className="flex-1 relative">
+                    <Input
+                      value={form.customer_phone}
+                      onChange={(e) => setForm({ ...form, customer_phone: e.target.value })}
+                      placeholder="01XXXXXXXXX"
+                    />
+                    {customers && customers.length > 0 && (
+                      <div className="absolute z-10 w-full bg-card border border-border rounded-md mt-1 shadow-lg">
+                        {customers.map((c) => (
+                          <button
+                            key={c.id}
+                            className="w-full text-left px-4 py-2 hover:bg-muted text-sm"
+                            onClick={() => selectCustomer(c)}
+                          >
+                            {c.full_name} - {c.phone}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
+                  <PhoneRiskIndicator phone={form.customer_phone} />
+                </div>
               </div>
               <div>
                 <Label>Customer Name</Label>
@@ -433,5 +441,21 @@ export default function NewOrder() {
         </div>
       </div>
     </div>
+  );
+}
+
+function PhoneRiskIndicator({ phone }: { phone: string }) {
+  const { data, isLoading } = useBDCourierSingle(phone, phone.length >= 11);
+  
+  if (phone.length < 11) return null;
+  if (isLoading) return <Skeleton className="h-10 w-28 rounded-lg" />;
+  
+  const risk = getRiskLevel(data?.success_rate);
+  
+  return (
+    <Badge className={cn("h-10 px-3 text-xs whitespace-nowrap", risk.bg, risk.color)}>
+      {risk.label}
+      {data?.success_rate != null && ` ${data.success_rate}%`}
+    </Badge>
   );
 }

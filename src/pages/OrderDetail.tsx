@@ -5,14 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge, ChannelBadge } from "@/components/ui/status-badge";
 import { orderStatusConfig, paymentStatusConfig, formatBDT, formatDateTime } from "@/lib/format";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Check, Truck, Package, ClipboardList, CheckCircle2, ExternalLink } from "lucide-react";
+import { ArrowLeft, Check, Truck, Package, ClipboardList, CheckCircle2, ExternalLink, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-
+import { useBDCourierSingle, getRiskLevel, getSuccessColor } from "@/hooks/use-bd-courier";
 const STATUSES = ["pending", "confirmed", "processing", "shipped", "delivered"] as const;
 const STATUS_ICONS = [ClipboardList, Check, Package, Truck, CheckCircle2];
 
@@ -301,8 +302,101 @@ export default function OrderDetail() {
               </CardContent>
             </Card>
           )}
+
+          {/* BD Courier Report */}
+          {customer?.phone && <BDCourierReport phone={customer.phone} />}
         </div>
       </div>
     </div>
+  );
+}
+
+function BDCourierReport({ phone }: { phone: string }) {
+  const { data, isLoading, refetch, isFetching } = useBDCourierSingle(phone);
+  const risk = getRiskLevel(data?.success_rate);
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">📊 BD Courier Report</CardTitle>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw className={cn("w-3.5 h-3.5", isFetching && "animate-spin")} />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
+        ) : !data || data.error ? (
+          <div className="text-center py-4">
+            <p className="text-sm text-muted-foreground">
+              {data?.error === "api_error" ? "চেক করা যায়নি" : "🆕 নতুন কাস্টমার - কোন ডেটা নেই"}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {/* Success Rate Circle */}
+            <div className="flex items-center gap-4">
+              <div className="relative w-16 h-16">
+                <svg className="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
+                  <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
+                  <circle
+                    cx="18" cy="18" r="15" fill="none"
+                    stroke={getSuccessColor(data.success_rate)}
+                    strokeWidth="3"
+                    strokeDasharray={`${data.success_rate * 0.942} 94.2`}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-sm font-bold">{data.success_rate}%</span>
+              </div>
+              <div>
+                <Badge className={cn("text-xs", risk.bg, risk.color)}>{risk.label}</Badge>
+                <p className="text-xs text-muted-foreground mt-1">Total: {data.total_orders} orders</p>
+              </div>
+            </div>
+
+            {/* Breakdown */}
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="p-2 rounded-lg bg-green-50">
+                <p className="text-lg font-bold text-green-700">{data.successful_orders}</p>
+                <p className="text-[10px] text-green-600">Delivered</p>
+              </div>
+              <div className="p-2 rounded-lg bg-red-50">
+                <p className="text-lg font-bold text-red-700">{data.returned_orders}</p>
+                <p className="text-[10px] text-red-600">Returned</p>
+              </div>
+              <div className="p-2 rounded-lg bg-orange-50">
+                <p className="text-lg font-bold text-orange-700">{data.cancelled_orders || 0}</p>
+                <p className="text-[10px] text-orange-600">Cancelled</p>
+              </div>
+            </div>
+
+            {/* Courier breakdown from raw data */}
+            {data.raw_data?.courier_data && (
+              <div className="space-y-1.5 border-t border-border pt-2">
+                <p className="text-xs font-medium text-muted-foreground">By Courier</p>
+                {Object.entries(data.raw_data.courier_data).map(([courier, info]: [string, any]) => (
+                  <div key={courier} className="flex justify-between text-xs">
+                    <span className="capitalize">{courier}</span>
+                    <span>{info.success || info.delivered || 0}/{info.total || 0}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {data.last_fetched_at && (
+              <p className="text-[10px] text-muted-foreground text-right">
+                Last checked: {new Date(data.last_fetched_at).toLocaleString("bn-BD")}
+              </p>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
