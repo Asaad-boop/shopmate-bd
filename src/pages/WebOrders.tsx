@@ -414,27 +414,28 @@ export default function WebOrdersPage() {
                         {/* Success Rate */}
                         <TableCell>
                           {sr.loading ? (
-                            <Skeleton className="h-10 w-24" />
+                            <Skeleton className="h-14 w-28" />
                           ) : sr.noData ? (
                             <span className="text-xs text-muted-foreground">🆕 New</span>
                           ) : (
-                            <div className="flex items-center gap-2">
-                              <div className="relative w-9 h-9 flex-shrink-0">
-                                <svg className="w-9 h-9 -rotate-90" viewBox="0 0 36 36">
-                                  <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
+                            <div className="flex items-center gap-3">
+                              <div className="relative w-11 h-11 flex-shrink-0">
+                                <svg className="w-11 h-11 -rotate-90" viewBox="0 0 36 36">
+                                  <circle cx="18" cy="18" r="14" fill="none" stroke="hsl(var(--muted))" strokeWidth="2.5" />
                                   <circle
-                                    cx="18" cy="18" r="15" fill="none"
+                                    cx="18" cy="18" r="14" fill="none"
                                     stroke={getSuccessColor(sr.percent)}
-                                    strokeWidth="3"
-                                    strokeDasharray={`${sr.percent * 0.942} 94.2`}
+                                    strokeWidth="2.5"
+                                    strokeDasharray={`${sr.percent * 0.88} 88`}
                                     strokeLinecap="round"
                                   />
                                 </svg>
                               </div>
-                              <div className="text-xs space-y-0.5">
-                                <p>Success: <span className="font-semibold" style={{ color: getSuccessColor(sr.percent) }}>{sr.percent}%</span></p>
-                                <p>Order: <span className="font-medium">{sr.delivered}/{sr.total}</span></p>
-                                <p>Rating: <span className="font-medium">{sr.rating * 20}</span></p>
+                              <div className="text-xs leading-relaxed">
+                                <p className="text-muted-foreground">Success:</p>
+                                <p className="font-bold text-sm" style={{ color: getSuccessColor(sr.percent) }}>{sr.percent}%</p>
+                                <p className="text-muted-foreground">Order: <span className="font-semibold text-foreground">{sr.delivered}/{sr.total}</span></p>
+                                <p className="text-muted-foreground">Rating: <span className="font-semibold text-foreground">{sr.rating * 20}</span></p>
                               </div>
                             </div>
                           )}
