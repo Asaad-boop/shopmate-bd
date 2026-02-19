@@ -19,11 +19,12 @@ import { DamageReturnModal } from "@/components/orders/DamageReturnModal";
 import { ScanMode } from "@/components/orders/ScanMode";
 import { PathaoBookingModal } from "@/components/pathao/PathaoBookingModal";
 import { printInvoice, printPickingList, printPackingSlip, printBarcodeLabels } from "@/components/orders/PrintInvoice";
+import { CODReconciliation } from "@/components/orders/CODReconciliation";
 import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Search, Download, Upload, ScanLine, MoreHorizontal,
   Eye, Edit, Printer, Tag, Package, Truck, CheckCircle,
-  XCircle, RotateCcw, AlertTriangle
+  XCircle, RotateCcw, AlertTriangle, Banknote
 } from "lucide-react";
 
 const STATUS_TABS = [
@@ -51,6 +52,7 @@ export default function OrdersPage() {
   const [dateTo, setDateTo] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [scanMode, setScanMode] = useState(false);
+  const [codPanelOpen, setCodPanelOpen] = useState(false);
 
   // Modals
   const [statusModal, setStatusModal] = useState<{ open: boolean; orderId: string; orderNumber: string; newStatus: string } | null>(null);
@@ -238,6 +240,9 @@ export default function OrdersPage() {
           <p className="text-sm text-muted-foreground">Manage all your orders across channels</p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={() => setCodPanelOpen(true)}>
+            <Banknote className="w-4 h-4 mr-1" /> COD Reconciliation
+          </Button>
           <Button
             variant={scanMode ? "default" : "outline"}
             size="sm"
@@ -574,6 +579,8 @@ export default function OrdersPage() {
           items={pathaoModal.items}
         />
       )}
+
+      <CODReconciliation open={codPanelOpen} onOpenChange={setCodPanelOpen} />
     </div>
   );
 }
