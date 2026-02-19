@@ -146,12 +146,7 @@ function buildInvoiceHTML(order: any, company: CompanySettings | undefined, inv:
             <strong>HQ</strong>
             ${addr || 'Company Address'}<br>
             ${company?.phone ? `Hotline: ${company.phone}` : ''}
-          </div>
-          <div class="col">
-            <strong>VAT Registration No.</strong>
-            <span class="vat-num">${inv?.vatNumber || company?.tin || '—'}</span>
-            <div class="mushok">${inv?.mushokText || 'MUSHOK 6.3'}</div>
-          </div>
+
         </div>
       </div>
 
@@ -231,8 +226,6 @@ function buildInvoiceHTML(order: any, company: CompanySettings | undefined, inv:
             <span>Total:</span>
             <span>
               BDT ${Number(order.total_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 1 })}
-              ${showVat ? `<span class="vat-note">(Including ${inv?.vatPercentage}% VAT)</span>` : ''}
-            </span>
           </div>
           <div class="in-words"><strong>In Words:</strong> ${numberToWords(order.total_amount)} Tk Only</div>
         </div>
