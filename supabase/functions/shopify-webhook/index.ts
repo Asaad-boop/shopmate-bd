@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
           shopify_order_number: String(body.order_number || ""),
           customer_id: customerId,
           status: "pending",
-          web_order_status: "new",
+          web_order_status: "processing",
           payment_status: body.financial_status || "pending",
           payment_method: body.gateway || null,
           subtotal: parseFloat(body.subtotal_price || "0"),
