@@ -204,7 +204,7 @@ export default function WebOrdersPage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -231,7 +231,7 @@ export default function WebOrdersPage() {
               key={s.key}
               onClick={() => { setActiveTab(s.key); setSelected([]); }}
               className={cn(
-                "relative px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap",
+                "relative px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-300 ease-in-out whitespace-nowrap",
                 activeTab === s.key
                   ? "bg-white shadow-sm text-foreground"
                   : "text-slate-400 hover:text-foreground"
