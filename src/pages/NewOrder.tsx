@@ -14,10 +14,10 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft, Plus, Minus, X, Search, Package,
-  Phone, MessageCircle, Instagram, ShoppingBag, PenLine,
+  Phone, AlertTriangle,
 } from "lucide-react";
 import { formatBDT } from "@/lib/format";
-import { useBDCourierSingle, getRiskLevel, getSuccessColor } from "@/hooks/use-bd-courier";
+import { useBDCourierSingle, getRiskLevel } from "@/hooks/use-bd-courier";
 import { usePathaoCities, usePathaoZones } from "@/hooks/use-pathao";
 import { cn } from "@/lib/utils";
 
@@ -34,35 +34,38 @@ interface OrderItem {
 }
 
 const CHANNELS = [
-  { value: "manual", label: "Manual", emoji: "✍️", color: "text-muted-foreground" },
-  { value: "facebook", label: "Facebook", emoji: "📘", color: "text-blue-600" },
-  { value: "instagram", label: "Instagram", emoji: "📸", color: "text-pink-600" },
-  { value: "whatsapp", label: "WhatsApp", emoji: "💬", color: "text-green-600" },
-  { value: "phone", label: "Call", emoji: "📞", color: "text-indigo-600" },
+  { value: "manual", label: "Manual", emoji: "✍️" },
+  { value: "facebook", label: "Facebook", emoji: "📘" },
+  { value: "instagram", label: "Instagram", emoji: "📸" },
+  { value: "whatsapp", label: "WhatsApp", emoji: "💬" },
+  { value: "phone", label: "Call", emoji: "📞" },
 ];
 
 const PAYMENT_METHODS = [
   { value: "cod", label: "💰 Cash on Delivery" },
-  { value: "advance_bkash", label: "📱 Advance Payment (bKash)" },
-  { value: "advance_nagad", label: "📱 Advance Payment (Nagad)" },
-  { value: "advance_bank", label: "🏦 Advance Payment (Bank)" },
-  { value: "advance_cash", label: "💵 Advance Payment (Cash)" },
+  { value: "advance", label: "💳 Advance Payment" },
   { value: "partial", label: "🔀 Partial (Advance + COD)" },
+];
+
+const ADVANCE_VIA_OPTIONS = [
+  { value: "bKash", label: "bKash", emoji: "📱" },
+  { value: "Nagad", label: "Nagad", emoji: "📱" },
+  { value: "Bank", label: "Bank", emoji: "🏦" },
+  { value: "Cash", label: "Cash", emoji: "💵" },
 ];
 
 function getPaymentStatus(method: string) {
   if (method === "cod") return "pending";
-  if (method.startsWith("advance_")) return "paid";
+  if (method === "advance") return "paid";
   if (method === "partial") return "partial";
   return "pending";
 }
 
-function getPaymentVia(method: string) {
-  if (method === "advance_bkash" || method === "partial") return "bKash";
-  if (method === "advance_nagad") return "Nagad";
-  if (method === "advance_bank") return "Bank";
-  if (method === "advance_cash") return "Cash";
-  return "";
+/* ═══ Stock Badge Helper ═══ */
+function StockBadge({ stock }: { stock: number }) {
+  if (stock <= 0) return <Badge variant="destructive" className="text-[10px] px-1.5 py-0 font-bold">⚠️ Stock নেই</Badge>;
+  if (stock < 10) return <Badge className="text-[10px] px-1.5 py-0 font-bold bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100">⚠️ কম stock ({stock})</Badge>;
+  return <span className="text-[10px] text-muted-foreground font-mono">Stock: {stock}</span>;
 }
 
 /* ═══ Main Component ═══ */
@@ -82,7 +85,7 @@ export default function NewOrder() {
     delivery_thana: "",
     payment_method: "cod",
     advance_amount: 0,
-    payment_via: "",
+    payment_via: "bKash",
     transaction_id: "",
     discount: 0,
     delivery_charge: 60,
@@ -93,7 +96,7 @@ export default function NewOrder() {
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [selectedCityId, setSelectedCityId] = useState<number | null>(null);
 
-  const isAdvance = form.payment_method.startsWith("advance_");
+  const isAdvance = form.payment_method === "advance";
   const isPartial = form.payment_method === "partial";
   const showAdvanceFields = isAdvance || isPartial;
   const paymentStatus = getPaymentStatus(form.payment_method);
@@ -140,13 +143,6 @@ export default function NewOrder() {
   const total = subtotal - form.discount + form.delivery_charge;
   const codRemaining = total - advancePaid;
 
-  /* ── Auto-set payment_via when method changes ── */
-  useEffect(() => {
-    if (form.payment_method.startsWith("advance_")) {
-      setForm((f) => ({ ...f, payment_via: getPaymentVia(f.payment_method) }));
-    }
-  }, [form.payment_method]);
-
   /* ── Keyboard shortcut: Ctrl+Enter to create ── */
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -177,8 +173,6 @@ export default function NewOrder() {
       delivery_thana: c.thana || "",
     }));
     setShowCustomerDropdown(false);
-
-    // Try to match district to pathao city
     if (c.district && cities) {
       const match = cities.find((ct) => ct.city_name.toLowerCase() === c.district?.toLowerCase());
       if (match) setSelectedCityId(match.city_id);
@@ -186,6 +180,11 @@ export default function NewOrder() {
   };
 
   const addProduct = (p: any) => {
+    const stock = p.stock_quantity || 0;
+    if (stock <= 0) {
+      toast({ title: "⚠️ Stock নেই", description: `${p.name} এর stock শূন্য, যোগ করা যাচ্ছে না`, variant: "destructive" });
+      return;
+    }
     if (items.find((i) => i.product_id === p.id)) {
       setItems((prev) => prev.map((i) => i.product_id === p.id ? { ...i, quantity: i.quantity + 1 } : i));
     } else {
@@ -196,7 +195,7 @@ export default function NewOrder() {
           product_name: p.name,
           product_sku: p.sku,
           product_image: p.image_url,
-          stock_quantity: p.stock_quantity || 0,
+          stock_quantity: stock,
           quantity: 1,
           unit_price: p.selling_price || 0,
           unit_cost: p.landed_cost_bdt || 0,
@@ -227,7 +226,6 @@ export default function NewOrder() {
   /* ── Create Order Mutation ── */
   const mutation = useMutation({
     mutationFn: async () => {
-      // Find or create customer
       let customer_id: string | null = null;
       if (form.customer_phone) {
         const { data: existing } = await supabase
@@ -237,7 +235,6 @@ export default function NewOrder() {
           .maybeSingle();
         if (existing) {
           customer_id = existing.id;
-          // Update customer info
           await supabase.from("customers").update({
             full_name: form.customer_name,
             address: form.delivery_address,
@@ -266,7 +263,6 @@ export default function NewOrder() {
       const orderNum = `ORD-${Date.now().toString(36).toUpperCase()}`;
       const costOfGoods = items.reduce((s, i) => s + i.quantity * i.unit_cost, 0);
 
-      // Determine COD amount
       let codAmount = 0;
       if (form.payment_method === "cod") codAmount = total;
       else if (isPartial) codAmount = codRemaining;
@@ -314,7 +310,6 @@ export default function NewOrder() {
       const { error: itemsErr } = await supabase.from("order_items").insert(orderItems);
       if (itemsErr) throw itemsErr;
 
-      // Stock decrease for pending orders
       for (const item of items) {
         const product = products?.find((p) => p.id === item.product_id);
         if (!product) continue;
@@ -366,7 +361,26 @@ export default function NewOrder() {
         </Button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold">New Order</h1>
-          <p className="text-sm text-muted-foreground">Create a new order manually • <kbd className="text-[10px] px-1.5 py-0.5 bg-muted rounded border border-border font-mono">Ctrl+Enter</kbd> to create</p>
+          <p className="text-sm text-muted-foreground">
+            Create a new order manually • <kbd className="text-[10px] px-1.5 py-0.5 bg-muted rounded border border-border font-mono">Ctrl+Enter</kbd> to create
+          </p>
+        </div>
+        {/* Channel selector in header */}
+        <div className="flex items-center gap-1.5">
+          {CHANNELS.map((ch) => (
+            <button
+              key={ch.value}
+              onClick={() => updateForm({ channel: ch.value })}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
+                form.channel === ch.value
+                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                  : "bg-card text-muted-foreground border-border hover:bg-muted"
+              )}
+            >
+              {ch.emoji} {ch.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -381,7 +395,6 @@ export default function NewOrder() {
                 <Phone className="w-4 h-4 text-primary" />
               </div>
               <CardTitle className="text-sm font-semibold">Customer Information</CardTitle>
-              {/* BD Courier Badge */}
               {form.customer_phone.length >= 11 && (
                 <div className="ml-auto">
                   {bdLoading ? (
@@ -447,7 +460,6 @@ export default function NewOrder() {
                 </div>
               </div>
 
-              {/* Name */}
               <div>
                 <Label className="text-xs text-muted-foreground">Customer Name *</Label>
                 <Input
@@ -458,7 +470,6 @@ export default function NewOrder() {
                 />
               </div>
 
-              {/* Address */}
               <div>
                 <Label className="text-xs text-muted-foreground">Delivery Address</Label>
                 <Textarea
@@ -470,7 +481,6 @@ export default function NewOrder() {
                 />
               </div>
 
-              {/* District + Thana */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-xs text-muted-foreground">District</Label>
@@ -527,31 +537,37 @@ export default function NewOrder() {
                 />
                 {filteredProducts && filteredProducts.length > 0 && (
                   <div className="absolute z-20 w-full bg-card border border-border rounded-lg mt-1 shadow-xl max-h-64 overflow-y-auto">
-                    {filteredProducts.slice(0, 10).map((p) => (
-                      <button
-                        key={p.id}
-                        className="w-full text-left px-3 py-2.5 hover:bg-muted/80 flex items-center gap-3 transition-colors"
-                        onClick={() => addProduct(p)}
-                      >
-                        {p.image_url ? (
-                          <img src={p.image_url} alt="" className="w-10 h-10 rounded-lg object-cover border border-border/40" />
-                        ) : (
-                          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
-                            <Package className="w-4 h-4" />
+                    {filteredProducts.slice(0, 10).map((p) => {
+                      const stock = p.stock_quantity || 0;
+                      const outOfStock = stock <= 0;
+                      return (
+                        <button
+                          key={p.id}
+                          className={cn(
+                            "w-full text-left px-3 py-2.5 flex items-center gap-3 transition-colors",
+                            outOfStock ? "opacity-50 cursor-not-allowed bg-muted/30" : "hover:bg-muted/80"
+                          )}
+                          onClick={() => addProduct(p)}
+                          disabled={outOfStock}
+                        >
+                          {p.image_url ? (
+                            <img src={p.image_url} alt="" className="w-10 h-10 rounded-lg object-cover border border-border/40" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
+                              <Package className="w-4 h-4" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{p.name}</p>
+                            <p className="text-[10px] text-muted-foreground font-mono">{p.sku}</p>
                           </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{p.name}</p>
-                          <p className="text-[10px] text-muted-foreground font-mono">{p.sku}</p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-sm font-semibold">{formatBDT(p.selling_price)}</p>
-                          <p className={cn("text-[10px] font-mono", (p.stock_quantity || 0) < 10 ? "text-red-500 font-bold" : "text-muted-foreground")}>
-                            Stock: {p.stock_quantity || 0}
-                          </p>
-                        </div>
-                      </button>
-                    ))}
+                          <div className="text-right shrink-0 space-y-0.5">
+                            <p className="text-sm font-semibold">{formatBDT(p.selling_price)}</p>
+                            <StockBadge stock={stock} />
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -559,7 +575,6 @@ export default function NewOrder() {
               {/* Item Rows */}
               {items.length > 0 ? (
                 <div className="space-y-2">
-                  {/* Header */}
                   <div className="grid grid-cols-[40px_1fr_100px_100px_80px_32px] gap-2 px-2 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
                     <span></span>
                     <span>Product</span>
@@ -570,7 +585,6 @@ export default function NewOrder() {
                   </div>
                   {items.map((item) => (
                     <div key={item.product_id} className="grid grid-cols-[40px_1fr_100px_100px_80px_32px] gap-2 items-center p-2 bg-muted/40 rounded-lg hover:bg-muted/60 transition-colors">
-                      {/* Image */}
                       {item.product_image ? (
                         <img src={item.product_image} alt="" className="w-10 h-10 rounded-lg object-cover border border-border/40" />
                       ) : (
@@ -578,12 +592,13 @@ export default function NewOrder() {
                           <Package className="w-3.5 h-3.5 text-muted-foreground" />
                         </div>
                       )}
-                      {/* Name + SKU */}
                       <div className="min-w-0">
                         <p className="text-sm font-medium truncate">{item.product_name}</p>
-                        <p className="text-[10px] text-muted-foreground font-mono">{item.product_sku}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-[10px] text-muted-foreground font-mono">{item.product_sku}</p>
+                          <StockBadge stock={item.stock_quantity} />
+                        </div>
                       </div>
-                      {/* Qty */}
                       <div className="flex items-center justify-center gap-1">
                         <button
                           className="w-6 h-6 rounded-md bg-background border border-border flex items-center justify-center hover:bg-muted transition-colors"
@@ -605,18 +620,15 @@ export default function NewOrder() {
                           <Plus className="w-3 h-3" />
                         </button>
                       </div>
-                      {/* Price */}
                       <Input
                         type="number"
                         value={item.unit_price}
                         onChange={(e) => updateItem(item.product_id, "unit_price", parseFloat(e.target.value) || 0)}
                         className="h-7 text-right text-sm font-mono px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
-                      {/* Total */}
                       <span className="text-sm font-semibold text-right tabular-nums">
                         {formatBDT(item.quantity * item.unit_price)}
                       </span>
-                      {/* Remove */}
                       <button
                         className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                         onClick={() => removeItem(item.product_id)}
@@ -647,26 +659,6 @@ export default function NewOrder() {
                 <CardTitle className="text-sm font-semibold">Order Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 pt-2">
-                {/* Channel */}
-                <div>
-                  <Label className="text-xs text-muted-foreground">Channel</Label>
-                  <Select value={form.channel} onValueChange={(v) => updateForm({ channel: v })}>
-                    <SelectTrigger className="h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CHANNELS.map((ch) => (
-                        <SelectItem key={ch.value} value={ch.value}>
-                          <span className="flex items-center gap-2">
-                            <span>{ch.emoji}</span>
-                            <span>{ch.label}</span>
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 {/* Payment Method */}
                 <div>
                   <Label className="text-xs text-muted-foreground">Payment Method</Label>
@@ -684,7 +676,7 @@ export default function NewOrder() {
 
                 {/* Advance Fields */}
                 {showAdvanceFields && (
-                  <div className="space-y-3 p-3 bg-muted/40 rounded-lg border border-border/40">
+                  <div className="space-y-3 p-3 rounded-lg bg-muted/50 border border-border/50">
                     <div>
                       <Label className="text-xs text-muted-foreground">Advance Amount *</Label>
                       <Input
@@ -692,28 +684,29 @@ export default function NewOrder() {
                         value={form.advance_amount || ""}
                         onChange={(e) => updateForm({ advance_amount: parseFloat(e.target.value) || 0 })}
                         placeholder="৳0"
-                        className="h-8"
+                        className="h-8 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                     </div>
-                    {isPartial && (
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Payment Via</Label>
-                        <Select value={form.payment_via} onValueChange={(v) => updateForm({ payment_via: v })}>
-                          <SelectTrigger className="h-8">
-                            <SelectValue placeholder="Select" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="bKash">bKash</SelectItem>
-                            <SelectItem value="Nagad">Nagad</SelectItem>
-                            <SelectItem value="Bank">Bank</SelectItem>
-                            <SelectItem value="Cash">Cash</SelectItem>
-                          </SelectContent>
-                        </Select>
+                    {/* Payment Via Radio */}
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-2 block">Received via</Label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {ADVANCE_VIA_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.value}
+                            onClick={() => updateForm({ payment_via: opt.value })}
+                            className={cn(
+                              "px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
+                              form.payment_via === opt.value
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-background text-muted-foreground border-border hover:bg-muted"
+                            )}
+                          >
+                            {opt.emoji} {opt.label}
+                          </button>
+                        ))}
                       </div>
-                    )}
-                    {!isPartial && (
-                      <p className="text-xs text-muted-foreground">Received via: <span className="font-semibold text-foreground">{form.payment_via}</span></p>
-                    )}
+                    </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Transaction ID</Label>
                       <Input
@@ -738,73 +731,77 @@ export default function NewOrder() {
                   </Badge>
                 </div>
 
-                {/* Notes */}
+                {/* Notes — empty by default */}
                 <div>
-                  <Label className="text-xs text-muted-foreground">Notes</Label>
+                  <Label className="text-xs text-muted-foreground">Shipping Note</Label>
                   <Textarea
                     value={form.notes}
                     onChange={(e) => updateForm({ notes: e.target.value })}
                     rows={2}
                     className="resize-none text-sm"
-                    placeholder="Order notes..."
+                    placeholder="Optional shipping instructions..."
                   />
                 </div>
               </CardContent>
             </Card>
 
             {/* ── Order Summary Card ── */}
-            <Card className="rounded-xl border-border/60 shadow-sm border-primary/20">
+            <Card className="rounded-xl shadow-md border-2 border-primary/20 bg-gradient-to-b from-card to-muted/20">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold">Order Summary</CardTitle>
+                <CardTitle className="text-sm font-semibold">💰 Order Summary</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2.5 pt-2">
+              <CardContent className="space-y-2 pt-2">
+                {/* Sub Total */}
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span className="tabular-nums">{formatBDT(subtotal)}</span>
+                  <span className="text-muted-foreground">Sub Total</span>
+                  <span className="tabular-nums font-medium">{formatBDT(subtotal)}</span>
                 </div>
+
+                {/* Delivery */}
+                <div className="flex justify-between text-sm items-center">
+                  <span className="text-muted-foreground">Delivery</span>
+                  <Input
+                    type="number"
+                    value={form.delivery_charge}
+                    onChange={(e) => updateForm({ delivery_charge: parseFloat(e.target.value) || 0 })}
+                    className="w-20 text-right h-7 text-sm font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                </div>
+
+                {/* Discount */}
                 <div className="flex justify-between text-sm items-center">
                   <span className="text-muted-foreground">Discount</span>
                   <Input
                     type="number"
                     value={form.discount || ""}
                     onChange={(e) => updateForm({ discount: parseFloat(e.target.value) || 0 })}
-                    className="w-24 text-right h-7 text-sm font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="w-20 text-right h-7 text-sm font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     placeholder="৳0"
                   />
                 </div>
-                <div className="flex justify-between text-sm items-center">
-                  <span className="text-muted-foreground">Delivery Charge</span>
-                  <Input
-                    type="number"
-                    value={form.delivery_charge}
-                    onChange={(e) => updateForm({ delivery_charge: parseFloat(e.target.value) || 0 })}
-                    className="w-24 text-right h-7 text-sm font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                </div>
-
-                <Separator />
 
                 {/* Advance Paid */}
                 {showAdvanceFields && advancePaid > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-green-600 font-medium">Advance Paid</span>
-                    <span className="text-green-600 font-semibold tabular-nums">-{formatBDT(advancePaid)}</span>
+                    <span className="text-green-600 font-bold tabular-nums">-{formatBDT(advancePaid)}</span>
                   </div>
                 )}
+
+                <Separator className="my-1" />
 
                 {/* COD Remaining */}
                 {(form.payment_method === "cod" || isPartial) && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-orange-600 font-medium">COD Remaining</span>
-                    <span className="text-orange-600 font-bold tabular-nums">{formatBDT(form.payment_method === "cod" ? total : codRemaining)}</span>
+                  <div className="flex justify-between text-sm py-1">
+                    <span className="text-orange-600 font-semibold">COD Remaining</span>
+                    <span className="text-orange-600 font-bold text-base tabular-nums">{formatBDT(form.payment_method === "cod" ? total : codRemaining)}</span>
                   </div>
                 )}
 
-                <Separator />
-
-                <div className="flex justify-between items-baseline pt-1">
-                  <span className="text-base font-bold">Total</span>
-                  <span className="text-xl font-bold tabular-nums">{formatBDT(total)}</span>
+                {/* Grand Total */}
+                <div className="flex justify-between items-baseline pt-2 pb-1 px-3 -mx-3 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+                  <span className="text-base font-bold text-green-700 dark:text-green-400">Grand Total</span>
+                  <span className="text-2xl font-extrabold text-green-700 dark:text-green-400 tabular-nums">{formatBDT(total)}</span>
                 </div>
 
                 <Button
@@ -827,7 +824,7 @@ export default function NewOrder() {
 
                 {!canCreate && (
                   <p className="text-[10px] text-center text-muted-foreground">
-                    {form.customer_phone.length < 11 ? "Enter phone number" : "Add at least 1 product"}
+                    {form.customer_phone.length < 11 ? "📱 Enter phone number" : "📦 Add at least 1 product"}
                   </p>
                 )}
               </CardContent>
