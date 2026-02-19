@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, XCircle, Loader2, ShoppingBag, Shield } from "lucide-react";
 import PathaoSettingsSection from "@/components/settings/PathaoSettingsSection";
+import CompanyProfileSection from "@/components/settings/CompanyProfileSection";
 export default function SettingsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -133,6 +134,9 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold">Settings</h1>
         <p className="text-sm text-muted-foreground">Configure integrations and preferences</p>
       </div>
+
+      {/* Company Profile */}
+      <CompanyProfileSection />
 
       {/* Shopify Integration */}
       <Card className="max-w-2xl">

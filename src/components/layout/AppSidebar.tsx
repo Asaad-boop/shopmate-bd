@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { useCompanySettings } from "@/hooks/use-company-settings";
 import {
   LayoutDashboard,
   Package,
@@ -78,6 +79,7 @@ export function AppSidebar() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<string[]>(["Orders", "Products"]);
+  const { settings: company } = useCompanySettings();
 
   const toggleGroup = (label: string) => {
     setExpandedGroups((prev) =>
@@ -99,11 +101,24 @@ export function AppSidebar() {
       {/* Logo */}
       <div className="flex items-center justify-between px-4 h-16 border-b border-sidebar-border">
         {!collapsed && (
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center">
-              <Package className="w-5 h-5 text-sidebar-primary-foreground" />
-            </div>
-            <span className="font-bold text-lg text-sidebar-accent-foreground">EcomHub</span>
+          <Link to="/" className="flex items-center gap-2 min-w-0">
+            {company?.logo ? (
+              <img
+                src={company.logo}
+                alt="Logo"
+                className="h-8 max-w-[140px] object-contain"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            ) : (
+              <>
+                <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center flex-shrink-0">
+                  <Package className="w-5 h-5 text-sidebar-primary-foreground" />
+                </div>
+                <span className="font-bold text-lg text-sidebar-accent-foreground truncate">
+                  {company?.name || "EcomHub"}
+                </span>
+              </>
+            )}
           </Link>
         )}
         <button
