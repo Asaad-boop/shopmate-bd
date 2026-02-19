@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, XCircle, Loader2, ShoppingBag, Shield } from "lucide-react";
 import PathaoSettingsSection from "@/components/settings/PathaoSettingsSection";
 import CompanyProfileSection from "@/components/settings/CompanyProfileSection";
+import InvoiceSettingsSection from "@/components/settings/InvoiceSettingsSection";
 export default function SettingsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -137,6 +138,9 @@ export default function SettingsPage() {
 
       {/* Company Profile */}
       <CompanyProfileSection />
+
+      {/* Invoice Settings */}
+      <InvoiceSettingsSection />
 
       {/* Shopify Integration */}
       <Card className="max-w-2xl">
