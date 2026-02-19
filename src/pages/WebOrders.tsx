@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { formatBDT, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { Search, Phone, MessageCircle, ExternalLink } from "lucide-react";
+import { Search, Phone, MessageCircle, ExternalLink, Radio } from "lucide-react";
 import {
   DropdownMenu as DropdownMenuRoot,
   DropdownMenuContent as DDContent,
@@ -40,6 +40,34 @@ export default function WebOrdersPage() {
   const [activeTab, setActiveTab] = useState("processing");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
+  const [lastSynced, setLastSynced] = useState<Date>(new Date());
+
+  // Check if Shopify is connected
+  const { data: shopifyConnected } = useQuery({
+    queryKey: ["shopify-connected"],
+    queryFn: async () => {
+      const { data } = await supabase.from("settings").select("value").eq("key", "shopify_store_url").maybeSingle();
+      return !!(data?.value);
+    },
+  });
+
+  // Realtime subscription for new shopify orders
+  useEffect(() => {
+    const channel = supabase
+      .channel("web-orders-realtime")
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "orders",
+        filter: "channel=eq.shopify",
+      }, (payload) => {
+        toast({ title: "🛍️ নতুন Shopify Order এসেছে!", description: `Order: ${(payload.new as any).order_number}` });
+        setLastSynced(new Date());
+        queryClient.invalidateQueries({ queryKey: ["web-orders"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient, toast]);
 
   // Fetch all web orders (shopify channel or orders with web_order_status set)
   const { data: orders, isLoading } = useQuery({
@@ -187,6 +215,16 @@ export default function WebOrdersPage() {
           <h1 className="text-2xl font-bold">Web Orders</h1>
           <p className="text-sm text-muted-foreground">Website & Shopify orders — confirm via phone call</p>
         </div>
+        {shopifyConnected && (
+          <div className="flex items-center gap-3">
+            <Badge className="bg-green-500 hover:bg-green-600 text-white gap-1.5">
+              <Radio className="w-3 h-3 animate-pulse" /> Live Sync
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              Last synced: {Math.floor((Date.now() - lastSynced.getTime()) / 60000)}m ago
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Status Tabs */}

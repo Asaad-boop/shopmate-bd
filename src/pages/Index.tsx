@@ -4,11 +4,11 @@ import { formatBDT, formatNumber } from "@/lib/format";
 import { KpiCard } from "@/components/ui/kpi-card";
 import {
   ShoppingCart,
+  ShoppingBag,
   TrendingUp,
   DollarSign,
   Clock,
   AlertTriangle,
-  Truck,
 } from "lucide-react";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
 import { RecentOrdersTable } from "@/components/dashboard/RecentOrdersTable";
@@ -67,6 +67,20 @@ export default function Dashboard() {
     },
   });
 
+  const { data: shopifyToday, isLoading: l5 } = useQuery({
+    queryKey: ["dashboard-shopify-today"],
+    queryFn: async () => {
+      const today = new Date().toISOString().split("T")[0];
+      const { data, error } = await supabase
+        .from("orders")
+        .select("id, total_amount")
+        .eq("channel", "shopify")
+        .gte("order_date", today);
+      if (error) throw error;
+      return { count: data.length, revenue: data.reduce((s, o) => s + (o.total_amount || 0), 0) };
+    },
+  });
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -75,13 +89,20 @@ export default function Dashboard() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <KpiCard
           title="Today's Orders"
           value={formatNumber(todayOrders?.count)}
           subtitle={formatBDT(todayOrders?.revenue)}
           icon={<ShoppingCart className="w-5 h-5" />}
           loading={l1}
+        />
+        <KpiCard
+          title="Shopify Today"
+          value={formatNumber(shopifyToday?.count)}
+          subtitle={formatBDT(shopifyToday?.revenue)}
+          icon={<ShoppingBag className="w-5 h-5" />}
+          loading={l5}
         />
         <KpiCard
           title="Monthly Revenue"
