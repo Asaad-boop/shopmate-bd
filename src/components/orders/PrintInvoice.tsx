@@ -1,155 +1,324 @@
 import { formatBDT, formatDate } from "@/lib/format";
+import { numberToWords } from "@/lib/number-to-words";
 import type { CompanySettings } from "@/hooks/use-company-settings";
+import type { InvoiceSettings } from "@/hooks/use-invoice-settings";
 
-function companyHeader(c: CompanySettings | undefined) {
-  const logo = c?.logo
-    ? `<img src="${c.logo}" alt="Logo" style="max-height:60px;object-fit:contain;" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/><span style="display:none;font-size:22px;font-weight:bold">${c?.name || ''}</span>`
-    : `<span style="font-size:22px;font-weight:bold">${c?.name || 'Company'}</span>`;
+/* ── shared helpers ── */
 
-  const info = [c?.phone, c?.email].filter(Boolean).join(" | ");
-  const addr = [c?.address1, c?.address2, c?.city].filter(Boolean).join(", ");
+const DEFAULT_TERMS = `1. If any defect is found (damaged/defective/wrong product) after opening the box, inform us immediately with picture/video proof.
+2. Return process must be initiated within 3 days of receiving the parcel.
+3. Product must be in original condition with all tags and packaging.
+4. Exchange delivery cost may be applicable.
+5. Promotional offers are not applicable for returned products.`;
+
+function formatDateISO(date: string | null | undefined): string {
+  if (!date) return '-';
+  return new Date(date).toISOString().slice(0, 10);
+}
+
+function getPaymentLabel(method: string | null | undefined): string {
+  if (!method) return 'Cash On Delivery';
+  const m = method.toLowerCase();
+  if (m === 'cod' || m === 'cash_on_delivery') return 'Cash On Delivery';
+  if (m === 'bkash') return 'bKash';
+  if (m === 'nagad') return 'Nagad';
+  if (m === 'paid' || m === 'online') return 'Online Payment';
+  return method;
+}
+
+/* ── CSS per paper size ── */
+
+function getCSS(size: "a4" | "a5") {
+  const isA5 = size === "a5";
+  const f = isA5 ? 0.7 : 1; // scale factor
+  return `
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; color: #111; background: #fff; }
+    .invoice-page { width: ${isA5 ? '148mm' : '210mm'}; min-height: ${isA5 ? '210mm' : '297mm'}; padding: ${isA5 ? '5mm 6mm' : '10mm 12mm'}; margin: 0 auto; position: relative; display: flex; flex-direction: column; }
+
+    /* SECTION 1: Top header */
+    .top-header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: ${8 * f}px; border-bottom: 2px solid #111; margin-bottom: ${12 * f}px; }
+    .top-left { display: flex; flex-direction: column; gap: ${2 * f}px; max-width: 35%; }
+    .top-left img { max-height: ${isA5 ? '35px' : '55px'}; object-fit: contain; }
+    .top-left .co-name { font-size: ${isA5 ? '14px' : '20px'}; font-weight: 800; letter-spacing: -0.5px; }
+    .top-right { display: flex; gap: ${isA5 ? '12px' : '24px'}; text-align: left; }
+    .top-right .col { font-size: ${isA5 ? '7px' : '9.5px'}; line-height: 1.5; color: #333; }
+    .top-right .col strong { font-size: ${isA5 ? '7.5px' : '10px'}; color: #111; display: block; margin-bottom: 2px; }
+    .top-right .col .vat-num { font-family: monospace; letter-spacing: 1.5px; font-size: ${isA5 ? '8px' : '11px'}; font-weight: 700; color: #111; }
+    .top-right .col .mushok { font-size: ${isA5 ? '9px' : '13px'}; font-weight: 800; color: #111; margin-top: 2px; }
+
+    /* SECTION 2: Invoice info */
+    .invoice-info { display: flex; justify-content: space-between; gap: ${16 * f}px; margin-bottom: ${14 * f}px; }
+    .delivery-box { flex: 0 0 45%; }
+    .delivery-label { font-size: ${isA5 ? '8px' : '10px'}; font-weight: 700; text-transform: uppercase; color: #666; margin-bottom: ${4 * f}px; }
+    .delivery-name { font-size: ${isA5 ? '13px' : '18px'}; font-weight: 800; text-transform: uppercase; margin-bottom: ${3 * f}px; letter-spacing: 0.3px; }
+    .delivery-addr { font-size: ${isA5 ? '8.5px' : '11px'}; color: #333; line-height: 1.5; margin-bottom: ${4 * f}px; }
+    .delivery-phone { font-size: ${isA5 ? '11px' : '15px'}; font-weight: 700; font-family: monospace; letter-spacing: 2px; line-height: 1.6; }
+
+    .invoice-detail { flex: 0 0 50%; }
+    .invoice-title { font-size: ${isA5 ? '22px' : '32px'}; font-weight: 900; margin-bottom: ${6 * f}px; }
+    .inv-table { width: 100%; font-size: ${isA5 ? '8.5px' : '11px'}; }
+    .inv-table td { padding: ${2 * f}px 0; vertical-align: top; }
+    .inv-table td:first-child { color: #666; font-weight: 500; width: 35%; }
+    .inv-table td:last-child { font-weight: 600; }
+    .inv-table .payable td:last-child { font-size: ${isA5 ? '14px' : '18px'}; font-weight: 800; }
+    .barcode-area { margin-top: ${6 * f}px; text-align: center; }
+    .barcode-area svg { width: 100%; height: ${isA5 ? '30px' : '45px'}; }
+
+    /* SECTION 3: Items table */
+    .items-table { width: 100%; border-collapse: collapse; margin-bottom: ${10 * f}px; font-size: ${isA5 ? '8px' : '10.5px'}; }
+    .items-table thead { border-top: 2px solid #111; border-bottom: 2px solid #111; }
+    .items-table th { padding: ${isA5 ? '4px 3px' : '7px 6px'}; text-align: left; font-weight: 700; font-size: ${isA5 ? '7.5px' : '10px'}; text-transform: uppercase; color: #333; }
+    .items-table td { padding: ${isA5 ? '5px 3px' : '8px 6px'}; vertical-align: middle; border-bottom: 1px solid #eee; }
+    .items-table tr:nth-child(even) { background: #fafafa; }
+    .items-table .pname { font-weight: 600; }
+    .items-table .img-cell { width: ${isA5 ? '30px' : '50px'}; }
+    .items-table .img-cell img { width: ${isA5 ? '28px' : '44px'}; height: ${isA5 ? '28px' : '44px'}; object-fit: cover; border-radius: 6px; border: 1px solid #eee; }
+    .items-table .img-cell .initial { width: ${isA5 ? '28px' : '44px'}; height: ${isA5 ? '28px' : '44px'}; border-radius: 6px; background: #e2e8f0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: ${isA5 ? '10px' : '14px'}; color: #64748b; }
+    .items-table .qty-highlight { font-weight: 800; color: #dc2626; background: #fef2f2; padding: 2px 6px; border-radius: 4px; }
+    .items-table .r { text-align: right; }
+    .note-row { background: #fef9c3 !important; }
+    .note-row td { font-weight: 600; font-size: ${isA5 ? '8px' : '10.5px'}; color: #854d0e; padding: ${isA5 ? '4px 6px' : '8px 10px'}; }
+
+    /* SECTION 4: Totals */
+    .totals-section { display: flex; justify-content: flex-end; margin-bottom: ${10 * f}px; }
+    .totals-box { width: ${isA5 ? '55%' : '45%'}; }
+    .totals-row { display: flex; justify-content: space-between; padding: ${3 * f}px 0; font-size: ${isA5 ? '9px' : '12px'}; color: #333; }
+    .totals-row.discount { color: #dc2626; }
+    .totals-divider { border-top: 2px solid #111; margin: ${3 * f}px 0; }
+    .totals-row.total { font-size: ${isA5 ? '13px' : '17px'}; font-weight: 800; color: #111; }
+    .totals-row.total .vat-note { font-size: ${isA5 ? '7px' : '9px'}; font-weight: 400; color: #666; display: block; }
+    .in-words { text-align: right; font-size: ${isA5 ? '8px' : '10.5px'}; margin-top: ${4 * f}px; color: #333; }
+    .in-words strong { color: #111; }
+
+    /* SECTION 5: Footer */
+    .footer-section { margin-top: auto; padding-top: ${10 * f}px; border-top: 2px solid #111; display: flex; justify-content: space-between; align-items: flex-end; gap: ${12 * f}px; }
+    .footer-left { }
+    .footer-left svg { height: ${isA5 ? '22px' : '30px'}; margin-bottom: ${4 * f}px; }
+    .footer-left .thanks { font-size: ${isA5 ? '9px' : '12px'}; font-weight: 800; text-transform: uppercase; }
+    .footer-left .feedback { font-size: ${isA5 ? '6.5px' : '8.5px'}; color: #666; text-transform: uppercase; }
+    .footer-left .f-email { font-size: ${isA5 ? '7px' : '9px'}; color: #333; margin-top: 2px; }
+    .footer-right { text-align: right; }
+    .footer-right .social { display: flex; gap: 6px; justify-content: flex-end; margin-bottom: 4px; }
+    .footer-right .social span { width: ${isA5 ? '14px' : '18px'}; height: ${isA5 ? '14px' : '18px'}; border-radius: 4px; background: #111; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: ${isA5 ? '7px' : '9px'}; font-weight: 700; }
+    .footer-right .f-line { font-size: ${isA5 ? '7px' : '9px'}; color: #333; }
+    .footer-right .f-line strong { font-size: ${isA5 ? '7.5px' : '9.5px'}; }
+
+    /* SECTION 6: Terms */
+    .terms-section { margin-top: ${8 * f}px; padding-top: ${6 * f}px; border-top: 1px solid #ddd; }
+    .terms-section p { font-size: ${isA5 ? '6px' : '8px'}; color: #888; line-height: 1.5; margin-bottom: ${2 * f}px; }
+    .terms-section .confidential { font-size: ${isA5 ? '5.5px' : '7px'}; color: #aaa; text-align: center; margin-top: ${4 * f}px; font-style: italic; }
+    .terms-section .copyright { font-size: ${isA5 ? '6px' : '7.5px'}; color: #aaa; text-align: center; margin-top: ${3 * f}px; }
+
+    @media print {
+      @page { size: ${isA5 ? 'A5' : 'A4'} portrait; margin: 0; }
+      html, body { width: ${isA5 ? '148mm' : '210mm'}; }
+      .invoice-page { padding: ${isA5 ? '5mm' : '10mm'}; min-height: ${isA5 ? '210mm' : '297mm'}; }
+      .no-print { display: none !important; }
+      .page-break { page-break-after: always; }
+    }
+  `;
+}
+
+/* ── build single invoice HTML ── */
+
+function buildInvoiceHTML(order: any, company: CompanySettings | undefined, inv: InvoiceSettings | undefined, index: number): string {
+  const items = order.order_items || [];
+  const customer = order.customers;
+  const totalQty = items.reduce((s: number, i: any) => s + (i.quantity || 0), 0);
+  const subtotal = order.subtotal || items.reduce((s: number, i: any) => s + (i.total_price || 0), 0);
+  const showVat = inv?.showVat && inv.vatPercentage > 0;
+  const addr = [company?.address1, company?.address2, company?.city].filter(Boolean).join(', ');
 
   return `
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;border-bottom:2px solid #333;padding-bottom:12px">
-      <div>
-        ${logo}
-        ${c?.tagline ? `<p style="font-size:11px;color:#666;margin:2px 0">${c.tagline}</p>` : ''}
-        ${info ? `<p style="font-size:11px;color:#666;margin:2px 0">${info}</p>` : ''}
-        ${addr ? `<p style="font-size:11px;color:#666;margin:2px 0">${addr}</p>` : ''}
+    <div class="invoice-page ${index > 0 ? 'page-break' : ''}">
+
+      <!-- SECTION 1: Top Header -->
+      <div class="top-header">
+        <div class="top-left">
+          ${company?.logo
+            ? `<img src="${company.logo}" alt="Logo" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/><span class="co-name" style="display:none">${company?.name || ''}</span>`
+            : `<span class="co-name">${company?.name || 'Company'}</span>`}
+          ${company?.logo ? `<span class="co-name">${company?.name || ''}</span>` : ''}
+        </div>
+        <div class="top-right">
+          <div class="col">
+            <strong>HQ</strong>
+            ${addr || 'Company Address'}<br>
+            ${company?.phone ? `Hotline: ${company.phone}` : ''}
+          </div>
+          <div class="col">
+            <strong>VAT Registration No.</strong>
+            <span class="vat-num">${inv?.vatNumber || company?.tin || '—'}</span>
+            <div class="mushok">${inv?.mushokText || 'MUSHOK 6.3'}</div>
+          </div>
+        </div>
       </div>
+
+      <!-- SECTION 2: Invoice Info -->
+      <div class="invoice-info">
+        <div class="delivery-box">
+          <div class="delivery-label">Delivery Address</div>
+          <div class="delivery-name">${customer?.full_name || '-'}</div>
+          <div class="delivery-addr">${order.delivery_address || customer?.address || '-'}</div>
+          <div class="delivery-phone">${customer?.phone || ''}</div>
+          ${customer?.phone2 ? `<div class="delivery-phone">${customer.phone2}</div>` : ''}
+        </div>
+        <div class="invoice-detail">
+          <div class="invoice-title">Invoice</div>
+          <table class="inv-table">
+            <tr><td>Invoice ID:</td><td>${order.order_number}</td></tr>
+            <tr><td>Date:</td><td>${formatDateISO(order.order_date)}</td></tr>
+            <tr><td>Item Count:</td><td>${totalQty}</td></tr>
+            <tr><td>Payment:</td><td><strong>${getPaymentLabel(order.payment_method)}</strong></td></tr>
+            <tr class="payable"><td>Payable:</td><td>BDT ${Number(order.total_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 1 })}</td></tr>
+          </table>
+          ${inv?.showBarcode !== false ? `
+          <div class="barcode-area">
+            <svg id="bc-main-${index}"></svg>
+          </div>` : ''}
+        </div>
+      </div>
+
+      <!-- SECTION 3: Items Table -->
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Title</th>
+            <th class="img-cell"></th>
+            <th>Type</th>
+            <th>Size</th>
+            <th class="r">Price</th>
+            <th class="r">Qty</th>
+            <th class="r">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.map((i: any, idx: number) => {
+            const prod = i.products as any;
+            const name = prod?.name || '-';
+            const initial = name.charAt(0).toUpperCase();
+            const imgHtml = prod?.image_url
+              ? `<img src="${prod.image_url}" alt="" onerror="this.outerHTML='<div class=\\'initial\\'>${initial}</div>'" />`
+              : `<div class="initial">${initial}</div>`;
+            const qtyHtml = i.quantity > 1
+              ? `<span class="qty-highlight">${i.quantity}</span>`
+              : `${i.quantity}`;
+            return `<tr>
+              <td>${idx + 1}.</td>
+              <td class="pname">${name}</td>
+              <td class="img-cell">${imgHtml}</td>
+              <td>${prod?.category || ''}</td>
+              <td>${prod?.variant || ''}</td>
+              <td class="r">${Number(i.unit_price).toLocaleString('en-IN', { minimumFractionDigits: 1 })}</td>
+              <td class="r">${qtyHtml}</td>
+              <td class="r" style="font-weight:600">${Number(i.total_price).toLocaleString('en-IN', { minimumFractionDigits: 1 })}</td>
+            </tr>`;
+          }).join('')}
+          ${order.notes ? `<tr class="note-row"><td colspan="8">📝 Note: ${order.notes}</td></tr>` : ''}
+        </tbody>
+      </table>
+
+      <!-- SECTION 4: Totals -->
+      <div class="totals-section">
+        <div class="totals-box">
+          <div class="totals-row"><span>Sub Total:</span><span>BDT ${Number(subtotal).toLocaleString('en-IN', { minimumFractionDigits: 1 })}</span></div>
+          <div class="totals-row"><span>Shipping Fee(+):</span><span>BDT ${Number(order.delivery_charge || 0).toLocaleString('en-IN', { minimumFractionDigits: 1 })}</span></div>
+          ${order.discount ? `<div class="totals-row discount"><span>Discount(-):</span><span>BDT ${Number(order.discount).toLocaleString('en-IN', { minimumFractionDigits: 1 })}</span></div>` : ''}
+          <div class="totals-divider"></div>
+          <div class="totals-row total">
+            <span>Total:</span>
+            <span>
+              BDT ${Number(order.total_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 1 })}
+              ${showVat ? `<span class="vat-note">(Including ${inv?.vatPercentage}% VAT)</span>` : ''}
+            </span>
+          </div>
+          <div class="in-words"><strong>In Words:</strong> ${numberToWords(order.total_amount)} Tk Only</div>
+        </div>
+      </div>
+
+      <!-- SECTION 5: Footer -->
+      <div class="footer-section">
+        <div class="footer-left">
+          ${inv?.showBarcode !== false ? `<svg id="bc-footer-${index}"></svg>` : ''}
+          <div class="thanks">THANK YOU FOR CHOOSING US</div>
+          <div class="feedback">YOUR FEEDBACK KEEPS US IMPROVING</div>
+          ${company?.email ? `<div class="f-email">${company.email}</div>` : ''}
+        </div>
+        <div class="footer-right">
+          <div class="social">
+            ${company?.facebook ? '<span>f</span>' : ''}
+            ${company?.website ? '<span>🌐</span>' : ''}
+          </div>
+          ${company?.website ? `<div class="f-line">VISIT US: <strong>${company.website}</strong></div>` : ''}
+          ${company?.phone ? `<div class="f-line">SUPPORT: <strong>${company.phone}</strong></div>` : ''}
+        </div>
+      </div>
+
+      <!-- SECTION 6: Terms -->
+      <div class="terms-section">
+        <p>${(inv?.terms || DEFAULT_TERMS).replace(/\n/g, '<br>')}</p>
+        <div class="confidential">This document & any information transmitted with it are confidential & intended solely for the use of the individual or entity to whom they are addressed.</div>
+        <div class="copyright">© ${new Date().getFullYear()} ${company?.name || 'Company'}. All Rights Reserved</div>
+      </div>
+
     </div>
   `;
 }
+
+/* ── PUBLIC API ── */
+
+export function printInvoice(order: any, company?: CompanySettings, inv?: InvoiceSettings, paperSize?: "a4" | "a5") {
+  const size = paperSize || inv?.defaultPaperSize || "a4";
+  const html = `
+    <html><head>
+      <title>Invoice - ${order.order_number}</title>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+      <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
+      <style>${getCSS(size)}</style>
+    </head><body>
+      ${buildInvoiceHTML(order, company, inv, 0)}
+      <script>
+        try{JsBarcode("#bc-main-0","${order.order_number}",{format:"CODE128",height:${size === 'a5' ? 28 : 40},displayValue:true,fontSize:${size === 'a5' ? 8 : 11},margin:0,textMargin:2});}catch(e){}
+        try{JsBarcode("#bc-footer-0","${order.order_number}",{format:"CODE128",height:${size === 'a5' ? 18 : 25},displayValue:false,margin:0});}catch(e){}
+      <\/script>
+    </body></html>
+  `;
+  const win = window.open("", "_blank");
+  if (win) { win.document.write(html); win.document.close(); }
+}
+
+export function printBulkInvoices(orders: any[], company?: CompanySettings, inv?: InvoiceSettings, paperSize?: "a4" | "a5") {
+  const size = paperSize || inv?.defaultPaperSize || "a4";
+  const invoicesHTML = orders.map((o, i) => buildInvoiceHTML(o, company, inv, i)).join('');
+  const barcodeScripts = orders.map((o, i) => `
+    try{JsBarcode("#bc-main-${i}","${o.order_number}",{format:"CODE128",height:${size === 'a5' ? 28 : 40},displayValue:true,fontSize:${size === 'a5' ? 8 : 11},margin:0,textMargin:2});}catch(e){}
+    try{JsBarcode("#bc-footer-${i}","${o.order_number}",{format:"CODE128",height:${size === 'a5' ? 18 : 25},displayValue:false,margin:0});}catch(e){}
+  `).join('\n');
+
+  const html = `
+    <html><head>
+      <title>Invoices - Bulk Print</title>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+      <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
+      <style>${getCSS(size)}</style>
+    </head><body>
+      ${invoicesHTML}
+      <script>${barcodeScripts}<\/script>
+    </body></html>
+  `;
+  const win = window.open("", "_blank");
+  if (win) { win.document.write(html); win.document.close(); }
+}
+
+/* ── Keep legacy exports for picking list, packing slip, barcode labels ── */
 
 function companyHeaderSmall(c: CompanySettings | undefined) {
   const logo = c?.logo
     ? `<img src="${c.logo}" alt="" style="max-height:30px;object-fit:contain;margin-right:8px;vertical-align:middle" onerror="this.style.display='none'"/>`
     : '';
   return `${logo}<strong>${c?.name || 'Company'}</strong>${c?.phone ? ` | ${c.phone}` : ''}`;
-}
-
-export function printInvoice(order: any, company?: CompanySettings) {
-  const items = order.order_items || [];
-  const customer = order.customers;
-  const subtotal = order.subtotal || items.reduce((s: number, i: any) => s + (i.total_price || 0), 0);
-
-  const html = `
-    <html><head><title>Invoice - ${order.order_number}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { font-family: 'Inter', system-ui, sans-serif; padding: 40px; color: #1a1a2e; max-width: 800px; margin: 0 auto; font-size: 13px; line-height: 1.5; }
-
-      .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 24px; border-bottom: 3px solid #2563eb; margin-bottom: 28px; }
-      .header-left { display: flex; flex-direction: column; gap: 4px; }
-      .header-left img { max-height: 52px; object-fit: contain; margin-bottom: 4px; }
-      .company-name { font-size: 22px; font-weight: 700; color: #1e293b; letter-spacing: -0.3px; }
-      .company-detail { font-size: 11px; color: #64748b; }
-
-      .invoice-badge { text-align: right; }
-      .invoice-title { font-size: 28px; font-weight: 800; color: #2563eb; letter-spacing: -0.5px; text-transform: uppercase; }
-      .invoice-num { font-size: 13px; font-weight: 600; color: #334155; margin-top: 4px; }
-      .invoice-date { font-size: 12px; color: #64748b; margin-top: 2px; }
-
-      .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 28px; }
-      .party-box { padding: 16px; border-radius: 8px; }
-      .party-box.from { background: #f1f5f9; }
-      .party-box.to { background: #eff6ff; border: 1px solid #bfdbfe; }
-      .party-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 8px; }
-      .party-name { font-size: 15px; font-weight: 600; color: #1e293b; }
-      .party-info { font-size: 12px; color: #475569; margin-top: 2px; }
-
-      table { width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 24px; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; }
-      thead { background: #1e293b; }
-      th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: #fff; text-transform: uppercase; letter-spacing: 0.5px; }
-      th:last-child, td:last-child { text-align: right; }
-      th:nth-child(3), td:nth-child(3), th:nth-child(4), td:nth-child(4) { text-align: center; }
-      td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #334155; }
-      tr:last-child td { border-bottom: none; }
-      tr:nth-child(even) { background: #f8fafc; }
-
-      .summary { display: flex; justify-content: flex-end; margin-bottom: 28px; }
-      .summary-box { width: 280px; }
-      .summary-row { display: flex; justify-content: space-between; padding: 7px 0; font-size: 13px; color: #475569; }
-      .summary-row.discount { color: #dc2626; }
-      .summary-divider { border-top: 1px dashed #cbd5e1; margin: 4px 0; }
-      .summary-total { display: flex; justify-content: space-between; padding: 12px 16px; background: #2563eb; color: #fff; border-radius: 8px; font-size: 16px; font-weight: 700; margin-top: 6px; }
-      .payment-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; margin-top: 8px; }
-      .badge-cod { background: #fef3c7; color: #92400e; }
-      .badge-paid { background: #dcfce7; color: #166534; }
-
-      .footer { margin-top: 40px; text-align: center; padding-top: 20px; border-top: 1px solid #e2e8f0; }
-      .footer-thanks { font-size: 15px; font-weight: 600; color: #1e293b; margin-bottom: 6px; }
-      .footer-detail { font-size: 11px; color: #94a3b8; }
-      .footer-social { margin-top: 8px; font-size: 11px; color: #64748b; }
-
-      .tax-row { font-size: 11px; color: #64748b; margin-top: 2px; }
-
-      @media print { body { padding: 20px; } }
-    </style></head><body>
-
-    <div class="header">
-      <div class="header-left">
-        ${company?.logo
-          ? `<img src="${company.logo}" alt="Logo" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/><span class="company-name" style="display:none">${company?.name || ''}</span>`
-          : `<span class="company-name">${company?.name || 'Company'}</span>`}
-        ${company?.tagline ? `<span class="company-detail">${company.tagline}</span>` : ''}
-        ${company?.phone ? `<span class="company-detail">📞 ${company.phone}${company?.phone2 ? ` / ${company.phone2}` : ''}</span>` : ''}
-        ${company?.email ? `<span class="company-detail">✉️ ${company.email}</span>` : ''}
-      </div>
-      <div class="invoice-badge">
-        <div class="invoice-title">Invoice</div>
-        <div class="invoice-num">#${order.order_number}</div>
-        <div class="invoice-date">${formatDate(order.order_date)}</div>
-        ${company?.tin ? `<div class="tax-row">TIN: ${company.tin}</div>` : ''}
-        ${company?.bin ? `<div class="tax-row">BIN: ${company.bin}</div>` : ''}
-      </div>
-    </div>
-
-    <div class="parties">
-      <div class="party-box from">
-        <div class="party-label">From</div>
-        <div class="party-name">${company?.name || 'Company'}</div>
-        ${[company?.address1, company?.address2, company?.city].filter(Boolean).length
-          ? `<div class="party-info">${[company?.address1, company?.address2, company?.city].filter(Boolean).join(', ')}</div>` : ''}
-      </div>
-      <div class="party-box to">
-        <div class="party-label">Bill To</div>
-        <div class="party-name">${customer?.full_name || '-'}</div>
-        ${customer?.phone ? `<div class="party-info">📞 ${customer.phone}</div>` : ''}
-        <div class="party-info">${order.delivery_address || customer?.address || '-'}</div>
-      </div>
-    </div>
-
-    <table>
-      <thead><tr><th>#</th><th>Product</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead>
-      <tbody>${items.map((i: any, idx: number) => `<tr><td>${idx + 1}</td><td style="font-weight:500">${(i.products as any)?.name || '-'}</td><td>${i.quantity}</td><td>৳${Number(i.unit_price).toLocaleString()}</td><td style="font-weight:600">৳${Number(i.total_price).toLocaleString()}</td></tr>`).join('')}</tbody>
-    </table>
-
-    <div class="summary">
-      <div class="summary-box">
-        <div class="summary-row"><span>Subtotal</span><span>৳${Number(subtotal).toLocaleString()}</span></div>
-        ${order.discount ? `<div class="summary-row discount"><span>Discount</span><span>-৳${Number(order.discount).toLocaleString()}</span></div>` : ''}
-        <div class="summary-row"><span>Delivery Charge</span><span>৳${Number(order.delivery_charge || 0).toLocaleString()}</span></div>
-        <div class="summary-divider"></div>
-        <div class="summary-total"><span>Total</span><span>৳${Number(order.total_amount || 0).toLocaleString()}</span></div>
-        <div style="text-align:right;margin-top:8px">
-          <span class="payment-badge ${(order.payment_method || 'COD').toLowerCase() === 'cod' ? 'badge-cod' : 'badge-paid'}">${order.payment_method || 'COD'}</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="footer">
-      <div class="footer-thanks">Thank you for your order! 🙏</div>
-      <div class="footer-detail">If you have questions about this invoice, please contact us.</div>
-      ${company?.website || company?.facebook ? `<div class="footer-social">${[company?.website, company?.facebook ? `fb.com: ${company.facebook}` : ''].filter(Boolean).join(' | ')}</div>` : ''}
-    </div>
-
-    </body></html>
-  `;
-
-  const win = window.open("", "_blank");
-  if (win) { win.document.write(html); win.document.close(); win.print(); }
 }
 
 export function printPickingList(orders: any[], company?: CompanySettings) {
@@ -246,7 +415,7 @@ export function printBarcodeLabels(orders: any[], company?: CompanySettings) {
 
   const html = `
     <html><head><title>Barcode Labels</title>
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
     <style>
       body { font-family: Arial, sans-serif; padding: 10px; }
       .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -273,7 +442,7 @@ export function printBarcodeLabels(orders: any[], company?: CompanySettings) {
     <script>
       ${labels.map((l, i) => `try{JsBarcode("#bc-${i}", "${l.orderNumber}", {height:35,displayValue:false,margin:0});}catch(e){}`).join('\n')}
       setTimeout(()=>window.print(), 500);
-    </script>
+    <\/script>
     </body></html>
   `;
 

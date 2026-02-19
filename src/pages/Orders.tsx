@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCompanySettings } from "@/hooks/use-company-settings";
+import { useInvoiceSettings } from "@/hooks/use-invoice-settings";
 import { supabase } from "@/integrations/supabase/client";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,7 +20,7 @@ import { StatusChangeModal } from "@/components/orders/StatusChangeModal";
 import { DamageReturnModal } from "@/components/orders/DamageReturnModal";
 import { ScanMode } from "@/components/orders/ScanMode";
 import { PathaoBookingModal } from "@/components/pathao/PathaoBookingModal";
-import { printInvoice, printPickingList, printPackingSlip, printBarcodeLabels } from "@/components/orders/PrintInvoice";
+import { printInvoice, printBulkInvoices, printPickingList, printPackingSlip, printBarcodeLabels } from "@/components/orders/PrintInvoice";
 import { CODReconciliation } from "@/components/orders/CODReconciliation";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -45,6 +46,7 @@ export default function OrdersPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { settings: companySettings } = useCompanySettings();
+  const { invoiceSettings } = useInvoiceSettings();
 
   const [search, setSearch] = useState("");
   const [statusTab, setStatusTab] = useState("all");
@@ -201,7 +203,7 @@ export default function OrdersPage() {
   // Bulk print
   const handleBulkPrint = (type: "invoice" | "picking" | "packing" | "barcode") => {
     const selected = orders?.filter((o) => selectedIds.has(o.id)) || [];
-    if (type === "invoice") selected.forEach((o) => printInvoice(o, companySettings));
+    if (type === "invoice") printBulkInvoices(selected, companySettings, invoiceSettings);
     if (type === "picking") printPickingList(selected, companySettings);
     if (type === "packing") selected.forEach((o) => printPackingSlip(o, companySettings));
     if (type === "barcode") printBarcodeLabels(selected, companySettings);
@@ -521,7 +523,7 @@ export default function OrdersPage() {
                                 </DropdownMenuSubContent>
                               </DropdownMenuSub>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => printInvoice(order, companySettings)}>
+                              <DropdownMenuItem onClick={() => printInvoice(order, companySettings, invoiceSettings)}>
                                 <Printer className="w-3.5 h-3.5 mr-2" /> Print Invoice
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => printBarcodeLabels([order], companySettings)}>
