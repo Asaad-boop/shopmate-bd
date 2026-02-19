@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge, ChannelBadge } from "@/components/ui/status-badge";
 import { orderStatusConfig, paymentStatusConfig, formatBDT, formatDateTime } from "@/lib/format";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Check, Truck, Package, ClipboardList, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Check, Truck, Package, ClipboardList, CheckCircle2, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +36,16 @@ export default function OrderDetail() {
       return data;
     },
     enabled: !!id,
+  });
+
+  // Fetch Shopify store URL for linking
+  const { data: shopifyStoreUrl } = useQuery({
+    queryKey: ["shopify-store-url"],
+    queryFn: async () => {
+      const { data } = await supabase.from("settings").select("value").eq("key", "shopify_store_url").maybeSingle();
+      return data?.value || "";
+    },
+    enabled: !!order && order.channel === "shopify",
   });
 
   const { data: items } = useQuery({
@@ -201,6 +211,36 @@ export default function OrderDetail() {
               )}
             </CardContent>
           </Card>
+
+          {/* Shopify Info (only for shopify orders) */}
+          {order.channel === "shopify" && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">🛍️ Shopify Info</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                {order.shopify_order_id && (
+                  <div className="flex justify-between"><span className="text-muted-foreground">Shopify Order ID</span><span className="font-mono">{order.shopify_order_id}</span></div>
+                )}
+                {order.shopify_order_number && (
+                  <div className="flex justify-between"><span className="text-muted-foreground">Shopify Order #</span><span>{order.shopify_order_number}</span></div>
+                )}
+                {shopifyStoreUrl && order.shopify_order_id && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-2"
+                    onClick={() => window.open(`https://${shopifyStoreUrl}/admin/orders/${order.shopify_order_id}`, "_blank")}
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" /> View in Shopify
+                  </Button>
+                )}
+                {!order.shopify_order_id && !order.shopify_order_number && (
+                  <p className="text-muted-foreground text-xs">No Shopify order data linked yet</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Delivery Info */}
           <Card>
