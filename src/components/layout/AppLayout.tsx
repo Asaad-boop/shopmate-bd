@@ -10,13 +10,13 @@ export function AppLayout() {
       <AppSidebar />
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-6 bg-card border-b border-border">
+         <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-6 bg-card border-b border-border">
           <div className="flex items-center gap-4 flex-1 max-w-md">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Search orders, products, customers..."
-                className="pl-10 bg-secondary border-0"
+                className="pl-10 bg-muted border-0 rounded-lg focus-visible:ring-primary"
               />
             </div>
           </div>
