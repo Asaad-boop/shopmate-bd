@@ -10,6 +10,8 @@ import NewOrder from "./pages/NewOrder";
 import ProductsPage from "./pages/Products";
 import NewProduct from "./pages/NewProduct";
 import OrderDetail from "./pages/OrderDetail";
+import WebOrdersPage from "./pages/WebOrders";
+import WebOrderDetail from "./pages/WebOrderDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +28,8 @@ const App = () => (
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/orders/new" element={<NewOrder />} />
             <Route path="/orders/:id" element={<OrderDetail />} />
+            <Route path="/web-orders" element={<WebOrdersPage />} />
+            <Route path="/web-orders/:id" element={<WebOrderDetail />} />
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/products/new" element={<NewProduct />} />
           </Route>

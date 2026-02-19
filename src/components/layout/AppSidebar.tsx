@@ -6,6 +6,7 @@ import {
   ShoppingCart,
   Boxes,
   Ship,
+  Globe,
   Users,
   Wallet,
   BarChart3,
@@ -40,6 +41,7 @@ const navItems: NavItem[] = [
       { label: "Add New Order", path: "/orders/new", icon: Plus },
     ],
   },
+  { label: "Web Orders", icon: Globe, path: "/web-orders" },
   {
     label: "Products",
     icon: Package,
