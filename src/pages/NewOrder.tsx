@@ -175,6 +175,27 @@ export default function NewOrder() {
       const { error: itemsErr } = await supabase.from("order_items").insert(orderItems);
       if (itemsErr) throw itemsErr;
 
+      // Stock decrease for pending orders
+      for (const item of items) {
+        const product = products?.find((p) => p.id === item.product_id);
+        if (!product) continue;
+        await supabase
+          .from("products")
+          .update({
+            stock_quantity: (product.stock_quantity || 0) - item.quantity,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", item.product_id);
+        await supabase.from("inventory_movements").insert({
+          product_id: item.product_id,
+          movement_type: "order_pending",
+          quantity: -item.quantity,
+          reference_type: "order",
+          reference_id: order.id,
+          notes: "Manual order created (stock decreased)",
+        });
+      }
+
       return order;
     },
     onSuccess: () => {

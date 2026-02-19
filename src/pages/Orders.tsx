@@ -74,6 +74,9 @@ export default function OrdersPage() {
         .order("order_date", { ascending: false })
         .limit(200);
 
+      // Exclude web orders still in processing pipeline (only show confirmed or non-web orders)
+      q = q.or("web_order_status.is.null,web_order_status.eq.confirm");
+
       if (statusTab !== "all") q = q.eq("status", statusTab);
       if (courierFilter === "pathao") q = q.not("pathao_consignment_id", "is", null);
       if (paymentFilter === "cod") q = q.eq("payment_method", "cod");
@@ -93,7 +96,8 @@ export default function OrdersPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("orders")
-        .select("status");
+        .select("status, web_order_status")
+        .or("web_order_status.is.null,web_order_status.eq.confirm");
       const counts: Record<string, number> = { all: data?.length || 0 };
       data?.forEach((o: any) => {
         const s = o.status || "pending";

@@ -168,21 +168,53 @@ export default function WebOrderDetail() {
 
   const confirmMutation = useMutation({
     mutationFn: async () => {
+      // Update order: set status to 'pending' so it appears in Order List
       await supabase
         .from("orders")
-        .update({ web_order_status: "confirm", status: "confirmed", updated_at: new Date().toISOString() })
+        .update({ web_order_status: "confirm", status: "pending", updated_at: new Date().toISOString() })
         .eq("id", id!);
+
+      // Apply stock decrease (pending = stock minus)
+      const { data: orderItems } = await supabase
+        .from("order_items")
+        .select("product_id, quantity, products(id, name, stock_quantity)")
+        .eq("order_id", id!);
+
+      if (orderItems) {
+        for (const item of orderItems) {
+          const product = item.products as any;
+          if (!product?.id) continue;
+          await supabase
+            .from("products")
+            .update({
+              stock_quantity: (product.stock_quantity || 0) - item.quantity,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", product.id);
+          await supabase.from("inventory_movements").insert({
+            product_id: product.id,
+            movement_type: "order_pending",
+            quantity: -item.quantity,
+            reference_type: "order",
+            reference_id: id,
+            notes: "Web order confirmed → pending (stock decreased)",
+          });
+        }
+      }
+
       await supabase.from("web_order_notes").insert({
         order_id: id, note_type: "activity",
-        content: "Order confirmed and moved to main order processing", created_by: "Staff",
+        content: "Order confirmed and moved to Order List (Pending)", created_by: "Staff",
       });
     },
     onSuccess: () => {
-      toast({ title: "Order confirmed!", description: "Moved to main order processing" });
+      toast({ title: "✅ Order confirmed and moved to Order List!", description: "Stock has been adjusted" });
       setShowConfirmDialog(false);
       queryClient.invalidateQueries({ queryKey: ["web-order", id] });
       queryClient.invalidateQueries({ queryKey: ["web-order-notes", id] });
       queryClient.invalidateQueries({ queryKey: ["web-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["orders-full"] });
+      queryClient.invalidateQueries({ queryKey: ["order-status-counts"] });
     },
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
