@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, XCircle, Loader2, ShoppingBag, Shield } from "lucide-react";
-
+import PathaoSettingsSection from "@/components/settings/PathaoSettingsSection";
 export default function SettingsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -247,6 +247,9 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Pathao Courier Integration */}
+      <PathaoSettingsSection />
     </div>
   );
 }
