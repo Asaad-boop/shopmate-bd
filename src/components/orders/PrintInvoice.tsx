@@ -233,6 +233,12 @@ function buildInvoiceHTML(order: any, company: CompanySettings | undefined, inv:
         </div>
       </div>
 
+      <!-- Rider Note Box -->
+      <div class="rider-note-box">
+        <div class="rn-title">🚫 Note for Rider / রাইডারের জন্য নির্দেশনা:</div>
+        <div class="rn-text">${inv?.riderNote || `মার্চেন্টের অনুমতি ছাড়া প্রোডাক্ট খোলা সম্পূর্ণ নিষিদ্ধ, খুলে দেখতে চাইলে আগে কল করুন: 09638779900 WhatsApp : +880 1964-437520`}</div>
+      </div>
+
       <!-- SECTION 5: Community & Review -->
       <div class="community-section">
         <div class="community-col">
@@ -250,12 +256,6 @@ function buildInvoiceHTML(order: any, company: CompanySettings | undefined, inv:
             ? `<a class="cm-link" href="${company.facebookGroupLink}">👥 Facebook Group এ Join করুন</a>`
             : ''}
         </div>
-      </div>
-
-      <!-- Rider Note Box -->
-      <div class="rider-note-box">
-        <div class="rn-title">🚫 Note for Rider / রাইডারের জন্য নির্দেশনা:</div>
-        <div class="rn-text">${inv?.riderNote || `মার্চেন্টের অনুমতি ছাড়া প্রোডাক্ট খোলা সম্পূর্ণ নিষিদ্ধ, খুলে দেখতে চাইলে আগে কল করুন: ${company?.phone || ''} WhatsApp: ${company?.whatsapp || ''}`}</div>
       </div>
 
       <div class="footer-bottom">
