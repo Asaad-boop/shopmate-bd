@@ -41,7 +41,6 @@ const STATUS_TABS: { key: string; label: string; icon: LucideIcon }[] = [
   { key: "pending_return", label: "P. Return", icon: RotateCcw },
   { key: "returned", label: "Returned", icon: Undo2 },
   { key: "damage_return", label: "Damage", icon: Flame },
-  { key: "all", label: "All", icon: ClipboardList },
 ];
 
 export default function OrdersPage() {
@@ -52,7 +51,7 @@ export default function OrdersPage() {
   const { invoiceSettings } = useInvoiceSettings();
 
   const [search, setSearch] = useState("");
-  const [statusTab, setStatusTab] = useState("all");
+  const [statusTab, setStatusTab] = useState("pending");
   const [courierFilter, setCourierFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
