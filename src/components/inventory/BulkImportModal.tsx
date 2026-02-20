@@ -2,11 +2,11 @@ import { useState, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileText, AlertTriangle } from "lucide-react";
+import { Upload, FileText, AlertTriangle, CheckCircle } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -38,7 +38,6 @@ export default function BulkImportModal({ open, onOpenChange, products }: Props)
     reader.onload = (ev) => {
       const text = ev.target?.result as string;
       const lines = text.split("\n").filter(Boolean);
-      // Skip header if first line contains "sku"
       const start = lines[0]?.toLowerCase().includes("sku") ? 1 : 0;
       const parsed: CsvRow[] = lines.slice(start).map((line) => {
         const [sku, quantity, cost_price] = line.split(",").map((s) => s.trim().replace(/"/g, ""));
@@ -108,77 +107,92 @@ export default function BulkImportModal({ open, onOpenChange, products }: Props)
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Import Stock from CSV</DialogTitle>
-        </DialogHeader>
-
-        {rows.length === 0 ? (
-          <div className="py-12 text-center space-y-4">
-            <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-              <FileText className="w-8 h-8 text-muted-foreground" />
+      <DialogContent className="max-w-2xl max-h-[80vh] p-0">
+        <DialogHeader className="px-6 pt-6 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Upload className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="font-medium">Upload a CSV file</p>
-              <p className="text-sm text-muted-foreground mt-1">Format: SKU, Quantity, Cost Price</p>
+              <DialogTitle>Import Stock from CSV</DialogTitle>
+              <DialogDescription>Upload a CSV file with SKU, Quantity, and Cost Price columns</DialogDescription>
             </div>
-            <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFile} />
-            <Button onClick={() => fileRef.current?.click()}>
-              <Upload className="w-4 h-4 mr-2" /> Choose CSV File
-            </Button>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {/* Summary */}
-            <div className="flex gap-3">
-              <Badge className="bg-success/15 text-success">{matchedCount} matched</Badge>
-              {notFoundCount > 0 && (
-                <Badge variant="destructive">{notFoundCount} not found</Badge>
-              )}
-            </div>
+        </DialogHeader>
 
-            {result && (
-              <div className="p-3 rounded-lg bg-success/10 text-success text-sm font-medium">
-                ✅ Import complete: {result.updated} products updated
-                {result.notFound > 0 && `, ${result.notFound} SKU not found`}
+        <div className="px-6 pb-4 overflow-y-auto" style={{ maxHeight: "calc(80vh - 180px)" }}>
+          {rows.length === 0 ? (
+            <div className="py-12 text-center space-y-4">
+              <div className="mx-auto w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
+                <FileText className="w-8 h-8 text-muted-foreground" />
               </div>
-            )}
-
-            {/* Preview */}
-            <div className="overflow-x-auto border rounded-lg max-h-[300px] overflow-y-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>SKU</TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Cost Price</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((r, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="font-mono text-sm">{r.sku}</TableCell>
-                      <TableCell className="text-sm">{r.productName || "—"}</TableCell>
-                      <TableCell className="font-medium">{r.quantity}</TableCell>
-                      <TableCell>{r.cost_price}</TableCell>
-                      <TableCell>
-                        {r.matched ? (
-                          <Badge className="bg-success/15 text-success">✓ Matched</Badge>
-                        ) : (
-                          <Badge variant="destructive"><AlertTriangle className="w-3 h-3 mr-1" />Not Found</Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <div>
+                <p className="font-semibold">Upload a CSV file</p>
+                <p className="text-sm text-muted-foreground mt-1">Format: SKU, Quantity, Cost Price</p>
+              </div>
+              <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFile} />
+              <Button onClick={() => fileRef.current?.click()} className="gap-2">
+                <Upload className="w-4 h-4" /> Choose CSV File
+              </Button>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="space-y-4">
+              {/* Summary */}
+              <div className="flex gap-3">
+                <Badge className="bg-success/15 text-success gap-1">
+                  <CheckCircle className="w-3 h-3" />{matchedCount} matched
+                </Badge>
+                {notFoundCount > 0 && (
+                  <Badge variant="destructive" className="gap-1">
+                    <AlertTriangle className="w-3 h-3" />{notFoundCount} not found
+                  </Badge>
+                )}
+              </div>
 
-        <DialogFooter>
+              {result && (
+                <div className="p-3 rounded-xl bg-success/10 text-success text-sm font-medium animate-row-in flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4" />
+                  Import complete: {result.updated} products updated
+                  {result.notFound > 0 && `, ${result.notFound} SKU not found`}
+                </div>
+              )}
+
+              {/* Preview */}
+              <div className="overflow-x-auto border rounded-xl max-h-[300px] overflow-y-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs">SKU</TableHead>
+                      <TableHead className="text-xs">Product</TableHead>
+                      <TableHead className="text-xs">Quantity</TableHead>
+                      <TableHead className="text-xs">Cost Price</TableHead>
+                      <TableHead className="text-xs">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((r, i) => (
+                      <TableRow key={i} className="animate-row-in" style={{ animationDelay: `${i * 30}ms` }}>
+                        <TableCell className="font-mono text-sm">{r.sku}</TableCell>
+                        <TableCell className="text-sm">{r.productName || "—"}</TableCell>
+                        <TableCell className="font-medium">{r.quantity}</TableCell>
+                        <TableCell>{r.cost_price}</TableCell>
+                        <TableCell>
+                          {r.matched ? (
+                            <Badge className="bg-success/15 text-success">✓ Matched</Badge>
+                          ) : (
+                            <Badge variant="destructive" className="gap-1"><AlertTriangle className="w-3 h-3" />Not Found</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="px-6 py-4">
           <Button variant="outline" onClick={() => handleClose(false)}>Cancel</Button>
           {rows.length > 0 && !result && (
             <Button onClick={handleImport} disabled={importing || matchedCount === 0}>
