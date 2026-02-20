@@ -9,6 +9,20 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { formatBDT, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -71,6 +85,26 @@ const CALL_OPTIONS = [
 
 const QUICK_NOTES = ["Call before delivery", "Fragile", "Gift wrap", "Deliver after 6 PM"];
 
+const CANCEL_REASONS = [
+  "Customer requested cancellation",
+  "Duplicate order",
+  "Out of stock",
+  "Fraudulent order",
+  "Price dispute",
+  "Wrong product ordered",
+  "Other",
+];
+
+const HOLD_REASONS = [
+  "Waiting for customer confirmation",
+  "Payment verification pending",
+  "Address clarification needed",
+  "Customer unreachable",
+  "Stock arriving soon",
+  "Customer requested delay",
+  "Other",
+];
+
 /* ─── HELPERS ─── */
 const timeAgo = (dateStr: string) => {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -117,6 +151,9 @@ export default function WebOrderDetail() {
   const [detectedDistrict, setDetectedDistrict] = useState<string | null>(null);
   const [detectedThana, setDetectedThana] = useState<string | null>(null);
   const [addressParseApplied, setAddressParseApplied] = useState(false);
+  const [reasonModal, setReasonModal] = useState<{ open: boolean; type: "cancel" | "on_hold" }>({ open: false, type: "cancel" });
+  const [reasonValue, setReasonValue] = useState("");
+  const [reasonNote, setReasonNote] = useState("");
 
   /* ── Queries ── */
   const { data: order, isLoading } = useQuery({
@@ -215,16 +252,18 @@ export default function WebOrderDetail() {
 
   /* ── Mutations ── */
   const statusMutation = useMutation({
-    mutationFn: async (newStatus: string) => {
+    mutationFn: async ({ newStatus, reason, note }: { newStatus: string; reason?: string; note?: string }) => {
       const oldStatus = order?.web_order_status || "processing";
       const { error } = await supabase
         .from("orders")
         .update({ web_order_status: newStatus, updated_at: new Date().toISOString() })
         .eq("id", id!);
       if (error) throw error;
+      const reasonText = reason ? ` — Reason: ${reason}` : "";
+      const noteText = note ? ` | Note: ${note}` : "";
       await supabase.from("web_order_notes").insert({
         order_id: id, note_type: "status_change",
-        content: `Status changed from ${oldStatus} to ${newStatus}`,
+        content: `Status changed from ${oldStatus} to ${newStatus}${reasonText}${noteText}`,
         old_status: oldStatus, new_status: newStatus, created_by: "Staff",
       });
     },
@@ -903,10 +942,27 @@ export default function WebOrderDetail() {
                       </AlertDialogRoot>
                     );
                   }
+                  if (s.key === "on_hold") {
+                    return (
+                      <button
+                        key={s.key}
+                        onClick={() => { setReasonModal({ open: true, type: "on_hold" }); setReasonValue(""); setReasonNote(""); }}
+                        disabled={isActive || statusMutation.isPending}
+                        className={cn(
+                          "w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 border bg-gradient-to-r",
+                          isActive ? s.active : s.color,
+                          (isActive || statusMutation.isPending) && "opacity-50 cursor-not-allowed"
+                        )}
+                      >
+                        <span>{s.emoji}</span> {s.label}
+                        {isActive && <CheckCircle2 className="w-3.5 h-3.5 ml-auto" />}
+                      </button>
+                    );
+                  }
                   return (
                     <button
                       key={s.key}
-                      onClick={() => statusMutation.mutate(s.key)}
+                      onClick={() => statusMutation.mutate({ newStatus: s.key })}
                       disabled={isActive || statusMutation.isPending}
                       className={cn(
                         "w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 border bg-gradient-to-r",
@@ -921,7 +977,7 @@ export default function WebOrderDetail() {
                 })}
                 {/* Cancel */}
                 <button
-                  onClick={() => statusMutation.mutate("cancel")}
+                  onClick={() => { setReasonModal({ open: true, type: "cancel" }); setReasonValue(""); setReasonNote(""); }}
                   disabled={currentStatus === "cancel" || statusMutation.isPending}
                   className={cn(
                     "w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 border bg-gradient-to-r mt-2",
@@ -958,6 +1014,70 @@ export default function WebOrderDetail() {
           </div>
         </div>
       </div>
+
+      {/* Reason Modal for Cancel / On Hold */}
+      <Dialog open={reasonModal.open} onOpenChange={(open) => setReasonModal((prev) => ({ ...prev, open }))}>
+        <DialogContent className="rounded-2xl bg-[#1a1a2e] border-white/10 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              {reasonModal.type === "cancel" ? "❌ Cancel Order" : "⏸️ Put On Hold"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-[11px] text-white/40 font-medium mb-1.5 block">
+                Reason <span className="text-red-400">*</span>
+              </label>
+              <Select value={reasonValue} onValueChange={setReasonValue}>
+                <SelectTrigger className="rounded-xl bg-white/[0.06] border-white/[0.1] text-white h-10 focus:ring-white/20">
+                  <SelectValue placeholder="Select a reason..." />
+                </SelectTrigger>
+                <SelectContent className="bg-[#1a1a2e] border-white/10 text-white rounded-xl">
+                  {(reasonModal.type === "cancel" ? CANCEL_REASONS : HOLD_REASONS).map((r) => (
+                    <SelectItem key={r} value={r} className="text-white/80 focus:bg-white/10 focus:text-white rounded-lg">
+                      {r}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-[11px] text-white/40 font-medium mb-1.5 block">Additional Note (optional)</label>
+              <Textarea
+                value={reasonNote}
+                onChange={(e) => setReasonNote(e.target.value)}
+                placeholder="Add more details..."
+                rows={3}
+                className="bg-white/[0.06] border-white/[0.1] text-white placeholder:text-white/20 rounded-xl resize-none focus:ring-1 focus:ring-white/20"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setReasonModal({ open: false, type: "cancel" })}
+              className="rounded-xl bg-white/10 border-white/10 text-white hover:bg-white/20">
+              Go Back
+            </Button>
+            <Button
+              disabled={!reasonValue || statusMutation.isPending}
+              onClick={() => {
+                statusMutation.mutate(
+                  { newStatus: reasonModal.type, reason: reasonValue, note: reasonNote },
+                  { onSuccess: () => { setReasonModal({ open: false, type: "cancel" }); setReasonValue(""); setReasonNote(""); } }
+                );
+              }}
+              className={cn(
+                "rounded-xl font-semibold",
+                reasonModal.type === "cancel"
+                  ? "bg-red-600 hover:bg-red-700 text-white"
+                  : "bg-indigo-600 hover:bg-indigo-700 text-white"
+              )}
+            >
+              {statusMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> :
+                reasonModal.type === "cancel" ? "❌ Confirm Cancel" : "⏸️ Confirm Hold"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Pathao Booking Modal */}
       <PathaoBookingModal
