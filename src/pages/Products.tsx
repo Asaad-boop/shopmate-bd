@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { formatBDT } from "@/lib/format";
-import { Plus, Search, Grid, List } from "lucide-react";
+import { Plus, Search, Grid, List, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AddProductModal from "@/components/products/AddProductModal";
 
@@ -18,6 +18,7 @@ export default function ProductsPage() {
   const [view, setView] = useState<"list" | "grid">("list");
   const [stockFilter, setStockFilter] = useState("all");
   const [addOpen, setAddOpen] = useState(false);
+  const [editProductId, setEditProductId] = useState<string | null>(null);
 
   const { data: products, isLoading } = useQuery({
     queryKey: ["products", stockFilter],
@@ -52,6 +53,16 @@ export default function ProductsPage() {
     return <Badge className="bg-green-100 text-green-800">{q}</Badge>;
   };
 
+  const openEdit = (id: string) => {
+    setEditProductId(id);
+    setAddOpen(true);
+  };
+
+  const handleModalClose = (open: boolean) => {
+    setAddOpen(open);
+    if (!open) setEditProductId(null);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -59,7 +70,7 @@ export default function ProductsPage() {
           <h1 className="text-2xl font-bold">Products</h1>
           <p className="text-sm text-muted-foreground">Manage your product catalog</p>
         </div>
-        <Button onClick={() => setAddOpen(true)}>
+        <Button onClick={() => { setEditProductId(null); setAddOpen(true); }}>
           <Plus className="w-4 h-4 mr-2" /> Add Product
         </Button>
       </div>
@@ -72,9 +83,7 @@ export default function ProductsPage() {
               <Input placeholder="Search products..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
             </div>
             <Select value={stockFilter} onValueChange={setStockFilter}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Stock" />
-              </SelectTrigger>
+              <SelectTrigger className="w-[150px]"><SelectValue placeholder="Stock" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Stock</SelectItem>
                 <SelectItem value="low">Low Stock</SelectItem>
@@ -82,12 +91,8 @@ export default function ProductsPage() {
               </SelectContent>
             </Select>
             <div className="flex gap-1 border border-border rounded-lg p-0.5">
-              <Button variant={view === "list" ? "secondary" : "ghost"} size="icon" className="h-8 w-8" onClick={() => setView("list")}>
-                <List className="w-4 h-4" />
-              </Button>
-              <Button variant={view === "grid" ? "secondary" : "ghost"} size="icon" className="h-8 w-8" onClick={() => setView("grid")}>
-                <Grid className="w-4 h-4" />
-              </Button>
+              <Button variant={view === "list" ? "secondary" : "ghost"} size="icon" className="h-8 w-8" onClick={() => setView("list")}><List className="w-4 h-4" /></Button>
+              <Button variant={view === "grid" ? "secondary" : "ghost"} size="icon" className="h-8 w-8" onClick={() => setView("grid")}><Grid className="w-4 h-4" /></Button>
             </div>
           </div>
         </CardContent>
@@ -109,8 +114,9 @@ export default function ProductsPage() {
                     <TableHead>Category</TableHead>
                     <TableHead>Stock</TableHead>
                     <TableHead>Selling Price</TableHead>
-                    <TableHead>Landed Cost</TableHead>
-                    <TableHead>Profit Margin</TableHead>
+                    <TableHead>Cost</TableHead>
+                    <TableHead>Margin</TableHead>
+                    <TableHead className="w-[60px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -136,11 +142,16 @@ export default function ProductsPage() {
                           {(p.profit_margin_percent || 0).toFixed(1)}%
                         </span>
                       </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(p.id)}>
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {(!filtered || filtered.length === 0) && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground py-12">No products found</TableCell>
+                      <TableCell colSpan={8} className="text-center text-muted-foreground py-12">No products found</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
@@ -151,7 +162,7 @@ export default function ProductsPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filtered?.map((p) => (
-            <Card key={p.id} className="overflow-hidden">
+            <Card key={p.id} className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onClick={() => openEdit(p.id)}>
               <div className="aspect-square bg-muted flex items-center justify-center">
                 {p.image_url ? (
                   <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
@@ -172,7 +183,7 @@ export default function ProductsPage() {
         </div>
       )}
 
-      <AddProductModal open={addOpen} onOpenChange={setAddOpen} />
+      <AddProductModal open={addOpen} onOpenChange={handleModalClose} editProductId={editProductId} />
     </div>
   );
 }
