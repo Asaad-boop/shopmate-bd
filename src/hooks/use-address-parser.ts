@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { parseAddress, type ParseResult } from "@/lib/bangladesh-address";
+import { supabase } from "@/integrations/supabase/client";
 
 export type AutoFillStatus = "idle" | "parsing" | "found" | "not_found";
+
+export interface ParseResult {
+  district: string | null;
+  thana: string | null;
+}
 
 interface UseAddressParserOptions {
   address: string;
@@ -9,7 +14,7 @@ interface UseAddressParserOptions {
   onAutoFill?: (result: ParseResult) => void;
 }
 
-export function useAddressParser({ address, debounceMs = 500, onAutoFill }: UseAddressParserOptions) {
+export function useAddressParser({ address, debounceMs = 800, onAutoFill }: UseAddressParserOptions) {
   const [status, setStatus] = useState<AutoFillStatus>("idle");
   const [result, setResult] = useState<ParseResult>({ district: null, thana: null });
   const prevAddress = useRef("");
@@ -27,19 +32,46 @@ export function useAddressParser({ address, debounceMs = 500, onAutoFill }: UseA
 
     setStatus("parsing");
 
-    const timer = setTimeout(() => {
-      const parsed = parseAddress(address);
-      setResult(parsed);
+    const controller = new AbortController();
 
-      if (parsed.district || parsed.thana) {
-        setStatus("found");
-        onAutoFillRef.current?.(parsed);
-      } else {
-        setStatus("not_found");
+    const timer = setTimeout(async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("parse-address", {
+          body: { address },
+        });
+
+        if (controller.signal.aborted) return;
+
+        if (error) {
+          console.error("AI address parse error:", error);
+          setStatus("not_found");
+          return;
+        }
+
+        const parsed: ParseResult = {
+          district: data?.district || null,
+          thana: data?.thana || null,
+        };
+        setResult(parsed);
+
+        if (parsed.district || parsed.thana) {
+          setStatus("found");
+          onAutoFillRef.current?.(parsed);
+        } else {
+          setStatus("not_found");
+        }
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          console.error("AI address parse error:", err);
+          setStatus("not_found");
+        }
       }
     }, debounceMs);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [address, debounceMs]);
 
   const reset = () => {

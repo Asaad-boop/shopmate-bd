@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.backfill-shopify-names]
 verify_jwt = false
+
+[functions.parse-address]
+verify_jwt = false
