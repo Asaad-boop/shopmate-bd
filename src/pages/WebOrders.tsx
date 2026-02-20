@@ -234,7 +234,7 @@ export default function WebOrdersPage() {
                 key={s.key}
                 onClick={() => { setActiveTab(s.key); setSelected([]); }}
                 className={cn(
-                  "relative flex flex-col items-center gap-1 px-4 py-2.5 rounded-[20px] text-[11px] font-medium whitespace-nowrap",
+                  "relative flex items-center gap-2 px-5 py-2.5 rounded-[20px] text-[12px] font-medium whitespace-nowrap",
                   "transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
                   isActive
                     ? "bg-slate-800/90 text-white scale-[1.08] -translate-y-1 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.25)] backdrop-blur-xl"
@@ -245,7 +245,7 @@ export default function WebOrdersPage() {
                   "w-[18px] h-[18px] transition-all duration-500",
                   isActive ? "text-white drop-shadow-[0_0_6px_rgba(255,255,255,0.4)]" : "text-slate-400"
                 )} strokeWidth={isActive ? 2.2 : 1.8} />
-                <span className="hidden sm:inline">{s.label}</span>
+                <span>{s.label}</span>
                 {(statusCounts[s.key] || 0) > 0 && (
                   <span className={cn(
                     "absolute -top-1.5 -right-1.5 text-[9px] font-bold min-w-[18px] h-[18px] px-1 rounded-full inline-flex items-center justify-center",
