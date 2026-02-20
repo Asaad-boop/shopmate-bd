@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const WEB_STATUSES = [
-  { key: "all", label: "All", icon: ClipboardList, color: "bg-muted text-foreground" },
   { key: "processing", label: "Processing", icon: Clock, color: "bg-yellow-100 text-yellow-800" },
   { key: "good_but_no_response", label: "Good", icon: CheckCircle2, color: "bg-emerald-100 text-emerald-800" },
   { key: "no_response", label: "No Response", icon: PhoneOff, color: "bg-red-100 text-red-800" },
@@ -28,6 +27,7 @@ const WEB_STATUSES = [
   { key: "advance_payment", label: "Advance", icon: Wallet, color: "bg-amber-100 text-amber-800" },
   { key: "cancel", label: "Cancel", icon: XCircle, color: "bg-red-100 text-red-800" },
   { key: "confirm", label: "Confirm", icon: CircleCheck, color: "bg-green-100 text-green-800" },
+  { key: "all", label: "All", icon: ClipboardList, color: "bg-muted text-foreground" },
 ] as const;
 
 export default function WebOrdersPage() {
