@@ -15,12 +15,10 @@ import {
   Handshake,
   Settings,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   Plus,
   List,
   FileText,
-  LogOut,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -76,7 +74,6 @@ const navItems: NavItem[] = [
 
 export function AppSidebar() {
   const location = useLocation();
-  const [collapsed, setCollapsed] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<string[]>(["Orders", "Products"]);
   const { settings: company } = useCompanySettings();
 
@@ -91,45 +88,30 @@ export function AppSidebar() {
     item.children?.some((c) => location.pathname === c.path || location.pathname.startsWith(c.path + '/'));
 
   return (
-    <aside
-      className={cn(
-        "flex flex-col h-screen bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 sticky top-0",
-        collapsed ? "w-16" : "w-64"
-      )}
-    >
-      {/* Logo */}
-      <div className="flex items-center justify-between px-4 h-16 border-b border-sidebar-border">
-        {!collapsed && (
-          <Link to="/" className="flex items-center gap-2 min-w-0">
-            {company?.logo ? (
-              <img
-                src={company.logo}
-                alt="Logo"
-                className="h-8 max-w-[140px] object-contain"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              />
-            ) : (
-              <>
-                <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center flex-shrink-0">
-                  <Package className="w-5 h-5 text-sidebar-primary-foreground" />
-                </div>
-                <span className="font-bold text-lg text-white truncate">
-                  {company?.name || "EcomHub"}
-                </span>
-              </>
-            )}
-          </Link>
-        )}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="p-1.5 rounded-md hover:bg-sidebar-accent text-sidebar-muted hover:text-sidebar-accent-foreground transition-colors"
-        >
-          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+    <aside className="flex flex-col h-screen w-[260px] bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 sticky top-0">
+      {/* Header: Logo + Avatar */}
+      <div className="flex items-center justify-between px-5 pt-6 pb-4">
+        <Link to="/" className="flex items-center gap-2 min-w-0">
+          {company?.logo ? (
+            <img
+              src={company.logo}
+              alt="Logo"
+              className="h-9 max-w-[140px] object-contain"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            />
+          ) : (
+            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
+              <Package className="w-5 h-5 text-primary-foreground" />
+            </div>
+          )}
+        </Link>
+        <button className="w-9 h-9 rounded-full border border-sidebar-border flex items-center justify-center text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors">
+          <User className="w-4 h-4" />
         </button>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-0.5">
+      <nav className="flex-1 overflow-y-auto px-3 pb-4 space-y-0.5">
         {navItems.map((item) => {
           if (item.children) {
             const groupActive = isGroupActive(item);
@@ -139,36 +121,32 @@ export function AppSidebar() {
                 <button
                   onClick={() => toggleGroup(item.label)}
                   className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
                     groupActive
-                      ? "text-sidebar-accent-foreground bg-sidebar-accent"
-                      : "text-sidebar-muted hover:text-sidebar-accent-foreground hover:bg-sidebar-accent"
+                      ? "text-sidebar-foreground bg-sidebar-accent"
+                      : "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
                   )}
                 >
-                  <item.icon className="w-5 h-5 flex-shrink-0" />
-                  {!collapsed && (
-                    <>
-                      <span className="flex-1 text-left">{item.label}</span>
-                      <ChevronDown
-                        className={cn("w-4 h-4 transition-transform", expanded && "rotate-180")}
-                      />
-                    </>
-                  )}
+                  <item.icon className="w-[18px] h-[18px] flex-shrink-0" strokeWidth={1.8} />
+                  <span className="flex-1 text-left">{item.label}</span>
+                  <ChevronDown
+                    className={cn("w-4 h-4 transition-transform duration-200", expanded && "rotate-180")}
+                  />
                 </button>
-                {!collapsed && expanded && (
-                  <div className="mt-0.5 ml-4 pl-4 border-l border-sidebar-border space-y-0.5">
+                {expanded && (
+                  <div className="mt-0.5 ml-5 pl-3 border-l border-sidebar-border space-y-0.5">
                     {item.children.map((child) => (
                       <Link
                         key={child.path}
                         to={child.path}
                         className={cn(
-                          "flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors",
+                          "flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-200",
                           isActive(child.path)
-                            ? "bg-sidebar-primary/15 text-sidebar-primary border-l-2 border-sidebar-primary -ml-[1px] font-medium"
-                            : "text-sidebar-muted hover:text-sidebar-accent-foreground hover:bg-sidebar-accent"
+                            ? "bg-sidebar-accent text-sidebar-foreground font-medium"
+                            : "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
                         )}
                       >
-                        {child.icon && <child.icon className="w-4 h-4" />}
+                        {child.icon && <child.icon className="w-4 h-4" strokeWidth={1.8} />}
                         <span>{child.label}</span>
                       </Link>
                     ))}
@@ -183,36 +161,18 @@ export function AppSidebar() {
               key={item.path}
               to={item.path!}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
                 isActive(item.path!)
-                  ? "bg-sidebar-primary/15 text-sidebar-primary border-l-2 border-sidebar-primary -ml-[1px]"
-                  : "text-sidebar-muted hover:text-sidebar-accent-foreground hover:bg-sidebar-accent"
+                  ? "bg-sidebar-accent text-sidebar-foreground shadow-sm"
+                  : "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
               )}
             >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
+              <item.icon className="w-[18px] h-[18px] flex-shrink-0" strokeWidth={1.8} />
+              <span>{item.label}</span>
             </Link>
           );
         })}
       </nav>
-
-      {/* Bottom user section */}
-      {!collapsed && (
-        <div className="p-3 border-t border-sidebar-border">
-          <div className="flex items-center gap-3 px-2 py-2">
-            <div className="w-8 h-8 rounded-full bg-sidebar-primary flex items-center justify-center text-sidebar-primary-foreground text-sm font-semibold">
-              A
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-sidebar-accent-foreground truncate">Admin</p>
-              <p className="text-xs text-sidebar-muted truncate">admin@store.com</p>
-            </div>
-            <button className="p-1.5 rounded-md hover:bg-sidebar-accent text-sidebar-muted hover:text-sidebar-accent-foreground transition-colors">
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
     </aside>
   );
 }
