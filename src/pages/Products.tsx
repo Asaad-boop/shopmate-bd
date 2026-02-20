@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,11 +11,13 @@ import { Badge } from "@/components/ui/badge";
 import { formatBDT } from "@/lib/format";
 import { Plus, Search, Grid, List } from "lucide-react";
 import { cn } from "@/lib/utils";
+import AddProductModal from "@/components/products/AddProductModal";
 
 export default function ProductsPage() {
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"list" | "grid">("list");
   const [stockFilter, setStockFilter] = useState("all");
+  const [addOpen, setAddOpen] = useState(false);
 
   const { data: products, isLoading } = useQuery({
     queryKey: ["products", stockFilter],
@@ -58,11 +59,9 @@ export default function ProductsPage() {
           <h1 className="text-2xl font-bold">Products</h1>
           <p className="text-sm text-muted-foreground">Manage your product catalog</p>
         </div>
-        <Link to="/products/new">
-          <Button>
-            <Plus className="w-4 h-4 mr-2" /> Add Product
-          </Button>
-        </Link>
+        <Button onClick={() => setAddOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" /> Add Product
+        </Button>
       </div>
 
       <Card>
@@ -172,6 +171,8 @@ export default function ProductsPage() {
           ))}
         </div>
       )}
+
+      <AddProductModal open={addOpen} onOpenChange={setAddOpen} />
     </div>
   );
 }
