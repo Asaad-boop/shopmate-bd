@@ -4,6 +4,7 @@ import { useCompanySettings } from "@/hooks/use-company-settings";
 import { useInvoiceSettings } from "@/hooks/use-invoice-settings";
 import { supabase } from "@/integrations/supabase/client";
 import { Link, useNavigate } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,19 +28,20 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Search, Download, Upload, ScanLine, MoreHorizontal,
   Eye, Edit, Printer, Tag, Package, Truck, CheckCircle,
-  XCircle, RotateCcw, AlertTriangle, Banknote
+  XCircle, RotateCcw, AlertTriangle, Banknote, Clock,
+  ClipboardList, PackageCheck, Undo2, Flame, type LucideIcon
 } from "lucide-react";
 
-const STATUS_TABS = [
-  { key: "all", label: "ALL", emoji: "📋", color: "" },
-  { key: "pending", label: "Pending", emoji: "🕐", color: "bg-yellow-500" },
-  { key: "packed", label: "Packed", emoji: "📦", color: "bg-blue-500" },
-  { key: "shipped", label: "Shipped", emoji: "🚚", color: "bg-indigo-500" },
-  { key: "delivered", label: "Delivered", emoji: "✅", color: "bg-green-500" },
-  { key: "cancelled", label: "Cancelled", emoji: "❌", color: "bg-red-500" },
-  { key: "pending_return", label: "Pending Return", emoji: "🔄", color: "bg-orange-500" },
-  { key: "returned", label: "Returned", emoji: "↩️", color: "bg-gray-500" },
-  { key: "damage_return", label: "Damage Return", emoji: "💥", color: "bg-red-700" },
+const STATUS_TABS: { key: string; label: string; icon: LucideIcon }[] = [
+  { key: "pending", label: "Pending", icon: Clock },
+  { key: "packed", label: "Packed", icon: PackageCheck },
+  { key: "shipped", label: "Shipped", icon: Truck },
+  { key: "delivered", label: "Delivered", icon: CheckCircle },
+  { key: "cancelled", label: "Cancelled", icon: XCircle },
+  { key: "pending_return", label: "P. Return", icon: RotateCcw },
+  { key: "returned", label: "Returned", icon: Undo2 },
+  { key: "damage_return", label: "Damage", icon: Flame },
+  { key: "all", label: "All", icon: ClipboardList },
 ];
 
 export default function OrdersPage() {
@@ -273,29 +275,42 @@ export default function OrdersPage() {
       {/* Scan Mode */}
       {scanMode && <ScanMode onStatusChange={handleStatusChange} />}
 
-      {/* Status Tabs */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
-        {STATUS_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setStatusTab(tab.key)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors border ${
-              statusTab === tab.key
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-card text-foreground border-border hover:bg-muted"
-            }`}
-          >
-            <span>{tab.emoji}</span>
-            <span>{tab.label}</span>
-            {statusCounts && (
-              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                statusTab === tab.key ? "bg-primary-foreground/20" : "bg-muted"
-              }`}>
-                {statusCounts[tab.key] || 0}
-              </span>
-            )}
-          </button>
-        ))}
+      {/* Status Tabs — Liquid Glass */}
+      <div className="flex gap-1 overflow-x-auto p-1.5 rounded-[28px] bg-white/80 backdrop-blur-2xl border border-white/40 shadow-[0_2px_20px_-4px_rgba(0,0,0,0.08)]">
+        {STATUS_TABS.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = statusTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setStatusTab(tab.key)}
+              className={cn(
+                "relative flex items-center gap-2 px-5 py-2.5 rounded-[20px] text-[12px] font-medium whitespace-nowrap",
+                "transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+                isActive
+                  ? "bg-slate-800/90 text-white scale-[1.08] -translate-y-1 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.25)] backdrop-blur-xl"
+                  : "text-slate-400 hover:text-slate-600 hover:bg-slate-100/60"
+              )}
+            >
+              <Icon className={cn(
+                "w-[18px] h-[18px] transition-all duration-500",
+                isActive ? "text-white drop-shadow-[0_0_6px_rgba(255,255,255,0.4)]" : "text-slate-400"
+              )} strokeWidth={isActive ? 2.2 : 1.8} />
+              <span>{tab.label}</span>
+              {(statusCounts?.[tab.key] || 0) > 0 && (
+                <span className={cn(
+                  "absolute -top-1.5 -right-1.5 text-[9px] font-bold min-w-[18px] h-[18px] px-1 rounded-full inline-flex items-center justify-center",
+                  "transition-all duration-500",
+                  isActive
+                    ? "bg-primary text-primary-foreground scale-110 shadow-[0_0_8px_rgba(225,29,72,0.4)]"
+                    : "bg-white/80 text-slate-500 border border-slate-200/60"
+                )}>
+                  {statusCounts?.[tab.key] || 0}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Filters */}
