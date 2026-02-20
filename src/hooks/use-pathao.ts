@@ -65,7 +65,8 @@ export function usePathaoCreateOrder() {
     mutationFn: async (orderData: Record<string, unknown>) => {
       const { data, error } = await invoke({ action: "create_order", order: orderData });
       if (error) throw error;
-      if (!data?._ok || data?.type === "error" || data?.code !== 200) {
+      // Pathao bulk API returns _ok:true with an acceptance message — that's success
+      if (data?._ok === false) {
         const msg = data?.message || data?.errors
           ? JSON.stringify(data.errors || data.message)
           : "Failed to create Pathao order";

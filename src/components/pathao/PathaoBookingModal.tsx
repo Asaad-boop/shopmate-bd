@@ -200,7 +200,6 @@ export function PathaoBookingModal({
         const trackingCode = consignment?.tracking_code || "";
 
         if (consignmentId) {
-          // Save to orders table
           await supabase
             .from("orders")
             .update({
@@ -211,7 +210,6 @@ export function PathaoBookingModal({
             })
             .eq("id", order.id);
 
-          // Add activity note
           await supabase.from("web_order_notes").insert({
             order_id: order.id,
             note_type: "activity",
@@ -219,21 +217,36 @@ export function PathaoBookingModal({
             created_by: "Staff",
           });
 
-          queryClient.invalidateQueries({ queryKey: ["web-order", order.id] });
-          queryClient.invalidateQueries({ queryKey: ["web-order-notes", order.id] });
-
           toast({
             title: "✅ Pathao এ order পাঠানো হয়েছে!",
             description: `Consignment: ${consignmentId}`,
           });
-          onOpenChange(false);
         } else {
+          // Bulk API accepted — consignment created async by Pathao
+          await supabase
+            .from("orders")
+            .update({
+              courier_status: "Processing",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", order.id);
+
+          await supabase.from("web_order_notes").insert({
+            order_id: order.id,
+            note_type: "activity",
+            content: `Order sent to Pathao (bulk). ${data?.message || "Processing..."}`,
+            created_by: "Staff",
+          });
+
           toast({
-            title: "Warning",
-            description: "Order sent but no consignment ID received. Check Pathao dashboard.",
-            variant: "destructive",
+            title: "✅ Pathao এ order পাঠানো হয়েছে!",
+            description: data?.message || "Order is being processed by Pathao.",
           });
         }
+
+        queryClient.invalidateQueries({ queryKey: ["web-order", order.id] });
+        queryClient.invalidateQueries({ queryKey: ["web-order-notes", order.id] });
+        onOpenChange(false);
       },
       onError: (err) => {
         toast({ title: "Failed to send to Pathao", description: err.message, variant: "destructive" });
