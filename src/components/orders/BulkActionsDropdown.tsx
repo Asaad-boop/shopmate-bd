@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -39,6 +39,18 @@ export function BulkActionsDropdown({
 }: BulkActionsDropdownProps) {
   const [open, setOpen] = useState(false);
   const [confirmStatus, setConfirmStatus] = useState<string | null>(null);
+  const [manuallyDismissed, setManuallyDismissed] = useState(false);
+
+  // Auto-open when orders are selected, auto-close when deselected
+  useState;
+  const prevCount = useRef(selectedCount);
+  if (selectedCount > 0 && prevCount.current === 0) {
+    // Selection just started — reset dismiss flag
+    if (manuallyDismissed) setManuallyDismissed(false);
+  }
+  prevCount.current = selectedCount;
+
+  const effectiveOpen = selectedCount > 0 && !manuallyDismissed ? true : open;
 
   const handleStatusClick = (status: string) => {
     if (confirmStatus === status) {
@@ -94,7 +106,7 @@ export function BulkActionsDropdown({
         )}
       </Button>
 
-      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setConfirmStatus(null); }}>
+      <Dialog open={effectiveOpen} onOpenChange={(v) => { if (!v) { setManuallyDismissed(true); setOpen(false); } else { setOpen(true); } setConfirmStatus(null); }}>
         <DialogContent className="max-w-md p-0">
           <DialogHeader className="px-6 py-4 border-b border-border">
             <div className="flex items-center justify-between">
