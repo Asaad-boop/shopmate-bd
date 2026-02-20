@@ -296,178 +296,211 @@ export default function WebOrdersPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl overflow-hidden">
         {isLoading ? (
-          <div className="p-5 space-y-3">
+          <div className="p-6 space-y-3">
             {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-14 w-full rounded-lg" />
+              <Skeleton key={i} className="h-[68px] w-full rounded-lg" />
             ))}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-slate-100">
-                  <th className="px-4 py-3 text-left w-10">
+                <tr className="bg-slate-50/80">
+                  <th className="px-5 py-3.5 text-left w-12">
                     <Checkbox
                       checked={filtered.length > 0 && selected.length === filtered.length}
                       onCheckedChange={toggleAll}
-                      className="rounded"
+                      className="rounded-[4px] border-slate-300"
                     />
                   </th>
                   {["Created At", "Customer", "Note", "Order Items", "Success Rate", "Tags", "Site", "Actions"].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                    <th key={h} className="px-5 py-3.5 text-left text-[10.5px] font-semibold uppercase tracking-[0.08em] text-slate-400">
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody>
                 {filtered.map((order) => {
                   const customer = order.customers as any;
                   const items = itemsByOrder.get(order.id) || [];
                   const note = latestNotes instanceof Map ? latestNotes.get(order.id) : null;
                   const sr = getSuccessRate(customer);
                   const tags = (order as any).tags || [];
+                  const isSelected = selected.includes(order.id);
 
                   return (
-                    <tr key={order.id} className="group hover:bg-slate-50/60 transition-colors">
-                      <td className="px-4 py-3.5">
+                    <tr
+                      key={order.id}
+                      className={cn(
+                        "border-b border-slate-100/80 transition-colors duration-200",
+                        isSelected
+                          ? "bg-blue-50/40"
+                          : "hover:bg-slate-50/50"
+                      )}
+                      style={{ height: '68px' }}
+                    >
+                      <td className="px-5 py-4">
                         <Checkbox
-                          checked={selected.includes(order.id)}
+                          checked={isSelected}
                           onCheckedChange={() => toggleSelect(order.id)}
-                          className="rounded"
+                          className="rounded-[4px] border-slate-300"
                         />
                       </td>
+
                       {/* Created At */}
-                      <td className="px-4 py-3.5">
-                        <div className="text-sm font-medium text-foreground">{formatDateTime(order.created_at)}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{order.order_number}</div>
+                      <td className="px-5 py-4">
+                        <p className="text-[13px] font-semibold text-foreground whitespace-nowrap">{formatDateTime(order.created_at)}</p>
+                        <p className="text-[11px] text-muted-foreground mt-1 font-mono">ID: {order.order_number}</p>
                       </td>
+
                       {/* Customer */}
-                      <td className="px-4 py-3.5">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-sm font-semibold text-foreground">{customer?.phone || "-"}</span>
+                      <td className="px-5 py-4">
+                        <div className="space-y-1.5 min-w-[170px]">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[13px] font-bold text-foreground tracking-tight">{customer?.phone || "—"}</span>
                             {customer?.phone && (
-                              <>
-                                <a href={`tel:${customer.phone}`} className="text-primary hover:text-primary/80 transition-colors">
+                              <div className="flex items-center gap-1">
+                                <a href={`tel:${customer.phone}`} className="text-blue-500 hover:text-blue-600 transition-colors p-0.5 rounded hover:bg-blue-50">
                                   <Phone className="w-3.5 h-3.5" />
                                 </a>
                                 <a
                                   href={`https://wa.me/${customer.phone?.replace(/[^0-9]/g, "")}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-emerald-500 hover:text-emerald-600 transition-colors"
+                                  className="text-emerald-500 hover:text-emerald-600 transition-colors p-0.5 rounded hover:bg-emerald-50"
                                 >
                                   <MessageCircle className="w-3.5 h-3.5" />
                                 </a>
-                              </>
+                              </div>
                             )}
                           </div>
-                          <div className="text-sm text-foreground">{customer?.full_name || "-"}</div>
-                          <div className="text-xs text-muted-foreground truncate max-w-[160px]">
-                            {customer?.address || customer?.district || "-"}
+                          <div className="flex items-center gap-1">
+                            <span className="text-[12.5px] text-foreground/80">{customer?.full_name || "—"}</span>
+                            {customer?.full_name && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(customer.full_name); toast({ title: "Copied!" }); }}
+                                className="text-slate-300 hover:text-slate-500 transition-colors p-0.5"
+                              >
+                                <ClipboardList className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                            <span className="truncate max-w-[140px]">📍 {customer?.address || customer?.district || "—"}</span>
                           </div>
                         </div>
                       </td>
+
                       {/* Note */}
-                      <td className="px-4 py-3.5">
+                      <td className="px-5 py-4 min-w-[130px]">
                         {note ? (
                           <div>
-                            <p className="text-sm text-foreground truncate max-w-[150px]">{note.content}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">{timeAgo(note.created_at)}</p>
+                            <p className="text-[12px] text-foreground/80 truncate max-w-[140px] leading-relaxed">{note.content}</p>
+                            <p className="text-[10.5px] text-muted-foreground mt-1 italic">Updated {timeAgo(note.created_at)}</p>
                           </div>
                         ) : (
-                          <span className="text-xs text-slate-300">No notes</span>
+                          <span className="text-[11px] text-slate-300 italic">No notes</span>
                         )}
                       </td>
+
                       {/* Order Items */}
-                      <td className="px-4 py-3.5">
-                        <div className="space-y-1.5">
+                      <td className="px-5 py-4">
+                        <div className="space-y-2 min-w-[160px]">
                           {items.slice(0, 2).map((item) => (
-                            <div key={item.id} className="flex items-center gap-2 text-sm">
-                              <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                            <div key={item.id} className="flex items-center gap-2.5">
+                              <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden flex-shrink-0 border border-slate-200/60">
                                 {(item.products as any)?.image_url ? (
                                   <img src={(item.products as any).image_url} alt="" className="w-full h-full object-cover" />
                                 ) : (
-                                  <span className="text-[10px] text-slate-300">IMG</span>
+                                  <span className="text-[9px] text-slate-300 font-medium">IMG</span>
                                 )}
                               </div>
-                              <div className="min-w-0">
-                                <p className="truncate text-xs font-medium text-foreground max-w-[100px]">{(item.products as any)?.sku || "-"}</p>
-                                <p className="text-xs text-muted-foreground">×{item.quantity} • {formatBDT(item.unit_price)}</p>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[12px] font-bold text-teal-600 truncate max-w-[100px]">{(item.products as any)?.sku || "—"}</p>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <span className="text-[11px] text-muted-foreground">{formatBDT(item.unit_price)}</span>
+                                  <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full font-medium">{item.quantity}x</span>
+                                </div>
                               </div>
                             </div>
                           ))}
                           {items.length > 2 && (
-                            <span className="text-xs text-muted-foreground">+{items.length - 2} more</span>
+                            <span className="text-[11px] text-muted-foreground font-medium">+{items.length - 2} more</span>
                           )}
-                          {items.length === 0 && <span className="text-xs text-slate-300">No items</span>}
+                          {items.length === 0 && <span className="text-[11px] text-slate-300">No items</span>}
                         </div>
                       </td>
+
                       {/* Success Rate */}
-                      <td className="px-4 py-3.5">
+                      <td className="px-5 py-4">
                         {sr.loading ? (
                           <Skeleton className="h-12 w-24 rounded-lg" />
                         ) : sr.noData ? (
-                          <span className="inline-flex items-center gap-1 text-xs text-slate-400 bg-slate-50 px-2 py-1 rounded-full">🆕 New</span>
+                          <div className="flex items-center justify-center">
+                            <span className="text-lg font-bold text-slate-200">0</span>
+                          </div>
                         ) : (
-                          <div className="flex items-center gap-2.5">
-                            <div className="relative w-10 h-10 flex-shrink-0">
-                              <svg className="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
-                                <circle cx="18" cy="18" r="14" fill="none" stroke="hsl(var(--muted) / 0.3)" strokeWidth="2.5" />
+                          <div className="flex items-center gap-3">
+                            <div className="relative w-11 h-11 flex-shrink-0">
+                              <svg className="w-11 h-11 -rotate-90" viewBox="0 0 36 36">
+                                <circle cx="18" cy="18" r="14" fill="none" stroke="hsl(var(--muted) / 0.2)" strokeWidth="3" />
                                 <circle
                                   cx="18" cy="18" r="14" fill="none"
                                   stroke={getSuccessColor(sr.percent)}
-                                  strokeWidth="2.5"
+                                  strokeWidth="3"
                                   strokeDasharray={`${sr.percent * 0.88} 88`}
                                   strokeLinecap="round"
+                                  className="transition-all duration-500"
                                 />
                               </svg>
+                              <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold" style={{ color: getSuccessColor(sr.percent) }}>
+                                {sr.percent}%
+                              </span>
                             </div>
-                            <div className="text-xs leading-relaxed">
-                              <p className="font-bold text-sm" style={{ color: getSuccessColor(sr.percent) }}>{sr.percent}%</p>
-                              <p className="text-muted-foreground">{sr.delivered}/{sr.total} orders</p>
+                            <div className="text-[11px] leading-[1.6] space-y-0">
+                              <p className="font-bold text-[12px]" style={{ color: getSuccessColor(sr.percent) }}>Success: {sr.percent}%</p>
+                              <p className="text-muted-foreground">Order: {sr.delivered}/{sr.total}</p>
                               <p className="text-muted-foreground">Rating: {sr.rating * 20}</p>
                             </div>
                           </div>
                         )}
                       </td>
+
                       {/* Tags */}
-                      <td className="px-4 py-3.5">
-                        <div className="flex flex-wrap gap-1">
+                      <td className="px-5 py-4">
+                        <div className="flex flex-wrap gap-1 items-center">
                           {tags.map((t: string, i: number) => (
-                            <Badge key={i} variant="outline" className="text-[10px] h-5 rounded-full border-slate-200 text-slate-500">{t}</Badge>
+                            <Badge key={i} variant="outline" className="text-[10px] h-5 rounded-full border-slate-200 text-slate-500 bg-slate-50 font-medium">{t}</Badge>
                           ))}
-                          {tags.length === 0 && (
-                            <span className="text-xs text-slate-300">—</span>
-                          )}
+                          <button className="text-[10px] h-5 px-2 rounded-full border border-dashed border-slate-300 text-slate-400 hover:text-slate-600 hover:border-slate-400 transition-colors">
+                            + Tag
+                          </button>
                         </div>
                       </td>
+
                       {/* Site */}
-                      <td className="px-4 py-3.5">
-                        <Badge className="text-[11px] capitalize rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 border-0 font-medium">
-                          {order.channel}
-                        </Badge>
+                      <td className="px-5 py-4">
+                        <span className="text-[11.5px] text-slate-500 capitalize font-medium">{order.channel}</span>
                       </td>
+
                       {/* Actions */}
-                      <td className="px-4 py-3.5">
-                        <Button
-                          size="sm"
-                          variant="outline"
+                      <td className="px-5 py-4">
+                        <button
                           onClick={() => navigate(`/web-orders/${order.id}`)}
-                          className="rounded-lg border-primary text-primary hover:bg-primary hover:text-white transition-all duration-200 text-xs h-8 px-3"
+                          className="text-[12.5px] font-semibold text-teal-600 hover:text-teal-700 hover:underline transition-all duration-200 inline-flex items-center gap-1"
                         >
-                          <ExternalLink className="w-3 h-3 mr-1" /> Open
-                        </Button>
+                          Open <ExternalLink className="w-3 h-3" />
+                        </button>
                       </td>
                     </tr>
                   );
                 })}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="text-center text-muted-foreground py-16 text-sm">
+                    <td colSpan={9} className="text-center text-muted-foreground py-20 text-sm">
                       No orders found in this status
                     </td>
                   </tr>
