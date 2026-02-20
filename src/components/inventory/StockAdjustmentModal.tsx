@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
-import { Search } from "lucide-react";
+import { Search, Package } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -47,7 +47,7 @@ export default function StockAdjustmentModal({ open, onOpenChange, products, pre
   const newStock = useMemo(() => {
     if (adjustType === "add") return currentStock + qty;
     if (adjustType === "remove") return Math.max(0, currentStock - qty);
-    return qty; // set exact
+    return qty;
   }, [adjustType, currentStock, qty]);
 
   const diff = newStock - currentStock;
@@ -102,26 +102,34 @@ export default function StockAdjustmentModal({ open, onOpenChange, products, pre
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Adjust Stock</DialogTitle>
+      <DialogContent className="max-w-md p-0">
+        <DialogHeader className="px-6 pt-6 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Package className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <DialogTitle>Adjust Stock</DialogTitle>
+              <DialogDescription>Manually adjust product stock quantity</DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="px-6 pb-2 space-y-4 overflow-y-auto" style={{ maxHeight: "calc(80vh - 180px)" }}>
           {/* Product Search */}
           <div className="space-y-2">
-            <Label>Product</Label>
+            <Label className="text-xs font-medium text-muted-foreground">Product</Label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Search product..."
                 value={productSearch}
                 onChange={(e) => setProductSearch(e.target.value)}
-                className="pl-10"
+                className="pl-10 rounded-lg"
               />
             </div>
             <Select value={productId} onValueChange={setProductId}>
-              <SelectTrigger><SelectValue placeholder="Select product" /></SelectTrigger>
+              <SelectTrigger className="rounded-lg"><SelectValue placeholder="Select product" /></SelectTrigger>
               <SelectContent className="max-h-60">
                 {filteredProducts?.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
@@ -134,41 +142,42 @@ export default function StockAdjustmentModal({ open, onOpenChange, products, pre
 
           {/* Adjustment Type */}
           <div className="space-y-2">
-            <Label>Adjustment Type</Label>
+            <Label className="text-xs font-medium text-muted-foreground">Adjustment Type</Label>
             <RadioGroup value={adjustType} onValueChange={(v) => setAdjustType(v as any)} className="flex gap-4">
               <div className="flex items-center gap-2">
                 <RadioGroupItem value="add" id="add" />
-                <Label htmlFor="add" className="text-sm text-success font-medium">Add Stock (+)</Label>
+                <Label htmlFor="add" className="text-sm text-success font-medium cursor-pointer">Add Stock (+)</Label>
               </div>
               <div className="flex items-center gap-2">
                 <RadioGroupItem value="remove" id="remove" />
-                <Label htmlFor="remove" className="text-sm text-destructive font-medium">Remove (-)</Label>
+                <Label htmlFor="remove" className="text-sm text-destructive font-medium cursor-pointer">Remove (-)</Label>
               </div>
               <div className="flex items-center gap-2">
                 <RadioGroupItem value="set" id="set" />
-                <Label htmlFor="set" className="text-sm font-medium">Set Exact</Label>
+                <Label htmlFor="set" className="text-sm font-medium cursor-pointer">Set Exact</Label>
               </div>
             </RadioGroup>
           </div>
 
           {/* Quantity */}
           <div className="space-y-2">
-            <Label>Quantity</Label>
+            <Label className="text-xs font-medium text-muted-foreground">Quantity</Label>
             <Input
               type="number"
               min={0}
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
               placeholder="Enter quantity"
+              className="rounded-lg"
             />
           </div>
 
           {/* Preview */}
           {selectedProduct && qty > 0 && (
-            <div className="p-3 rounded-lg bg-muted text-sm space-y-1">
+            <div className="p-4 rounded-xl bg-muted/50 text-sm space-y-1 animate-row-in">
               <p>Current Stock: <span className="font-bold">{currentStock}</span></p>
               <p>
-                After Adjustment: <span className={cn("font-bold", diff > 0 ? "text-success" : diff < 0 ? "text-destructive" : "")}>
+                After Adjustment: <span className={cn("font-bold text-lg", diff > 0 ? "text-success" : diff < 0 ? "text-destructive" : "")}>
                   {newStock} ({diff >= 0 ? `+${diff}` : diff})
                 </span>
               </p>
@@ -177,9 +186,9 @@ export default function StockAdjustmentModal({ open, onOpenChange, products, pre
 
           {/* Reason */}
           <div className="space-y-2">
-            <Label>Reason</Label>
+            <Label className="text-xs font-medium text-muted-foreground">Reason</Label>
             <Select value={reason} onValueChange={setReason}>
-              <SelectTrigger><SelectValue placeholder="Select reason" /></SelectTrigger>
+              <SelectTrigger className="rounded-lg"><SelectValue placeholder="Select reason" /></SelectTrigger>
               <SelectContent>
                 {REASONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
               </SelectContent>
@@ -188,18 +197,18 @@ export default function StockAdjustmentModal({ open, onOpenChange, products, pre
 
           {/* Reference */}
           <div className="space-y-2">
-            <Label>Reference (optional)</Label>
-            <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="PO number or note" />
+            <Label className="text-xs font-medium text-muted-foreground">Reference (optional)</Label>
+            <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="PO number or note" className="rounded-lg" />
           </div>
 
           {/* Note */}
           <div className="space-y-2">
-            <Label>Note</Label>
-            <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Additional notes..." rows={2} />
+            <Label className="text-xs font-medium text-muted-foreground">Note</Label>
+            <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Additional notes..." rows={2} className="rounded-lg resize-none" />
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="px-6 py-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleSave} disabled={saving || !productId || qty <= 0}>
             {saving ? "Saving..." : "Save Adjustment"}

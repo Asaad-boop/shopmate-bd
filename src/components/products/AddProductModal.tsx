@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -226,25 +226,19 @@ export default function AddProductModal({ open, onOpenChange, editProductId }: A
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[800px] max-h-[90vh] p-0 gap-0 rounded-2xl overflow-hidden border-0 shadow-2xl">
+      <DialogContent className="max-w-[800px] max-h-[90vh] p-0 gap-0 overflow-hidden">
         {/* Sticky Header */}
-        <div className="sticky top-0 z-20 flex items-center justify-between px-6 py-4 bg-card border-b border-border">
+        <DialogHeader className="px-6 py-4 flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
               <Package className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <DialogTitle className="text-lg font-bold">{isEdit ? "Edit Product" : "Add New Product"}</DialogTitle>
-              <p className="text-xs text-muted-foreground">{isEdit ? "Update the product details" : "Fill in the details to add a new product"}</p>
+              <DialogTitle>{isEdit ? "Edit Product" : "Add New Product"}</DialogTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">{isEdit ? "Update the product details" : "Fill in the details to add a new product"}</p>
             </div>
           </div>
-          <button
-            onClick={() => onOpenChange(false)}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+        </DialogHeader>
 
         {/* Scrollable Body */}
         <div className="overflow-y-auto px-6 py-5 space-y-6" style={{ maxHeight: "calc(90vh - 140px)" }}>
@@ -458,19 +452,19 @@ export default function AddProductModal({ open, onOpenChange, editProductId }: A
         </div>
 
         {/* Sticky Footer */}
-        <div className="sticky bottom-0 z-20 flex items-center justify-between px-6 py-4 bg-card border-t border-border">
+        <DialogFooter className="px-6 py-4 flex items-center justify-between">
           <span className="text-xs text-muted-foreground">* Required fields</span>
           <div className="flex gap-3">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button
               onClick={() => mutation.mutate()}
               disabled={!form.name || mutation.isPending}
-              className="bg-primary hover:bg-primary-dark text-primary-foreground min-w-[120px]"
+              className="min-w-[120px]"
             >
               {mutation.isPending ? "Saving..." : isEdit ? "Update Product" : "Save Product"}
             </Button>
           </div>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -243,15 +243,20 @@ export function PathaoBookingModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base">
-            <Truck className="w-5 h-5" />
-            Send to Pathao — {order?.order_number}
-          </DialogTitle>
+      <DialogContent className="max-w-2xl max-h-[90vh] p-0">
+        <DialogHeader className="px-6 pt-6 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+              <Truck className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div>
+              <DialogTitle>Send to Pathao</DialogTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">Order: {order?.order_number}</p>
+            </div>
+          </div>
         </DialogHeader>
 
-        <div className="space-y-4 mt-2">
+        <div className="space-y-4 px-6 py-4 overflow-y-auto" style={{ maxHeight: "calc(90vh - 180px)" }}>
           {/* Store Selection */}
           <div>
             <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Pathao Store *</label>
@@ -415,30 +420,28 @@ export function PathaoBookingModal({
             <Input value={specialInstruction} onChange={(e) => setSpecialInstruction(e.target.value)} placeholder="Optional" className="rounded-lg h-9 text-sm" />
           </div>
 
-          <Separator />
+        </div>
 
-          {/* Price & Actions */}
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              onClick={handleCalculatePrice}
-              disabled={getPrice.isPending}
-              className="rounded-lg h-9 text-xs gap-1.5"
-            >
-              {getPrice.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Calculator className="w-3.5 h-3.5" />}
-              Calculate Price
-            </Button>
-            {calculatedPrice !== null && (
-              <Badge variant="secondary" className="text-sm px-3 py-1 rounded-lg">
-                Delivery: {formatBDT(calculatedPrice)}
-              </Badge>
-            )}
-          </div>
-
+        <div className="sticky bottom-0 z-10 bg-card px-6 py-4 border-t border-border flex items-center gap-3">
+          <Button
+            variant="outline"
+            onClick={handleCalculatePrice}
+            disabled={getPrice.isPending}
+            className="rounded-lg h-9 text-xs gap-1.5"
+          >
+            {getPrice.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Calculator className="w-3.5 h-3.5" />}
+            Calculate Price
+          </Button>
+          {calculatedPrice !== null && (
+            <Badge variant="secondary" className="text-sm px-3 py-1 rounded-lg">
+              Delivery: {formatBDT(calculatedPrice)}
+            </Badge>
+          )}
+          <div className="flex-1" />
           <Button
             onClick={handleSendToPathao}
             disabled={createOrder.isPending}
-            className="w-full rounded-lg h-11 bg-green-600 hover:bg-green-700 text-white font-semibold text-sm gap-2"
+            className="rounded-lg h-10 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm gap-2"
           >
             {createOrder.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />
