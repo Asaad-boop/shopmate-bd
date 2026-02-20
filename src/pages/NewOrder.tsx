@@ -14,12 +14,13 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft, Plus, Minus, X, Search, Package,
-  Phone, AlertTriangle,
+  Phone, AlertTriangle, CheckCircle2, Loader2,
 } from "lucide-react";
 import { formatBDT } from "@/lib/format";
 import { useBDCourierSingle, getRiskLevel } from "@/hooks/use-bd-courier";
 import { usePathaoCities, usePathaoZones } from "@/hooks/use-pathao";
 import { cn } from "@/lib/utils";
+import { useAddressParser } from "@/hooks/use-address-parser";
 
 /* ═══ Types ═══ */
 interface OrderItem {
@@ -95,6 +96,36 @@ export default function NewOrder() {
   const [productSearch, setProductSearch] = useState("");
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [selectedCityId, setSelectedCityId] = useState<number | null>(null);
+  const [addressAutoFilled, setAddressAutoFilled] = useState<{ district: boolean; thana: boolean }>({ district: false, thana: false });
+
+  const { status: addressParseStatus } = useAddressParser({
+    address: form.delivery_address,
+    onAutoFill: (parsed) => {
+      const updates: Partial<typeof form> = {};
+      const filled = { district: false, thana: false };
+
+      if (parsed.district) {
+        updates.delivery_district = parsed.district;
+        filled.district = true;
+        // Also set Pathao city ID
+        if (cities) {
+          const match = cities.find((c) => c.city_name.toLowerCase() === parsed.district!.toLowerCase());
+          if (match) setSelectedCityId(match.city_id);
+        }
+      }
+      if (parsed.thana) {
+        updates.delivery_thana = parsed.thana;
+        filled.thana = true;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        updateForm(updates);
+        setAddressAutoFilled(filled);
+        // Clear auto-fill indicators after 5s
+        setTimeout(() => setAddressAutoFilled({ district: false, thana: false }), 5000);
+      }
+    },
+  });
 
   const isAdvance = form.payment_method === "advance";
   const isPartial = form.payment_method === "partial";
@@ -471,11 +502,31 @@ export default function NewOrder() {
               </div>
 
               <div>
-                <Label className="text-xs text-muted-foreground">Delivery Address</Label>
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs text-muted-foreground">Delivery Address</Label>
+                  {addressParseStatus === "parsing" && (
+                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Detecting...
+                    </span>
+                  )}
+                  {addressParseStatus === "found" && (
+                    <span className="flex items-center gap-1 text-[10px] text-green-600 font-medium">
+                      <CheckCircle2 className="w-3 h-3" /> Auto detected
+                    </span>
+                  )}
+                  {addressParseStatus === "not_found" && form.delivery_address.length > 10 && (
+                    <span className="flex items-center gap-1 text-[10px] text-yellow-600 font-medium">
+                      <AlertTriangle className="w-3 h-3" /> Select manually
+                    </span>
+                  )}
+                </div>
                 <Textarea
                   value={form.delivery_address}
-                  onChange={(e) => updateForm({ delivery_address: e.target.value })}
-                  placeholder="House, Road, Area..."
+                  onChange={(e) => {
+                    updateForm({ delivery_address: e.target.value });
+                    setAddressAutoFilled({ district: false, thana: false });
+                  }}
+                  placeholder="House, Road, Area... (district/thana auto-detect হবে)"
                   rows={2}
                   className="resize-none text-sm"
                 />
@@ -483,9 +534,16 @@ export default function NewOrder() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-xs text-muted-foreground">District</Label>
-                  <Select value={form.delivery_district} onValueChange={handleDistrictSelect}>
-                    <SelectTrigger className="h-9">
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-xs text-muted-foreground">District</Label>
+                    {addressAutoFilled.district && (
+                      <span className="text-[10px] text-green-600 font-medium flex items-center gap-0.5">
+                        <CheckCircle2 className="w-3 h-3" /> Auto
+                      </span>
+                    )}
+                  </div>
+                  <Select value={form.delivery_district} onValueChange={(v) => { handleDistrictSelect(v); setAddressAutoFilled((p) => ({ ...p, district: false })); }}>
+                    <SelectTrigger className={cn("h-9", addressAutoFilled.district && "border-green-400 ring-1 ring-green-200")}>
                       <SelectValue placeholder="Select district" />
                     </SelectTrigger>
                     <SelectContent className="max-h-64">
@@ -496,9 +554,16 @@ export default function NewOrder() {
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-xs text-muted-foreground">Thana / Zone</Label>
-                  <Select value={form.delivery_thana} onValueChange={(v) => updateForm({ delivery_thana: v })}>
-                    <SelectTrigger className="h-9">
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-xs text-muted-foreground">Thana / Zone</Label>
+                    {addressAutoFilled.thana && (
+                      <span className="text-[10px] text-green-600 font-medium flex items-center gap-0.5">
+                        <CheckCircle2 className="w-3 h-3" /> Auto
+                      </span>
+                    )}
+                  </div>
+                  <Select value={form.delivery_thana} onValueChange={(v) => { updateForm({ delivery_thana: v }); setAddressAutoFilled((p) => ({ ...p, thana: false })); }}>
+                    <SelectTrigger className={cn("h-9", addressAutoFilled.thana && "border-green-400 ring-1 ring-green-200")}>
                       <SelectValue placeholder={selectedCityId ? "Select zone" : "Select district first"} />
                     </SelectTrigger>
                     <SelectContent className="max-h-64">
