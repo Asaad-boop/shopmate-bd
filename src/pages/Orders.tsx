@@ -32,15 +32,22 @@ import {
   ClipboardList, PackageCheck, Undo2, Flame, type LucideIcon
 } from "lucide-react";
 
-const STATUS_TABS: { key: string; label: string; icon: LucideIcon }[] = [
-  { key: "pending", label: "Pending", icon: Clock },
-  { key: "packed", label: "Packed", icon: PackageCheck },
-  { key: "shipped", label: "Shipped", icon: Truck },
-  { key: "delivered", label: "Delivered", icon: CheckCircle },
-  { key: "cancelled", label: "Cancelled", icon: XCircle },
-  { key: "pending_return", label: "P. Return", icon: RotateCcw },
-  { key: "returned", label: "Returned", icon: Undo2 },
-  { key: "damage_return", label: "Damage", icon: Flame },
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
+const STATUS_TABS: { key: string; label: string }[] = [
+  { key: "pending", label: "Pending" },
+  { key: "packed", label: "Packed" },
+  { key: "rts", label: "RTS" },
+  { key: "shipped", label: "Shipped" },
+  { key: "delivered", label: "Delivered" },
+  { key: "pending_return", label: "Pending Return" },
+  { key: "returned", label: "Returned" },
+  { key: "damage_return", label: "Damage Return" },
+  { key: "partial", label: "Partial" },
+  { key: "cancelled", label: "Cancelled" },
+  { key: "pending_cancel", label: "Pending Cancel" },
+  { key: "preorder", label: "Preorder" },
+  { key: "lost", label: "Lost" },
 ];
 
 export default function OrdersPage() {
@@ -289,42 +296,75 @@ export default function OrdersPage() {
       {/* Scan Mode */}
       {scanMode && <ScanMode onStatusChange={handleStatusChange} />}
 
-      {/* Status Tabs — Liquid Glass */}
-      <div className="flex gap-1 overflow-x-auto p-1.5 rounded-[28px] bg-white/80 backdrop-blur-2xl border border-white/40 shadow-[0_2px_20px_-4px_rgba(0,0,0,0.08)]">
-        {STATUS_TABS.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = statusTab === tab.key;
-          return (
-            <button
-              key={tab.key}
-              onClick={() => setStatusTab(tab.key)}
-              className={cn(
-                "relative flex items-center gap-2 px-5 py-2.5 rounded-[20px] text-[12px] font-medium whitespace-nowrap",
-                "transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
-                isActive
-                  ? "bg-slate-800/90 text-white scale-[1.08] -translate-y-1 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.25)] backdrop-blur-xl"
-                  : "text-slate-400 hover:text-slate-600 hover:bg-slate-100/60"
-              )}
-            >
-              <Icon className={cn(
-                "w-[18px] h-[18px] transition-all duration-500",
-                isActive ? "text-white drop-shadow-[0_0_6px_rgba(255,255,255,0.4)]" : "text-slate-400"
-              )} strokeWidth={isActive ? 2.2 : 1.8} />
-              <span>{tab.label}</span>
-              {(statusCounts?.[tab.key] || 0) > 0 && (
-                <span className={cn(
-                  "absolute -top-1.5 -right-1.5 text-[9px] font-bold min-w-[18px] h-[18px] px-1 rounded-full inline-flex items-center justify-center",
-                  "transition-all duration-500",
+      {/* Status Tabs — Liquid Underline */}
+      <div className="relative group/tabs">
+        {/* Left scroll arrow */}
+        <button
+          onClick={() => {
+            const el = document.getElementById('status-tabs-scroll');
+            if (el) el.scrollBy({ left: -200, behavior: 'smooth' });
+          }}
+          className="absolute left-0 top-0 bottom-0 z-10 flex items-center px-1.5 bg-gradient-to-r from-card via-card/80 to-transparent opacity-0 group-hover/tabs:opacity-100 transition-opacity duration-200"
+        >
+          <ChevronLeft className="w-4 h-4 text-muted-foreground" />
+        </button>
+
+        <div
+          id="status-tabs-scroll"
+          className="flex gap-0 overflow-x-auto border-b border-border"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
+        >
+          <style>{`#status-tabs-scroll::-webkit-scrollbar { display: none; }`}</style>
+          {STATUS_TABS.map((tab) => {
+            const isActive = statusTab === tab.key;
+            const count = statusCounts?.[tab.key] || 0;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setStatusTab(tab.key)}
+                className={cn(
+                  "relative flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium whitespace-nowrap",
+                  "transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
                   isActive
-                    ? "bg-primary text-primary-foreground scale-110 shadow-[0_0_8px_rgba(225,29,72,0.4)]"
-                    : "bg-white/80 text-slate-500 border border-slate-200/60"
-                )}>
-                  {statusCounts?.[tab.key] || 0}
-                </span>
-              )}
-            </button>
-          );
-        })}
+                    ? "text-success"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <span>{tab.label}</span>
+                {count > 0 && (
+                  <span className={cn(
+                    "text-[11px] font-semibold min-w-[20px] h-5 px-1.5 rounded-full inline-flex items-center justify-center",
+                    "transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                    isActive
+                      ? "bg-success/15 text-success"
+                      : "bg-muted text-muted-foreground"
+                  )}>
+                    {count}
+                  </span>
+                )}
+                {/* Liquid underline indicator */}
+                <span className={cn(
+                  "absolute bottom-0 left-2 right-2 h-[2.5px] rounded-full",
+                  "transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                  isActive
+                    ? "bg-success scale-x-100"
+                    : "bg-transparent scale-x-0"
+                )} />
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Right scroll arrow */}
+        <button
+          onClick={() => {
+            const el = document.getElementById('status-tabs-scroll');
+            if (el) el.scrollBy({ left: 200, behavior: 'smooth' });
+          }}
+          className="absolute right-0 top-0 bottom-0 z-10 flex items-center px-1.5 bg-gradient-to-l from-card via-card/80 to-transparent opacity-0 group-hover/tabs:opacity-100 transition-opacity duration-200"
+        >
+          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+        </button>
       </div>
 
       {/* Filters */}
