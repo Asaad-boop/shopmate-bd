@@ -465,15 +465,15 @@ export default function OrdersPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            {firstProduct?.image_url && (
-                              <img
-                                src={firstProduct.image_url}
-                                alt=""
-                                className="w-8 h-8 rounded object-cover"
-                              />
+                            {firstProduct?.image_url ? (
+                              <img src={firstProduct.image_url} alt="" className="w-8 h-8 rounded object-cover" />
+                            ) : (
+                              <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                                {(firstProduct?.name || (items[0] as any)?.product_name_fallback || "P")[0].toUpperCase()}
+                              </div>
                             )}
                             <div className="min-w-0">
-                              <p className="text-sm truncate max-w-[120px]">{firstProduct?.name || "-"}</p>
+                              <p className="text-sm truncate max-w-[120px]">{firstProduct?.name || (items[0] as any)?.product_name_fallback || "Product"}</p>
                               <div className="flex gap-1">
                                 <Badge variant="secondary" className="text-[10px] px-1 py-0">
                                   ×{items[0]?.quantity || 0}

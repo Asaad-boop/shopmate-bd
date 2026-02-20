@@ -194,7 +194,7 @@ function buildInvoiceHTML(order: any, company: CompanySettings | undefined, inv:
         <tbody>
           ${items.map((i: any, idx: number) => {
             const prod = i.products as any;
-            const name = prod?.name || '-';
+            const name = prod?.name || i.product_name_fallback || 'Product';
             const initial = name.charAt(0).toUpperCase();
             const imgHtml = prod?.image_url
               ? `<img src="${prod.image_url}" alt="" onerror="this.outerHTML='<div class=\\'initial\\'>${initial}</div>'" />`

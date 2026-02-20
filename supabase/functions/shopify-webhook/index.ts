@@ -91,17 +91,59 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Create order items
+      // Create order items — match products by variant_id or sku
       if (body.line_items && body.line_items.length > 0) {
-        const items = body.line_items.map((item: any) => ({
-          order_id: order.id,
-          quantity: item.quantity,
-          unit_price: parseFloat(item.price || "0"),
-          total_price: parseFloat(item.price || "0") * item.quantity,
-          discount: parseFloat(item.total_discount || "0"),
-        }));
+        const items = [];
+        for (const lineItem of body.line_items) {
+          let productId: string | null = null;
+          let productNameFallback: string | null = null;
+          let unitCost = 0;
+
+          // Try to match product by shopify_variant_id or sku
+          if (lineItem.variant_id || lineItem.sku) {
+            const conditions = [];
+            if (lineItem.variant_id) conditions.push(`shopify_variant_id.eq.${lineItem.variant_id}`);
+            if (lineItem.sku) conditions.push(`sku.eq.${lineItem.sku}`);
+
+            const { data: matchedProduct } = await supabase
+              .from("products")
+              .select("id, name, image_url, sku, landed_cost_bdt")
+              .or(conditions.join(","))
+              .maybeSingle();
+
+            if (matchedProduct) {
+              productId = matchedProduct.id;
+              unitCost = matchedProduct.landed_cost_bdt || 0;
+            } else {
+              // No match found, save title as fallback
+              productNameFallback = lineItem.title || lineItem.name || "Shopify Product";
+            }
+          } else {
+            productNameFallback = lineItem.title || lineItem.name || "Shopify Product";
+          }
+
+          items.push({
+            order_id: order.id,
+            product_id: productId,
+            product_name_fallback: productNameFallback,
+            quantity: lineItem.quantity,
+            unit_price: parseFloat(lineItem.price || "0"),
+            unit_cost: unitCost,
+            total_price: parseFloat(lineItem.price || "0") * lineItem.quantity,
+            discount: parseFloat(lineItem.total_discount || "0"),
+          });
+        }
 
         await supabase.from("order_items").insert(items);
+
+        // Calculate cost_of_goods
+        const costOfGoods = items.reduce((s, i) => s + (i.unit_cost * i.quantity), 0);
+        if (costOfGoods > 0) {
+          await supabase.from("orders").update({
+            cost_of_goods: costOfGoods,
+            gross_profit: parseFloat(body.total_price || "0") - costOfGoods,
+          }).eq("id", order.id);
+        }
       }
 
       // Create notification

@@ -409,24 +409,29 @@ export default function WebOrdersPage() {
                       {/* Order Items */}
                       <td className="px-5 py-4">
                         <div className="space-y-2 min-w-[160px]">
-                          {items.slice(0, 2).map((item) => (
+                          {items.slice(0, 2).map((item) => {
+                            const product = item.products as any;
+                            const pName = product?.name || (item as any).product_name_fallback || "Product";
+                            const pInitial = pName[0].toUpperCase();
+                            return (
                             <div key={item.id} className="flex items-center gap-2.5">
                               <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden flex-shrink-0 border border-slate-200/60">
-                                {(item.products as any)?.image_url ? (
-                                  <img src={(item.products as any).image_url} alt="" className="w-full h-full object-cover" />
+                                {product?.image_url ? (
+                                  <img src={product.image_url} alt="" className="w-full h-full object-cover" />
                                 ) : (
-                                  <span className="text-[9px] text-slate-300 font-medium">IMG</span>
+                                  <div className="w-full h-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">{pInitial}</div>
                                 )}
                               </div>
                               <div className="min-w-0 flex-1">
-                                <p className="text-[12px] font-bold text-teal-600 truncate max-w-[100px]">{(item.products as any)?.sku || "—"}</p>
+                                <p className="text-[12px] font-bold text-teal-600 truncate max-w-[100px]">{product?.sku || "-"}</p>
                                 <div className="flex items-center gap-1.5 mt-0.5">
                                   <span className="text-[11px] text-muted-foreground">{formatBDT(item.unit_price)}</span>
                                   <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full font-medium">{item.quantity}x</span>
                                 </div>
                               </div>
                             </div>
-                          ))}
+                            );
+                          })}
                           {items.length > 2 && (
                             <span className="text-[11px] text-muted-foreground font-medium">+{items.length - 2} more</span>
                           )}
