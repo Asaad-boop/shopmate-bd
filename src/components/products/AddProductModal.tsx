@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -9,11 +9,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { formatBDT } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   X, Package, DollarSign, Palette, FileText, ImageIcon,
-  Plus, Trash2, Upload, Link as LinkIcon, Check
+  Plus, Upload, Check, Loader2
 } from "lucide-react";
 
 interface Variant {
@@ -27,6 +26,7 @@ interface Variant {
 interface AddProductModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  editProductId?: string | null;
 }
 
 const SectionHeader = ({ icon: Icon, label, color }: { icon: any; label: string; color: string }) => (
@@ -36,27 +36,29 @@ const SectionHeader = ({ icon: Icon, label, color }: { icon: any; label: string;
   </div>
 );
 
-export default function AddProductModal({ open, onOpenChange }: AddProductModalProps) {
+const defaultForm = {
+  name: "",
+  sku: "",
+  description: "",
+  category_id: "",
+  supplier_id: "",
+  cost_price: 0,
+  selling_price: 0,
+  stock_quantity: 0,
+  reorder_point: 10,
+  reorder_quantity: 50,
+  unit: "pcs",
+  image_url: "",
+  weight_kg: 0,
+  status: "active",
+};
+
+export default function AddProductModal({ open, onOpenChange, editProductId }: AddProductModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [form, setForm] = useState({
-    name: "",
-    sku: "",
-    description: "",
-    category_id: "",
-    supplier_id: "",
-    cost_price: 0,
-    selling_price: 0,
-    stock_quantity: 0,
-    reorder_point: 10,
-    reorder_quantity: 50,
-    unit: "pcs",
-    image_url: "",
-    weight_kg: 0,
-    status: "active",
-  });
-
+  const [form, setForm] = useState({ ...defaultForm });
   const [manageStock, setManageStock] = useState(true);
   const [featured, setFeatured] = useState(false);
   const [hasVariants, setHasVariants] = useState(false);
@@ -64,6 +66,45 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
   const [warrantyNote, setWarrantyNote] = useState("");
   const [shippingNote, setShippingNote] = useState("");
   const [adminNote, setAdminNote] = useState("");
+  const [uploading, setUploading] = useState(false);
+
+  const isEdit = !!editProductId;
+
+  // Fetch product data for edit mode
+  const { data: editProduct } = useQuery({
+    queryKey: ["product-edit", editProductId],
+    queryFn: async () => {
+      if (!editProductId) return null;
+      const { data, error } = await supabase.from("products").select("*").eq("id", editProductId).single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!editProductId && open,
+  });
+
+  // Populate form when editing
+  useEffect(() => {
+    if (editProduct && open) {
+      setForm({
+        name: editProduct.name || "",
+        sku: editProduct.sku || "",
+        description: editProduct.description || "",
+        category_id: editProduct.category_id || "",
+        supplier_id: editProduct.supplier_id || "",
+        cost_price: editProduct.landed_cost_bdt || 0,
+        selling_price: editProduct.selling_price || 0,
+        stock_quantity: editProduct.stock_quantity || 0,
+        reorder_point: editProduct.reorder_point || 10,
+        reorder_quantity: editProduct.reorder_quantity || 50,
+        unit: editProduct.unit || "pcs",
+        image_url: editProduct.image_url || "",
+        weight_kg: editProduct.weight_kg || 0,
+        status: editProduct.status || "active",
+      });
+    } else if (!editProductId && open) {
+      resetForm();
+    }
+  }, [editProduct, editProductId, open]);
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
@@ -89,7 +130,7 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
   const mutation = useMutation({
     mutationFn: async () => {
       const sku = form.sku || `SKU-${Date.now().toString(36).toUpperCase()}`;
-      const { error } = await supabase.from("products").insert({
+      const payload = {
         name: form.name,
         sku,
         description: form.description,
@@ -106,11 +147,18 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
         unit: form.unit,
         image_url: form.image_url || null,
         status: form.status,
-      });
-      if (error) throw error;
+      };
+
+      if (isEdit && editProductId) {
+        const { error } = await supabase.from("products").update(payload).eq("id", editProductId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("products").insert(payload);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
-      toast({ title: "Product created successfully!" });
+      toast({ title: isEdit ? "✅ Product updated successfully" : "✅ Product created successfully!" });
       queryClient.invalidateQueries({ queryKey: ["products"] });
       onOpenChange(false);
       resetForm();
@@ -121,17 +169,42 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
   });
 
   const resetForm = () => {
-    setForm({
-      name: "", sku: "", description: "", category_id: "", supplier_id: "",
-      cost_price: 0, selling_price: 0,
-      stock_quantity: 0, reorder_point: 10, reorder_quantity: 50, unit: "pcs",
-      image_url: "", weight_kg: 0, status: "active",
-    });
+    setForm({ ...defaultForm });
     setVariants([]);
     setHasVariants(false);
+    setWarrantyNote("");
+    setShippingNote("");
+    setAdminNote("");
   };
 
   const update = (field: string, value: any) => setForm((f) => ({ ...f, [field]: value }));
+
+  // Image upload handler
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const { error } = await supabase.storage.from('product-images').upload(fileName, file);
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(fileName);
+      update("image_url", publicUrl);
+      toast({ title: "Image uploaded successfully!" });
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeImage = () => {
+    update("image_url", "");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const addVariant = () => {
     setVariants((v) => [...v, { id: crypto.randomUUID(), name: "", sku: "", price: 0, stock: 0 }]);
@@ -161,8 +234,8 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
               <Package className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <DialogTitle className="text-lg font-bold">Add New Product</DialogTitle>
-              <p className="text-xs text-muted-foreground">Fill in the details to add a new product</p>
+              <DialogTitle className="text-lg font-bold">{isEdit ? "Edit Product" : "Add New Product"}</DialogTitle>
+              <p className="text-xs text-muted-foreground">{isEdit ? "Update the product details" : "Fill in the details to add a new product"}</p>
             </div>
           </div>
           <button
@@ -182,33 +255,19 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
             <div className="space-y-4">
               <div>
                 <Label className="text-xs font-medium text-muted-foreground">Product Name *</Label>
-                <Input
-                  value={form.name}
-                  onChange={(e) => update("name", e.target.value)}
-                  placeholder="Enter product name"
-                  className="mt-1 focus-visible:ring-primary/30 focus-visible:border-primary transition-all"
-                />
+                <Input value={form.name} onChange={(e) => update("name", e.target.value)} placeholder="Enter product name" className="mt-1 focus-visible:ring-primary/30 focus-visible:border-primary transition-all" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-xs font-medium text-muted-foreground">Product Code / SKU</Label>
-                  <Input
-                    value={form.sku}
-                    onChange={(e) => update("sku", e.target.value)}
-                    placeholder="Auto-generated if empty"
-                    className="mt-1 focus-visible:ring-primary/30 focus-visible:border-primary"
-                  />
+                  <Input value={form.sku} onChange={(e) => update("sku", e.target.value)} placeholder="Auto-generated if empty" className="mt-1" />
                 </div>
                 <div>
                   <Label className="text-xs font-medium text-muted-foreground">Category</Label>
                   <Select value={form.category_id} onValueChange={(v) => update("category_id", v)}>
-                    <SelectTrigger className="mt-1 focus:ring-primary/30 focus:border-primary">
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
+                    <SelectTrigger className="mt-1"><SelectValue placeholder="Select category" /></SelectTrigger>
                     <SelectContent>
-                      {categories?.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                      ))}
+                      {categories?.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -217,23 +276,16 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
                 <div>
                   <Label className="text-xs font-medium text-muted-foreground">Supplier</Label>
                   <Select value={form.supplier_id} onValueChange={(v) => update("supplier_id", v)}>
-                    <SelectTrigger className="mt-1 focus:ring-primary/30 focus:border-primary">
-                      <SelectValue placeholder="Select supplier" />
-                    </SelectTrigger>
+                    <SelectTrigger className="mt-1"><SelectValue placeholder="Select supplier" /></SelectTrigger>
                     <SelectContent>
-                      {suppliers?.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                      ))}
+                      {suppliers?.map((s) => (<SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
                   <Label className="text-xs font-medium text-muted-foreground">Status</Label>
                   <div className="flex items-center gap-3 mt-2.5">
-                    <Switch
-                      checked={form.status === "active"}
-                      onCheckedChange={(v) => update("status", v ? "active" : "inactive")}
-                    />
+                    <Switch checked={form.status === "active"} onCheckedChange={(v) => update("status", v ? "active" : "inactive")} />
                     <span className={cn("text-sm font-medium", form.status === "active" ? "text-green-600" : "text-muted-foreground")}>
                       {form.status === "active" ? "Active" : "Inactive"}
                     </span>
@@ -242,13 +294,7 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
               </div>
               <div>
                 <Label className="text-xs font-medium text-muted-foreground">Description</Label>
-                <Textarea
-                  value={form.description}
-                  onChange={(e) => update("description", e.target.value)}
-                  rows={2}
-                  placeholder="Brief product description..."
-                  className="mt-1 focus-visible:ring-primary/30 focus-visible:border-primary resize-none"
-                />
+                <Textarea value={form.description} onChange={(e) => update("description", e.target.value)} rows={2} placeholder="Brief product description..." className="mt-1 resize-none" />
               </div>
             </div>
           </section>
@@ -267,17 +313,13 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
                   <div className="relative mt-1">
                     <Input type="number" value={form.selling_price} onChange={(e) => update("selling_price", parseFloat(e.target.value) || 0)} />
                     {form.selling_price > 0 && (
-                      <span className={cn(
-                        "absolute right-2 top-1/2 -translate-y-1/2 text-[11px] font-bold px-2 py-0.5 rounded-full border transition-all",
-                        marginBadgeColor
-                      )}>
+                      <span className={cn("absolute right-2 top-1/2 -translate-y-1/2 text-[11px] font-bold px-2 py-0.5 rounded-full border transition-all", marginBadgeColor)}>
                         Margin: {profitMargin.toFixed(1)}%
                       </span>
                     )}
                   </div>
                 </div>
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-xs font-medium text-muted-foreground">Stock Quantity</Label>
@@ -288,7 +330,6 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
                   <Input type="number" value={form.reorder_point} onChange={(e) => update("reorder_point", parseInt(e.target.value) || 0)} className="mt-1" />
                 </div>
               </div>
-
               <div className="flex items-center gap-8">
                 <div className="flex items-center gap-2.5">
                   <Switch checked={manageStock} onCheckedChange={setManageStock} />
@@ -310,48 +351,20 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
                 <Switch checked={hasVariants} onCheckedChange={setHasVariants} />
                 <Label className="text-sm cursor-pointer">Does this product have variants?</Label>
               </div>
-
               {hasVariants && (
                 <div className="space-y-2 animate-fade-in">
                   {variants.length > 0 && (
                     <div className="rounded-xl border border-border overflow-hidden">
                       <div className="grid grid-cols-[1fr_0.8fr_0.6fr_0.5fr_40px] gap-2 px-3 py-2 bg-muted text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-                        <span>Variant Name</span>
-                        <span>SKU</span>
-                        <span>Price ৳</span>
-                        <span>Stock</span>
-                        <span></span>
+                        <span>Variant Name</span><span>SKU</span><span>Price ৳</span><span>Stock</span><span></span>
                       </div>
                       {variants.map((v) => (
                         <div key={v.id} className="grid grid-cols-[1fr_0.8fr_0.6fr_0.5fr_40px] gap-2 px-3 py-1.5 border-t border-border items-center">
-                          <Input
-                            value={v.name}
-                            onChange={(e) => updateVariant(v.id, "name", e.target.value)}
-                            placeholder="Red / XL"
-                            className="h-8 text-sm"
-                          />
-                          <Input
-                            value={v.sku}
-                            onChange={(e) => updateVariant(v.id, "sku", e.target.value)}
-                            placeholder="SKU-R-XL"
-                            className="h-8 text-sm"
-                          />
-                          <Input
-                            type="number"
-                            value={v.price}
-                            onChange={(e) => updateVariant(v.id, "price", parseFloat(e.target.value) || 0)}
-                            className="h-8 text-sm"
-                          />
-                          <Input
-                            type="number"
-                            value={v.stock}
-                            onChange={(e) => updateVariant(v.id, "stock", parseInt(e.target.value) || 0)}
-                            className="h-8 text-sm"
-                          />
-                          <button
-                            onClick={() => removeVariant(v.id)}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                          >
+                          <Input value={v.name} onChange={(e) => updateVariant(v.id, "name", e.target.value)} placeholder="Red / XL" className="h-8 text-sm" />
+                          <Input value={v.sku} onChange={(e) => updateVariant(v.id, "sku", e.target.value)} placeholder="SKU-R-XL" className="h-8 text-sm" />
+                          <Input type="number" value={v.price} onChange={(e) => updateVariant(v.id, "price", parseFloat(e.target.value) || 0)} className="h-8 text-sm" />
+                          <Input type="number" value={v.stock} onChange={(e) => updateVariant(v.id, "stock", parseInt(e.target.value) || 0)} className="h-8 text-sm" />
+                          <button onClick={() => removeVariant(v.id)} className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
                             <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -373,13 +386,7 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-xs font-medium text-muted-foreground">Product Weight (kg)</Label>
-                  <Input
-                    type="number"
-                    value={form.weight_kg}
-                    onChange={(e) => update("weight_kg", parseFloat(e.target.value) || 0)}
-                    placeholder="0.00"
-                    className="mt-1"
-                  />
+                  <Input type="number" value={form.weight_kg} onChange={(e) => update("weight_kg", parseFloat(e.target.value) || 0)} placeholder="0.00" className="mt-1" />
                 </div>
                 <div>
                   <Label className="text-xs font-medium text-muted-foreground">Warranty</Label>
@@ -403,26 +410,47 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
           <section className="border-l-4 border-emerald-400 pl-4">
             <SectionHeader icon={ImageIcon} label="Product Image" color="bg-emerald-50 text-emerald-700" />
             <div className="space-y-3">
-              <div className="border-2 border-dashed border-border rounded-xl p-8 text-center bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer">
-                <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                <p className="text-sm font-medium text-muted-foreground">Drag & drop image here or click to browse</p>
-                <p className="text-xs text-muted-foreground mt-1">PNG, JPG, WEBP up to 5MB</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <LinkIcon className="w-4 h-4 text-muted-foreground" />
-                <Input
-                  value={form.image_url}
-                  onChange={(e) => update("image_url", e.target.value)}
-                  placeholder="Or paste image URL here..."
-                  className="flex-1"
-                />
-              </div>
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+
+              {!form.image_url && (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-border rounded-xl p-8 text-center bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+                >
+                  {uploading ? (
+                    <Loader2 className="w-8 h-8 mx-auto text-primary animate-spin mb-2" />
+                  ) : (
+                    <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                  )}
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {uploading ? "Uploading..." : "Click to browse or drag & drop"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">PNG, JPG, WEBP up to 5MB</p>
+                </div>
+              )}
+
               {form.image_url && (
-                <div className="flex items-center gap-3 animate-fade-in">
-                  <img src={form.image_url} alt="Preview" className="w-20 h-20 rounded-xl object-cover border border-border" />
-                  <div className="flex items-center gap-1.5 text-sm text-green-600">
-                    <Check className="w-4 h-4" /> Image preview loaded
+                <div className="flex items-center gap-4 animate-fade-in">
+                  <img src={form.image_url} alt="Preview" className="w-24 h-24 rounded-xl object-cover border border-border" />
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center gap-1.5 text-sm text-green-600">
+                      <Check className="w-4 h-4" /> Image uploaded
+                    </div>
+                    <Button variant="outline" size="sm" onClick={removeImage} className="text-destructive hover:text-destructive">
+                      <X className="w-3.5 h-3.5 mr-1" /> Remove
+                    </Button>
                   </div>
+                </div>
+              )}
+
+              {!form.image_url && !uploading && (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={form.image_url}
+                    onChange={(e) => update("image_url", e.target.value)}
+                    placeholder="Or paste image URL here..."
+                    className="flex-1"
+                  />
                 </div>
               )}
             </div>
@@ -439,7 +467,7 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
               disabled={!form.name || mutation.isPending}
               className="bg-primary hover:bg-primary-dark text-primary-foreground min-w-[120px]"
             >
-              {mutation.isPending ? "Saving..." : "Save Product"}
+              {mutation.isPending ? "Saving..." : isEdit ? "Update Product" : "Save Product"}
             </Button>
           </div>
         </div>
