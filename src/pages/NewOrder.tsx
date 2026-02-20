@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft, Plus, Minus, X, Search, Package,
-  Phone, AlertTriangle, CheckCircle2, Loader2,
+  Phone, AlertTriangle, CheckCircle2, Loader2, ShoppingCart,
 } from "lucide-react";
 import { formatBDT } from "@/lib/format";
 import { useBDCourierSingle, getRiskLevel } from "@/hooks/use-bd-courier";
@@ -65,7 +65,7 @@ function getPaymentStatus(method: string) {
 /* ═══ Stock Badge Helper ═══ */
 function StockBadge({ stock }: { stock: number }) {
   if (stock <= 0) return <Badge variant="destructive" className="text-[10px] px-1.5 py-0 font-bold">⚠️ Stock নেই</Badge>;
-  if (stock < 10) return <Badge className="text-[10px] px-1.5 py-0 font-bold bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100">⚠️ কম stock ({stock})</Badge>;
+  if (stock < 10) return <Badge className="text-[10px] px-1.5 py-0 font-bold bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100">⚠️ কম ({stock})</Badge>;
   return <span className="text-[10px] text-muted-foreground font-mono">Stock: {stock}</span>;
 }
 
@@ -107,7 +107,6 @@ export default function NewOrder() {
       if (parsed.district) {
         updates.delivery_district = parsed.district;
         filled.district = true;
-        // Also set Pathao city ID
         if (cities) {
           const match = cities.find((c) => c.city_name.toLowerCase() === parsed.district!.toLowerCase());
           if (match) setSelectedCityId(match.city_id);
@@ -121,7 +120,6 @@ export default function NewOrder() {
       if (Object.keys(updates).length > 0) {
         updateForm(updates);
         setAddressAutoFilled(filled);
-        // Clear auto-fill indicators after 5s
         setTimeout(() => setAddressAutoFilled({ district: false, thana: false }), 5000);
       }
     },
@@ -240,13 +238,6 @@ export default function NewOrder() {
   const removeItem = (pid: string) => setItems((prev) => prev.filter((i) => i.product_id !== pid));
   const updateItem = (pid: string, field: string, val: number) =>
     setItems((prev) => prev.map((i) => (i.product_id === pid ? { ...i, [field]: Math.max(field === "quantity" ? 1 : 0, val) } : i)));
-
-  const handleProductKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && filteredProducts && filteredProducts.length > 0) {
-      e.preventDefault();
-      addProduct(filteredProducts[0]);
-    }
-  };
 
   const handleDistrictSelect = (cityName: string) => {
     updateForm({ delivery_district: cityName, delivery_thana: "" });
@@ -376,123 +367,110 @@ export default function NewOrder() {
 
   const filteredProducts = products?.filter(
     (p) =>
-      productSearch.length >= 1 &&
-      (p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-        p.sku.toLowerCase().includes(productSearch.toLowerCase()))
+      productSearch.length >= 1
+        ? (p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+           p.sku.toLowerCase().includes(productSearch.toLowerCase()))
+        : true
   );
 
   const canCreate = form.customer_phone.length >= 11 && items.length > 0;
 
   return (
-    <div className="animate-fade-in pb-8">
+    <div className="animate-fade-in pb-8 max-w-3xl mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-center gap-4 mb-5">
         <Button variant="ghost" size="icon" onClick={() => navigate("/orders")} className="rounded-lg">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold">New Order</h1>
-          <p className="text-sm text-muted-foreground">
-            Create a new order manually • <kbd className="text-[10px] px-1.5 py-0.5 bg-muted rounded border border-border font-mono">Ctrl+Enter</kbd> to create
+          <h1 className="text-xl font-bold">New Order</h1>
+          <p className="text-xs text-muted-foreground">
+            <kbd className="text-[10px] px-1 py-0.5 bg-muted rounded border border-border font-mono">Ctrl+Enter</kbd> to create
           </p>
-        </div>
-        {/* Channel selector in header */}
-        <div className="flex items-center gap-1.5">
-          {CHANNELS.map((ch) => (
-            <button
-              key={ch.value}
-              onClick={() => updateForm({ channel: ch.value })}
-              className={cn(
-                "px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
-                form.channel === ch.value
-                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                  : "bg-card text-muted-foreground border-border hover:bg-muted"
-              )}
-            >
-              {ch.emoji} {ch.label}
-            </button>
-          ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* ═══════ LEFT: Customer + Items ═══════ */}
-        <div className="lg:col-span-8 space-y-5">
+      {/* Channel Selector */}
+      <div className="flex items-center gap-1.5 mb-5 flex-wrap">
+        {CHANNELS.map((ch) => (
+          <button
+            key={ch.value}
+            onClick={() => updateForm({ channel: ch.value })}
+            className={cn(
+              "px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
+              form.channel === ch.value
+                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                : "bg-card text-muted-foreground border-border hover:bg-muted"
+            )}
+          >
+            {ch.emoji} {ch.label}
+          </button>
+        ))}
+      </div>
 
-          {/* ── Customer Card ── */}
-          <Card className="rounded-xl border-border/60 shadow-sm">
-            <CardHeader className="pb-2 flex flex-row items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Phone className="w-4 h-4 text-primary" />
+      <div className="space-y-5">
+        {/* ── Customer Card ── */}
+        <Card className="rounded-xl border-border/60 shadow-sm">
+          <CardHeader className="pb-2 flex flex-row items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Phone className="w-4 h-4 text-primary" />
+            </div>
+            <CardTitle className="text-sm font-semibold">Customer</CardTitle>
+            {form.customer_phone.length >= 11 && (
+              <div className="ml-auto">
+                {bdLoading ? (
+                  <Skeleton className="h-7 w-28 rounded-full" />
+                ) : (
+                  <Badge className={cn("rounded-full px-3 py-1 text-xs font-semibold border-0", riskInfo.bg, riskInfo.color)}>
+                    {riskInfo.label}
+                    {bdReport?.success_rate != null && ` ${Math.round(bdReport.success_rate)}%`}
+                  </Badge>
+                )}
               </div>
-              <CardTitle className="text-sm font-semibold">Customer Information</CardTitle>
-              {form.customer_phone.length >= 11 && (
-                <div className="ml-auto">
-                  {bdLoading ? (
-                    <Skeleton className="h-7 w-28 rounded-full" />
-                  ) : (
-                    <Badge className={cn("rounded-full px-3 py-1 text-xs font-semibold border-0", riskInfo.bg, riskInfo.color)}>
-                      {riskInfo.label}
-                      {bdReport?.success_rate != null && ` ${Math.round(bdReport.success_rate)}%`}
-                    </Badge>
-                  )}
-                </div>
-              )}
-            </CardHeader>
-            <CardContent className="space-y-4 pt-2">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Phone */}
+            )}
+          </CardHeader>
+          <CardContent className="space-y-3 pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Phone */}
+              <div className="relative">
+                <Label className="text-xs text-muted-foreground">Phone *</Label>
                 <div className="relative">
-                  <Label className="text-xs text-muted-foreground">Phone Number *</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                    <Input
-                      value={form.customer_phone}
-                      onChange={(e) => {
-                        updateForm({ customer_phone: e.target.value });
-                        setShowCustomerDropdown(true);
-                      }}
-                      onFocus={() => setShowCustomerDropdown(true)}
-                      placeholder="01XXXXXXXXX"
-                      className="pl-9 h-9"
-                    />
-                  </div>
-                  {showCustomerDropdown && customers && customers.length > 0 && (
-                    <div className="absolute z-20 w-full bg-card border border-border rounded-lg mt-1 shadow-xl max-h-48 overflow-y-auto">
-                      {customers.map((c) => (
-                        <button
-                          key={c.id}
-                          className="w-full text-left px-4 py-2.5 hover:bg-muted/80 text-sm flex items-center gap-3 transition-colors"
-                          onClick={() => selectCustomer(c)}
-                        >
-                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                            {c.full_name?.[0]?.toUpperCase() || "?"}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium text-sm truncate">{c.full_name}</p>
-                            <p className="text-xs text-muted-foreground font-mono">{c.phone}</p>
-                          </div>
-                          {c.district && <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{c.district}</span>}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* 2nd Phone */}
-                <div>
-                  <Label className="text-xs text-muted-foreground">2nd Phone</Label>
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                   <Input
-                    value={form.customer_phone2}
-                    onChange={(e) => updateForm({ customer_phone2: e.target.value })}
-                    placeholder="Alternative number"
-                    className="h-9"
+                    value={form.customer_phone}
+                    onChange={(e) => {
+                      updateForm({ customer_phone: e.target.value });
+                      setShowCustomerDropdown(true);
+                    }}
+                    onFocus={() => setShowCustomerDropdown(true)}
+                    placeholder="01XXXXXXXXX"
+                    className="pl-9 h-9"
                   />
                 </div>
+                {showCustomerDropdown && customers && customers.length > 0 && (
+                  <div className="absolute z-20 w-full bg-card border border-border rounded-lg mt-1 shadow-xl max-h-48 overflow-y-auto">
+                    {customers.map((c) => (
+                      <button
+                        key={c.id}
+                        className="w-full text-left px-4 py-2.5 hover:bg-muted/80 text-sm flex items-center gap-3 transition-colors"
+                        onClick={() => selectCustomer(c)}
+                      >
+                        <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                          {c.full_name?.[0]?.toUpperCase() || "?"}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-sm truncate">{c.full_name}</p>
+                          <p className="text-xs text-muted-foreground font-mono">{c.phone}</p>
+                        </div>
+                        {c.district && <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{c.district}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-
+              {/* Name */}
               <div>
-                <Label className="text-xs text-muted-foreground">Customer Name *</Label>
+                <Label className="text-xs text-muted-foreground">Name *</Label>
                 <Input
                   value={form.customer_name}
                   onChange={(e) => updateForm({ customer_name: e.target.value })}
@@ -500,402 +478,393 @@ export default function NewOrder() {
                   className="h-9"
                 />
               </div>
+            </div>
 
+            <div>
+              <Label className="text-xs text-muted-foreground">2nd Phone</Label>
+              <Input
+                value={form.customer_phone2}
+                onChange={(e) => updateForm({ customer_phone2: e.target.value })}
+                placeholder="Alternative number"
+                className="h-9"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground">Address</Label>
+                {addressParseStatus === "parsing" && (
+                  <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Detecting...
+                  </span>
+                )}
+                {addressParseStatus === "found" && (
+                  <span className="flex items-center gap-1 text-[10px] text-green-600 font-medium">
+                    <CheckCircle2 className="w-3 h-3" /> Auto
+                  </span>
+                )}
+                {addressParseStatus === "not_found" && form.delivery_address.length > 10 && (
+                  <span className="flex items-center gap-1 text-[10px] text-yellow-600 font-medium">
+                    <AlertTriangle className="w-3 h-3" /> Manual
+                  </span>
+                )}
+              </div>
+              <Textarea
+                value={form.delivery_address}
+                onChange={(e) => {
+                  updateForm({ delivery_address: e.target.value });
+                  setAddressAutoFilled({ district: false, thana: false });
+                }}
+                placeholder="House, Road, Area..."
+                rows={2}
+                className="resize-none text-sm"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <div className="flex items-center gap-2">
-                  <Label className="text-xs text-muted-foreground">Delivery Address</Label>
-                  {addressParseStatus === "parsing" && (
-                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                      <Loader2 className="w-3 h-3 animate-spin" /> Detecting...
-                    </span>
-                  )}
-                  {addressParseStatus === "found" && (
-                    <span className="flex items-center gap-1 text-[10px] text-green-600 font-medium">
-                      <CheckCircle2 className="w-3 h-3" /> Auto detected
-                    </span>
-                  )}
-                  {addressParseStatus === "not_found" && form.delivery_address.length > 10 && (
-                    <span className="flex items-center gap-1 text-[10px] text-yellow-600 font-medium">
-                      <AlertTriangle className="w-3 h-3" /> Select manually
+                <div className="flex items-center gap-1.5">
+                  <Label className="text-xs text-muted-foreground">District</Label>
+                  {addressAutoFilled.district && (
+                    <span className="text-[10px] text-green-600 font-medium flex items-center gap-0.5">
+                      <CheckCircle2 className="w-3 h-3" /> Auto
                     </span>
                   )}
                 </div>
-                <Textarea
-                  value={form.delivery_address}
-                  onChange={(e) => {
-                    updateForm({ delivery_address: e.target.value });
-                    setAddressAutoFilled({ district: false, thana: false });
-                  }}
-                  placeholder="House, Road, Area... (district/thana auto-detect হবে)"
-                  rows={2}
-                  className="resize-none text-sm"
-                />
+                <Select value={form.delivery_district} onValueChange={(v) => { handleDistrictSelect(v); setAddressAutoFilled((p) => ({ ...p, district: false })); }}>
+                  <SelectTrigger className={cn("h-9", addressAutoFilled.district && "border-green-400 ring-1 ring-green-200")}>
+                    <SelectValue placeholder="Select district" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-64">
+                    {cities?.map((c) => (
+                      <SelectItem key={c.city_id} value={c.city_name}>{c.city_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <Label className="text-xs text-muted-foreground">District</Label>
-                    {addressAutoFilled.district && (
-                      <span className="text-[10px] text-green-600 font-medium flex items-center gap-0.5">
-                        <CheckCircle2 className="w-3 h-3" /> Auto
-                      </span>
-                    )}
-                  </div>
-                  <Select value={form.delivery_district} onValueChange={(v) => { handleDistrictSelect(v); setAddressAutoFilled((p) => ({ ...p, district: false })); }}>
-                    <SelectTrigger className={cn("h-9", addressAutoFilled.district && "border-green-400 ring-1 ring-green-200")}>
-                      <SelectValue placeholder="Select district" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-64">
-                      {cities?.map((c) => (
-                        <SelectItem key={c.city_id} value={c.city_name}>{c.city_name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <Label className="text-xs text-muted-foreground">Thana / Zone</Label>
+                  {addressAutoFilled.thana && (
+                    <span className="text-[10px] text-green-600 font-medium flex items-center gap-0.5">
+                      <CheckCircle2 className="w-3 h-3" /> Auto
+                    </span>
+                  )}
                 </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <Label className="text-xs text-muted-foreground">Thana / Zone</Label>
-                    {addressAutoFilled.thana && (
-                      <span className="text-[10px] text-green-600 font-medium flex items-center gap-0.5">
-                        <CheckCircle2 className="w-3 h-3" /> Auto
-                      </span>
-                    )}
-                  </div>
-                  <Select value={form.delivery_thana} onValueChange={(v) => { updateForm({ delivery_thana: v }); setAddressAutoFilled((p) => ({ ...p, thana: false })); }}>
-                    <SelectTrigger className={cn("h-9", addressAutoFilled.thana && "border-green-400 ring-1 ring-green-200")}>
-                      <SelectValue placeholder={selectedCityId ? "Select zone" : "Select district first"} />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-64">
-                      {zones?.map((z) => (
-                        <SelectItem key={z.zone_id} value={z.zone_name}>{z.zone_name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <Select value={form.delivery_thana} onValueChange={(v) => { updateForm({ delivery_thana: v }); setAddressAutoFilled((p) => ({ ...p, thana: false })); }}>
+                  <SelectTrigger className={cn("h-9", addressAutoFilled.thana && "border-green-400 ring-1 ring-green-200")}>
+                    <SelectValue placeholder={selectedCityId ? "Select zone" : "District first"} />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-64">
+                    {zones?.map((z) => (
+                      <SelectItem key={z.zone_id} value={z.zone_name}>{z.zone_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* ── Order Items Card ── */}
+        {/* ── Products Card (Grid Style) ── */}
+        <Card className="rounded-xl border-border/60 shadow-sm">
+          <CardHeader className="pb-2 flex flex-row items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Package className="w-4 h-4 text-primary" />
+            </div>
+            <CardTitle className="text-sm font-semibold">Products</CardTitle>
+            {items.length > 0 && (
+              <Badge variant="secondary" className="ml-auto rounded-full text-[10px]">
+                <ShoppingCart className="w-3 h-3 mr-1" />
+                {items.length}
+              </Badge>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-3 pt-2">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input
+                ref={productSearchRef}
+                value={productSearch}
+                onChange={(e) => setProductSearch(e.target.value)}
+                placeholder="Search product name or SKU..."
+                className="pl-9 h-9"
+              />
+            </div>
+
+            {/* Product Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[320px] overflow-y-auto pr-1">
+              {(filteredProducts || []).slice(0, 30).map((p) => {
+                const stock = p.stock_quantity || 0;
+                const outOfStock = stock <= 0;
+                const inCart = items.find((i) => i.product_id === p.id);
+                return (
+                  <button
+                    key={p.id}
+                    className={cn(
+                      "relative flex flex-col items-center p-3 rounded-xl border text-center transition-all",
+                      outOfStock
+                        ? "opacity-40 cursor-not-allowed border-border bg-muted/30"
+                        : inCart
+                          ? "border-primary bg-primary/5 ring-1 ring-primary/30 shadow-sm"
+                          : "border-border bg-card hover:border-primary/40 hover:shadow-sm"
+                    )}
+                    onClick={() => !outOfStock && addProduct(p)}
+                    disabled={outOfStock}
+                  >
+                    {inCart && (
+                      <div className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center shadow">
+                        {inCart.quantity}
+                      </div>
+                    )}
+                    {p.image_url ? (
+                      <img src={p.image_url} alt="" className="w-12 h-12 rounded-lg object-cover border border-border/40 mb-1.5" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center mb-1.5">
+                        <Package className="w-5 h-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    <p className="text-xs font-medium truncate w-full leading-tight">{p.name}</p>
+                    <p className="text-[10px] text-muted-foreground font-mono">{p.sku}</p>
+                    <p className="text-xs font-bold mt-0.5">{formatBDT(p.selling_price)}</p>
+                    <StockBadge stock={stock} />
+                  </button>
+                );
+              })}
+            </div>
+
+            {filteredProducts && filteredProducts.length === 0 && productSearch.length >= 1 && (
+              <p className="text-center text-sm text-muted-foreground py-4">কোনো product পাওয়া যায়নি</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ── Cart Items ── */}
+        {items.length > 0 && (
           <Card className="rounded-xl border-border/60 shadow-sm">
-            <CardHeader className="pb-2 flex flex-row items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Package className="w-4 h-4 text-primary" />
-              </div>
-              <CardTitle className="text-sm font-semibold">Order Items</CardTitle>
-              {items.length > 0 && (
-                <Badge variant="secondary" className="ml-auto rounded-full text-[10px]">{items.length} item{items.length > 1 ? "s" : ""}</Badge>
-              )}
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold">🛒 Cart ({items.length})</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 pt-2">
-              {/* Product Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                <Input
-                  ref={productSearchRef}
-                  value={productSearch}
-                  onChange={(e) => setProductSearch(e.target.value)}
-                  onKeyDown={handleProductKeyDown}
-                  placeholder="Search by product name or SKU... (Enter to add first)"
-                  className="pl-9 h-9"
-                />
-                {filteredProducts && filteredProducts.length > 0 && (
-                  <div className="absolute z-20 w-full bg-card border border-border rounded-lg mt-1 shadow-xl max-h-64 overflow-y-auto">
-                    {filteredProducts.slice(0, 10).map((p) => {
-                      const stock = p.stock_quantity || 0;
-                      const outOfStock = stock <= 0;
-                      return (
-                        <button
-                          key={p.id}
-                          className={cn(
-                            "w-full text-left px-3 py-2.5 flex items-center gap-3 transition-colors",
-                            outOfStock ? "opacity-50 cursor-not-allowed bg-muted/30" : "hover:bg-muted/80"
-                          )}
-                          onClick={() => addProduct(p)}
-                          disabled={outOfStock}
-                        >
-                          {p.image_url ? (
-                            <img src={p.image_url} alt="" className="w-10 h-10 rounded-lg object-cover border border-border/40" />
-                          ) : (
-                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
-                              <Package className="w-4 h-4" />
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{p.name}</p>
-                            <p className="text-[10px] text-muted-foreground font-mono">{p.sku}</p>
-                          </div>
-                          <div className="text-right shrink-0 space-y-0.5">
-                            <p className="text-sm font-semibold">{formatBDT(p.selling_price)}</p>
-                            <StockBadge stock={stock} />
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Item Rows */}
-              {items.length > 0 ? (
-                <div className="space-y-2">
-                  <div className="grid grid-cols-[40px_1fr_100px_100px_80px_32px] gap-2 px-2 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
-                    <span></span>
-                    <span>Product</span>
-                    <span className="text-center">Qty</span>
-                    <span className="text-right">Price</span>
-                    <span className="text-right">Total</span>
-                    <span></span>
-                  </div>
-                  {items.map((item) => (
-                    <div key={item.product_id} className="grid grid-cols-[40px_1fr_100px_100px_80px_32px] gap-2 items-center p-2 bg-muted/40 rounded-lg hover:bg-muted/60 transition-colors">
-                      {item.product_image ? (
-                        <img src={item.product_image} alt="" className="w-10 h-10 rounded-lg object-cover border border-border/40" />
-                      ) : (
-                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                          <Package className="w-3.5 h-3.5 text-muted-foreground" />
-                        </div>
-                      )}
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{item.product_name}</p>
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-[10px] text-muted-foreground font-mono">{item.product_sku}</p>
-                          <StockBadge stock={item.stock_quantity} />
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          className="w-6 h-6 rounded-md bg-background border border-border flex items-center justify-center hover:bg-muted transition-colors"
-                          onClick={() => updateItem(item.product_id, "quantity", item.quantity - 1)}
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <Input
-                          type="number"
-                          value={item.quantity}
-                          onChange={(e) => updateItem(item.product_id, "quantity", parseInt(e.target.value) || 1)}
-                          className="w-12 h-7 text-center text-sm font-semibold px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          min={1}
-                        />
-                        <button
-                          className="w-6 h-6 rounded-md bg-background border border-border flex items-center justify-center hover:bg-muted transition-colors"
-                          onClick={() => updateItem(item.product_id, "quantity", item.quantity + 1)}
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
-                      </div>
-                      <Input
-                        type="number"
-                        value={item.unit_price}
-                        onChange={(e) => updateItem(item.product_id, "unit_price", parseFloat(e.target.value) || 0)}
-                        className="h-7 text-right text-sm font-mono px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                      <span className="text-sm font-semibold text-right tabular-nums">
-                        {formatBDT(item.quantity * item.unit_price)}
-                      </span>
-                      <button
-                        className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                        onClick={() => removeItem(item.product_id)}
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
+            <CardContent className="space-y-2 pt-2">
+              {items.map((item) => (
+                <div key={item.product_id} className="flex items-center gap-3 p-2.5 bg-muted/40 rounded-lg">
+                  {item.product_image ? (
+                    <img src={item.product_image} alt="" className="w-10 h-10 rounded-lg object-cover border border-border/40 shrink-0" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                      <Package className="w-4 h-4 text-muted-foreground" />
                     </div>
-                  ))}
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{item.product_name}</p>
+                    <p className="text-[10px] text-muted-foreground font-mono">{item.product_sku}</p>
+                  </div>
+                  {/* Qty */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      className="w-6 h-6 rounded-md bg-background border border-border flex items-center justify-center hover:bg-muted"
+                      onClick={() => updateItem(item.product_id, "quantity", item.quantity - 1)}
+                    >
+                      <Minus className="w-3 h-3" />
+                    </button>
+                    <Input
+                      type="number"
+                      value={item.quantity}
+                      onChange={(e) => updateItem(item.product_id, "quantity", parseInt(e.target.value) || 1)}
+                      className="w-10 h-7 text-center text-sm font-semibold px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      min={1}
+                    />
+                    <button
+                      className="w-6 h-6 rounded-md bg-background border border-border flex items-center justify-center hover:bg-muted"
+                      onClick={() => updateItem(item.product_id, "quantity", item.quantity + 1)}
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </div>
+                  {/* Price */}
+                  <Input
+                    type="number"
+                    value={item.unit_price}
+                    onChange={(e) => updateItem(item.product_id, "unit_price", parseFloat(e.target.value) || 0)}
+                    className="w-20 h-7 text-right text-sm font-mono px-2 shrink-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  {/* Total */}
+                  <span className="text-sm font-semibold tabular-nums w-16 text-right shrink-0">
+                    {formatBDT(item.quantity * item.unit_price)}
+                  </span>
+                  <button
+                    className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+                    onClick={() => removeItem(item.product_id)}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-              ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Package className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm">Search and add products above</p>
-                  <p className="text-xs mt-1">Press <kbd className="px-1 py-0.5 bg-muted rounded border border-border text-[10px] font-mono">Enter</kbd> to quickly add</p>
-                </div>
-              )}
+              ))}
             </CardContent>
           </Card>
-        </div>
+        )}
 
-        {/* ═══════ RIGHT: Details + Summary (Sticky) ═══════ */}
-        <div className="lg:col-span-4 space-y-5">
-          <div className="lg:sticky lg:top-4 space-y-5">
+        {/* ── Payment & Details ── */}
+        <Card className="rounded-xl border-border/60 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">💳 Payment</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 pt-2">
+            <Select value={form.payment_method} onValueChange={(v) => updateForm({ payment_method: v, advance_amount: 0, transaction_id: "" })}>
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PAYMENT_METHODS.map((pm) => (
+                  <SelectItem key={pm.value} value={pm.value}>{pm.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-            {/* ── Order Details Card ── */}
-            <Card className="rounded-xl border-border/60 shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold">Order Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 pt-2">
-                {/* Payment Method */}
+            {showAdvanceFields && (
+              <div className="space-y-3 p-3 rounded-lg bg-muted/50 border border-border/50">
                 <div>
-                  <Label className="text-xs text-muted-foreground">Payment Method</Label>
-                  <Select value={form.payment_method} onValueChange={(v) => updateForm({ payment_method: v, advance_amount: 0, transaction_id: "" })}>
-                    <SelectTrigger className="h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PAYMENT_METHODS.map((pm) => (
-                        <SelectItem key={pm.value} value={pm.value}>{pm.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Advance Fields */}
-                {showAdvanceFields && (
-                  <div className="space-y-3 p-3 rounded-lg bg-muted/50 border border-border/50">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Advance Amount *</Label>
-                      <Input
-                        type="number"
-                        value={form.advance_amount || ""}
-                        onChange={(e) => updateForm({ advance_amount: parseFloat(e.target.value) || 0 })}
-                        placeholder="৳0"
-                        className="h-8 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                    </div>
-                    {/* Payment Via Radio */}
-                    <div>
-                      <Label className="text-xs text-muted-foreground mb-2 block">Received via</Label>
-                      <div className="flex flex-wrap gap-1.5">
-                        {ADVANCE_VIA_OPTIONS.map((opt) => (
-                          <button
-                            key={opt.value}
-                            onClick={() => updateForm({ payment_via: opt.value })}
-                            className={cn(
-                              "px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
-                              form.payment_via === opt.value
-                                ? "bg-primary text-primary-foreground border-primary"
-                                : "bg-background text-muted-foreground border-border hover:bg-muted"
-                            )}
-                          >
-                            {opt.emoji} {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Transaction ID</Label>
-                      <Input
-                        value={form.transaction_id}
-                        onChange={(e) => updateForm({ transaction_id: e.target.value })}
-                        placeholder="TxID (optional)"
-                        className="h-8 font-mono text-xs"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Payment Status Badge */}
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">Payment Status</Label>
-                  <Badge variant="outline" className={cn("capitalize text-[10px] font-semibold rounded-full",
-                    paymentStatus === "paid" && "bg-green-100 text-green-700 border-green-200",
-                    paymentStatus === "pending" && "bg-yellow-100 text-yellow-700 border-yellow-200",
-                    paymentStatus === "partial" && "bg-orange-100 text-orange-700 border-orange-200",
-                  )}>
-                    {paymentStatus}
-                  </Badge>
-                </div>
-
-                {/* Notes — empty by default */}
-                <div>
-                  <Label className="text-xs text-muted-foreground">Shipping Note</Label>
-                  <Textarea
-                    value={form.notes}
-                    onChange={(e) => updateForm({ notes: e.target.value })}
-                    rows={2}
-                    className="resize-none text-sm"
-                    placeholder="Optional shipping instructions..."
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* ── Order Summary Card ── */}
-            <Card className="rounded-xl shadow-md border-2 border-primary/20 bg-gradient-to-b from-card to-muted/20">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold">💰 Order Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 pt-2">
-                {/* Sub Total */}
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Sub Total</span>
-                  <span className="tabular-nums font-medium">{formatBDT(subtotal)}</span>
-                </div>
-
-                {/* Delivery */}
-                <div className="flex justify-between text-sm items-center">
-                  <span className="text-muted-foreground">Delivery</span>
+                  <Label className="text-xs text-muted-foreground">Advance Amount *</Label>
                   <Input
                     type="number"
-                    value={form.delivery_charge}
-                    onChange={(e) => updateForm({ delivery_charge: parseFloat(e.target.value) || 0 })}
-                    className="w-20 text-right h-7 text-sm font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                </div>
-
-                {/* Discount */}
-                <div className="flex justify-between text-sm items-center">
-                  <span className="text-muted-foreground">Discount</span>
-                  <Input
-                    type="number"
-                    value={form.discount || ""}
-                    onChange={(e) => updateForm({ discount: parseFloat(e.target.value) || 0 })}
-                    className="w-20 text-right h-7 text-sm font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    value={form.advance_amount || ""}
+                    onChange={(e) => updateForm({ advance_amount: parseFloat(e.target.value) || 0 })}
                     placeholder="৳0"
+                    className="h-8 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
-
-                {/* Advance Paid */}
-                {showAdvanceFields && advancePaid > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-green-600 font-medium">Advance Paid</span>
-                    <span className="text-green-600 font-bold tabular-nums">-{formatBDT(advancePaid)}</span>
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-2 block">Received via</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ADVANCE_VIA_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => updateForm({ payment_via: opt.value })}
+                        className={cn(
+                          "px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
+                          form.payment_via === opt.value
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-background text-muted-foreground border-border hover:bg-muted"
+                        )}
+                      >
+                        {opt.emoji} {opt.label}
+                      </button>
+                    ))}
                   </div>
-                )}
-
-                <Separator className="my-1" />
-
-                {/* COD Remaining */}
-                {(form.payment_method === "cod" || isPartial) && (
-                  <div className="flex justify-between text-sm py-1">
-                    <span className="text-orange-600 font-semibold">COD Remaining</span>
-                    <span className="text-orange-600 font-bold text-base tabular-nums">{formatBDT(form.payment_method === "cod" ? total : codRemaining)}</span>
-                  </div>
-                )}
-
-                {/* Grand Total */}
-                <div className="flex justify-between items-baseline pt-2 pb-1 px-3 -mx-3 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
-                  <span className="text-base font-bold text-green-700 dark:text-green-400">Grand Total</span>
-                  <span className="text-2xl font-extrabold text-green-700 dark:text-green-400 tabular-nums">{formatBDT(total)}</span>
                 </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Transaction ID</Label>
+                  <Input
+                    value={form.transaction_id}
+                    onChange={(e) => updateForm({ transaction_id: e.target.value })}
+                    placeholder="TxID (optional)"
+                    className="h-8 font-mono text-xs"
+                  />
+                </div>
+              </div>
+            )}
 
-                <Button
-                  className="w-full mt-3 h-11 text-sm font-semibold"
-                  onClick={() => mutation.mutate()}
-                  disabled={!canCreate || mutation.isPending}
-                >
-                  {mutation.isPending ? (
-                    <span className="flex items-center gap-2">
-                      <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                      Creating...
-                    </span>
-                  ) : (
-                    <>
-                      <Plus className="w-4 h-4 mr-1.5" />
-                      Create Order
-                    </>
-                  )}
-                </Button>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground">Payment Status</Label>
+              <Badge variant="outline" className={cn("capitalize text-[10px] font-semibold rounded-full",
+                paymentStatus === "paid" && "bg-green-100 text-green-700 border-green-200",
+                paymentStatus === "pending" && "bg-yellow-100 text-yellow-700 border-yellow-200",
+                paymentStatus === "partial" && "bg-orange-100 text-orange-700 border-orange-200",
+              )}>
+                {paymentStatus}
+              </Badge>
+            </div>
 
-                {!canCreate && (
-                  <p className="text-[10px] text-center text-muted-foreground">
-                    {form.customer_phone.length < 11 ? "📱 Enter phone number" : "📦 Add at least 1 product"}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Shipping Note</Label>
+              <Textarea
+                value={form.notes}
+                onChange={(e) => updateForm({ notes: e.target.value })}
+                rows={2}
+                className="resize-none text-sm"
+                placeholder="Optional instructions..."
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ── Order Summary ── */}
+        <Card className="rounded-xl shadow-md border-2 border-primary/20 bg-gradient-to-b from-card to-muted/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">💰 Summary</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 pt-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Sub Total</span>
+              <span className="tabular-nums font-medium">{formatBDT(subtotal)}</span>
+            </div>
+            <div className="flex justify-between text-sm items-center">
+              <span className="text-muted-foreground">Delivery</span>
+              <Input
+                type="number"
+                value={form.delivery_charge}
+                onChange={(e) => updateForm({ delivery_charge: parseFloat(e.target.value) || 0 })}
+                className="w-20 text-right h-7 text-sm font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            </div>
+            <div className="flex justify-between text-sm items-center">
+              <span className="text-muted-foreground">Discount</span>
+              <Input
+                type="number"
+                value={form.discount || ""}
+                onChange={(e) => updateForm({ discount: parseFloat(e.target.value) || 0 })}
+                className="w-20 text-right h-7 text-sm font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                placeholder="৳0"
+              />
+            </div>
+
+            {showAdvanceFields && advancePaid > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-green-600 font-medium">Advance Paid</span>
+                <span className="text-green-600 font-bold tabular-nums">-{formatBDT(advancePaid)}</span>
+              </div>
+            )}
+
+            <Separator className="my-1" />
+
+            {(form.payment_method === "cod" || isPartial) && (
+              <div className="flex justify-between text-sm py-1">
+                <span className="text-orange-600 font-semibold">COD Remaining</span>
+                <span className="text-orange-600 font-bold text-base tabular-nums">{formatBDT(form.payment_method === "cod" ? total : codRemaining)}</span>
+              </div>
+            )}
+
+            <div className="flex justify-between items-baseline pt-2 pb-1 px-3 -mx-3 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+              <span className="text-base font-bold text-green-700 dark:text-green-400">Grand Total</span>
+              <span className="text-2xl font-extrabold text-green-700 dark:text-green-400 tabular-nums">{formatBDT(total)}</span>
+            </div>
+
+            <Button
+              className="w-full mt-3 h-11 text-sm font-semibold"
+              onClick={() => mutation.mutate()}
+              disabled={!canCreate || mutation.isPending}
+            >
+              {mutation.isPending ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                  Creating...
+                </span>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4 mr-1.5" />
+                  Create Order
+                </>
+              )}
+            </Button>
+
+            {!canCreate && (
+              <p className="text-[10px] text-center text-muted-foreground">
+                {form.customer_phone.length < 11 ? "📱 Phone দাও" : "📦 Product যোগ করো"}
+              </p>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
