@@ -376,41 +376,45 @@ export default function NewOrder() {
   const canCreate = form.customer_phone.length >= 11 && items.length > 0;
 
   return (
-    <div className="animate-fade-in pb-8 max-w-3xl mx-auto">
+    <div className="animate-fade-in pb-8 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-5">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/orders")} className="rounded-lg">
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-xl font-bold">New Order</h1>
-          <p className="text-xs text-muted-foreground">
-            <kbd className="text-[10px] px-1 py-0.5 bg-muted rounded border border-border font-mono">Ctrl+Enter</kbd> to create
-          </p>
+      <div className="flex flex-col items-center mb-5">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/orders")} className="rounded-lg">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold text-center">New Order</h1>
+            <p className="text-xs text-muted-foreground text-center">
+              <kbd className="text-[10px] px-1 py-0.5 bg-muted rounded border border-border font-mono">Ctrl+Enter</kbd> to create
+            </p>
+          </div>
+        </div>
+        {/* Channel Selector */}
+        <div className="flex items-center gap-1.5 mt-3 flex-wrap justify-center">
+          {CHANNELS.map((ch) => (
+            <button
+              key={ch.value}
+              onClick={() => updateForm({ channel: ch.value })}
+              className={cn(
+                "px-4 py-1.5 rounded-full text-xs font-medium border transition-all duration-200",
+                form.channel === ch.value
+                  ? "bg-primary text-primary-foreground border-primary shadow-sm scale-105"
+                  : "bg-card text-muted-foreground border-border hover:bg-muted hover:scale-[1.02]"
+              )}
+            >
+              {ch.emoji} {ch.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Channel Selector */}
-      <div className="flex items-center gap-1.5 mb-5 flex-wrap">
-        {CHANNELS.map((ch) => (
-          <button
-            key={ch.value}
-            onClick={() => updateForm({ channel: ch.value })}
-            className={cn(
-              "px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
-              form.channel === ch.value
-                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                : "bg-card text-muted-foreground border-border hover:bg-muted"
-            )}
-          >
-            {ch.emoji} {ch.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="space-y-5">
+      {/* Main horizontal layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* ── LEFT COLUMN: Customer + Products ── */}
+        <div className="space-y-5">
         {/* ── Customer Card ── */}
-        <Card className="rounded-xl border-border/60 shadow-sm">
+        <Card className="rounded-xl border-border/60 shadow-sm transition-all duration-300 hover:shadow-md">
           <CardHeader className="pb-2 flex flex-row items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
               <Phone className="w-4 h-4 text-primary" />
@@ -567,7 +571,7 @@ export default function NewOrder() {
         </Card>
 
         {/* ── Products Card (Grid Style) ── */}
-        <Card className="rounded-xl border-border/60 shadow-sm">
+        <Card className="rounded-xl border-border/60 shadow-sm transition-all duration-300 hover:shadow-md">
           <CardHeader className="pb-2 flex flex-row items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
               <Package className="w-4 h-4 text-primary" />
@@ -594,7 +598,7 @@ export default function NewOrder() {
             </div>
 
             {/* Product Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[320px] overflow-y-auto pr-1">
+            <div className="grid grid-cols-2 gap-2 max-h-[400px] overflow-y-auto pr-1 scroll-smooth">
               {(filteredProducts || []).slice(0, 30).map((p) => {
                 const stock = p.stock_quantity || 0;
                 const outOfStock = stock <= 0;
@@ -639,10 +643,13 @@ export default function NewOrder() {
             )}
           </CardContent>
         </Card>
+        </div>{/* end left column */}
 
+        {/* ── RIGHT COLUMN: Cart + Payment + Summary ── */}
+        <div className="space-y-5 lg:sticky lg:top-4 lg:self-start">
         {/* ── Cart Items ── */}
         {items.length > 0 && (
-          <Card className="rounded-xl border-border/60 shadow-sm">
+          <Card className="rounded-xl border-border/60 shadow-sm transition-all duration-300 hover:shadow-md">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold">🛒 Cart ({items.length})</CardTitle>
             </CardHeader>
@@ -706,7 +713,7 @@ export default function NewOrder() {
         )}
 
         {/* ── Payment & Details ── */}
-        <Card className="rounded-xl border-border/60 shadow-sm">
+        <Card className="rounded-xl border-border/60 shadow-sm transition-all duration-300 hover:shadow-md">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold">💳 Payment</CardTitle>
           </CardHeader>
@@ -865,7 +872,8 @@ export default function NewOrder() {
             )}
           </CardContent>
         </Card>
-      </div>
+        </div>{/* end right column */}
+      </div>{/* end grid */}
     </div>
   );
 }
