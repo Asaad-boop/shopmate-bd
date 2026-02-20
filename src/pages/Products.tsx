@@ -11,14 +11,16 @@ import { Badge } from "@/components/ui/badge";
 import { formatBDT } from "@/lib/format";
 import { Plus, Search, Grid, List, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 import AddProductModal from "@/components/products/AddProductModal";
 
 export default function ProductsPage() {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"list" | "grid">("list");
   const [stockFilter, setStockFilter] = useState("all");
-  const [addOpen, setAddOpen] = useState(false);
   const [editProductId, setEditProductId] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
 
   const { data: products, isLoading } = useQuery({
     queryKey: ["products", stockFilter],
@@ -70,7 +72,7 @@ export default function ProductsPage() {
           <h1 className="text-2xl font-bold">Products</h1>
           <p className="text-sm text-muted-foreground">Manage your product catalog</p>
         </div>
-        <Button onClick={() => { setEditProductId(null); setAddOpen(true); }}>
+        <Button onClick={() => navigate("/products/new")}>
           <Plus className="w-4 h-4 mr-2" /> Add Product
         </Button>
       </div>
