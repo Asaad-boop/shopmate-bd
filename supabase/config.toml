@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.pathao-proxy]
 verify_jwt = false
+
+[functions.backfill-shopify-names]
+verify_jwt = false
