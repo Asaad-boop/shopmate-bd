@@ -148,8 +148,11 @@ export default function WebOrderDetail() {
 
   // Address auto-parsing
   const addressText = order?.delivery_address || customer?.address || "";
+  const isEmptyValue = (v: string | null | undefined) => !v || v === "-" || v.trim() === "";
   const existingDistrict = order?.delivery_district || customer?.district || "";
   const existingThana = order?.delivery_thana || customer?.thana || "";
+  const districtEmpty = isEmptyValue(existingDistrict);
+  const thanaEmpty = isEmptyValue(existingThana);
 
   const { status: addressParseStatus } = useAddressParser({
     address: addressText,
@@ -177,8 +180,8 @@ export default function WebOrderDetail() {
   // Apply auto-detected values when they arrive and fields are empty
   useEffect(() => {
     if (addressParseApplied || !order) return;
-    const needsDistrict = !existingDistrict && detectedDistrict;
-    const needsThana = !existingThana && detectedThana;
+    const needsDistrict = districtEmpty && detectedDistrict;
+    const needsThana = thanaEmpty && detectedThana;
     if (needsDistrict || needsThana) {
       setAddressParseApplied(true);
       addressSaveMutation.mutate({
@@ -186,11 +189,11 @@ export default function WebOrderDetail() {
         thana: needsThana ? detectedThana! : undefined,
       });
     }
-  }, [detectedDistrict, detectedThana, existingDistrict, existingThana, order, addressParseApplied]);
+  }, [detectedDistrict, detectedThana, districtEmpty, thanaEmpty, order, addressParseApplied]);
 
   // Determine display status for district/thana fields
-  const districtAutoFilled = !!(detectedDistrict && (!existingDistrict || existingDistrict === detectedDistrict));
-  const thanaAutoFilled = !!(detectedThana && (!existingThana || existingThana === detectedThana));
+  const districtAutoFilled = !!(detectedDistrict && (districtEmpty || existingDistrict === detectedDistrict));
+  const thanaAutoFilled = !!(detectedThana && (thanaEmpty || existingThana === detectedThana));
   const showParsingIndicator = addressParseStatus === "parsing";
   const statusMutation = useMutation({
     mutationFn: async (newStatus: string) => {
@@ -609,14 +612,14 @@ export default function WebOrderDetail() {
                             <CheckCircle2 className="w-3 h-3" /> Auto detected
                           </span>
                         )}
-                        {addressParseStatus === "not_found" && !existingDistrict && (
+                        {addressParseStatus === "not_found" && districtEmpty && !detectedDistrict && (
                           <span className="flex items-center gap-0.5 text-[10px] text-yellow-600 font-medium">
                             <AlertTriangle className="w-3 h-3" /> Manual
                           </span>
                         )}
                       </div>
                       <Input
-                        value={detectedDistrict || order.delivery_district || customer?.district || ""}
+                        value={detectedDistrict || (districtEmpty ? "" : existingDistrict)}
                         readOnly
                         className={cn("rounded-lg h-9 text-sm", districtAutoFilled && "border-green-400 ring-1 ring-green-200")}
                       />
@@ -629,14 +632,14 @@ export default function WebOrderDetail() {
                             <CheckCircle2 className="w-3 h-3" /> Auto detected
                           </span>
                         )}
-                        {addressParseStatus === "not_found" && !existingThana && (
+                        {addressParseStatus === "not_found" && thanaEmpty && !detectedThana && (
                           <span className="flex items-center gap-0.5 text-[10px] text-yellow-600 font-medium">
                             <AlertTriangle className="w-3 h-3" /> Manual
                           </span>
                         )}
                       </div>
                       <Input
-                        value={detectedThana || order.delivery_thana || customer?.thana || ""}
+                        value={detectedThana || (thanaEmpty ? "" : existingThana)}
                         readOnly
                         className={cn("rounded-lg h-9 text-sm", thanaAutoFilled && "border-green-400 ring-1 ring-green-200")}
                       />
