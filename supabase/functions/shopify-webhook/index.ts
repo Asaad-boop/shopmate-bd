@@ -95,32 +95,34 @@ Deno.serve(async (req) => {
       if (body.line_items && body.line_items.length > 0) {
         const items = [];
         for (const lineItem of body.line_items) {
-          let productId: string | null = null;
-          let productNameFallback: string | null = null;
+          let product: any = null;
           let unitCost = 0;
 
-          // Try to match product by shopify_variant_id or sku
-          if (lineItem.variant_id || lineItem.sku) {
-            const conditions = [];
-            if (lineItem.variant_id) conditions.push(`shopify_variant_id.eq.${lineItem.variant_id}`);
-            if (lineItem.sku) conditions.push(`sku.eq.${lineItem.sku}`);
-
-            const { data: matchedProduct } = await supabase
+          // First try: match by Shopify variant ID
+          if (lineItem.variant_id) {
+            const { data } = await supabase
               .from("products")
               .select("id, name, image_url, sku, landed_cost_bdt")
-              .or(conditions.join(","))
+              .eq("shopify_variant_id", String(lineItem.variant_id))
               .maybeSingle();
-
-            if (matchedProduct) {
-              productId = matchedProduct.id;
-              unitCost = matchedProduct.landed_cost_bdt || 0;
-            } else {
-              // No match found, save title as fallback
-              productNameFallback = lineItem.title || lineItem.name || "Shopify Product";
-            }
-          } else {
-            productNameFallback = lineItem.title || lineItem.name || "Shopify Product";
+            product = data;
           }
+
+          // Second try: match by SKU
+          if (!product && lineItem.sku) {
+            const { data } = await supabase
+              .from("products")
+              .select("id, name, image_url, sku, landed_cost_bdt")
+              .eq("sku", lineItem.sku)
+              .maybeSingle();
+            product = data;
+          }
+
+          const productId = product?.id || null;
+          const productNameFallback = product ? null : (lineItem.title || lineItem.name || "Shopify Product");
+          unitCost = product?.landed_cost_bdt || 0;
+
+          console.log(`Line item "${lineItem.title}" → product_id: ${productId}, sku: ${lineItem.sku}, variant: ${lineItem.variant_id}`);
 
           items.push({
             order_id: order.id,
