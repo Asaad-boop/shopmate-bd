@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useInventoryProducts, useCategories } from "@/hooks/use-inventory";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,8 @@ export default function InventoryPage() {
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [adjustProductId, setAdjustProductId] = useState<string | undefined>();
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 20;
 
   // KPIs
   const kpis = useMemo(() => {
@@ -71,6 +73,18 @@ export default function InventoryPage() {
     }
     return sorted;
   }, [products, search, stockFilter, categoryFilter, sortBy]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, stockFilter, categoryFilter, sortBy]);
+
+  // Paginated data
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginated = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, currentPage, pageSize]);
 
   const lowStockCount = (products || []).filter(
     (p) => (p.stock_quantity || 0) > 0 && (p.stock_quantity || 0) <= (p.reorder_point || 10)
@@ -217,7 +231,7 @@ export default function InventoryPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filtered.map((p) => {
+                      {paginated.map((p) => {
                         const qty = p.stock_quantity || 0;
                         const reserved = p.reserved_quantity || 0;
                         const available = qty - reserved;
@@ -278,6 +292,30 @@ export default function InventoryPage() {
                   </Table>
                 </div>
               </CardContent>
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filtered.length)} of {filtered.length}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setCurrentPage(p => p - 1)}>Previous</Button>
+                    {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                      let page: number;
+                      if (totalPages <= 7) { page = i + 1; }
+                      else if (currentPage <= 4) { page = i + 1; }
+                      else if (currentPage >= totalPages - 3) { page = totalPages - 6 + i; }
+                      else { page = currentPage - 3 + i; }
+                      return (
+                        <Button key={page} variant={currentPage === page ? "default" : "outline"} size="sm" className="w-9" onClick={() => setCurrentPage(page)}>
+                          {page}
+                        </Button>
+                      );
+                    })}
+                    <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)}>Next</Button>
+                  </div>
+                </div>
+              )}
             </Card>
           )}
         </TabsContent>
