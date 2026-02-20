@@ -566,18 +566,19 @@ export default function WebOrderDetail() {
                   <div className="space-y-2">
                     {items?.map((item) => {
                       const product = item.products as any;
-                      const pInitial = (product?.name || "?")[0].toUpperCase();
+                      const pName = product?.name || (item as any).product_name_fallback || "Product";
+                      const pInitial = pName[0].toUpperCase();
                       return (
                         <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
                           <div className="w-10 h-10 rounded-lg bg-card border border-border flex items-center justify-center overflow-hidden shrink-0">
                             {product?.image_url ? (
                               <img src={product.image_url} alt="" className="w-full h-full object-cover" />
                             ) : (
-                              <span className="text-xs font-bold text-muted-foreground">{pInitial}</span>
+                              <div className="w-full h-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">{pInitial}</div>
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-xs truncate">{product?.name || "Unknown"}</p>
+                            <p className="font-semibold text-xs truncate">{pName}</p>
                             <div className="flex items-center gap-2 mt-0.5">
                               <span className="text-[10px] text-blue-600 font-mono">{product?.sku || "-"}</span>
                               {product?.stock_quantity != null && (

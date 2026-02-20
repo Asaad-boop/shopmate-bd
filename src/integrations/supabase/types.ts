@@ -458,6 +458,7 @@ export type Database = {
           id: string
           order_id: string | null
           product_id: string | null
+          product_name_fallback: string | null
           profit: number | null
           quantity: number
           total_price: number
@@ -469,6 +470,7 @@ export type Database = {
           id?: string
           order_id?: string | null
           product_id?: string | null
+          product_name_fallback?: string | null
           profit?: number | null
           quantity: number
           total_price: number
@@ -480,6 +482,7 @@ export type Database = {
           id?: string
           order_id?: string | null
           product_id?: string | null
+          product_name_fallback?: string | null
           profit?: number | null
           quantity?: number
           total_price?: number

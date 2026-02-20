@@ -54,7 +54,7 @@ export default function OrderDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("order_items")
-        .select("*, products(name, sku)")
+        .select("*, products(name, sku, image_url)")
         .eq("order_id", id!);
       if (error) throw error;
       return data;
@@ -173,18 +173,32 @@ export default function OrderDetail() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {items?.map((item) => (
+                {items?.map((item) => {
+                  const product = item.products as any;
+                  const pName = product?.name || (item as any).product_name_fallback || "Product";
+                  const pInitial = pName[0].toUpperCase();
+                  return (
                   <div key={item.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                    <div>
-                      <p className="font-medium text-sm">{(item.products as any)?.name || "Unknown"}</p>
-                      <p className="text-xs text-muted-foreground">SKU: {(item.products as any)?.sku || "-"}</p>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center shrink-0 border border-border">
+                        {product?.image_url ? (
+                          <img src={product.image_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">{pInitial}</div>
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{pName}</p>
+                        <p className="text-xs text-muted-foreground">SKU: {product?.sku || "-"}</p>
+                      </div>
                     </div>
                     <div className="text-right text-sm">
                       <p>{item.quantity} × {formatBDT(item.unit_price)}</p>
                       <p className="font-medium">{formatBDT(item.total_price)}</p>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
                 {(!items || items.length === 0) && (
                   <p className="text-center text-muted-foreground py-4 text-sm">No items</p>
                 )}
