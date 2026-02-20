@@ -39,7 +39,7 @@ function getCSS(size: "a4" | "a5") {
     /* SECTION 1: Top header */
     .top-header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: ${8 * f}px; border-bottom: 2px solid #111; margin-bottom: ${12 * f}px; }
     .top-left { display: flex; flex-direction: column; gap: ${2 * f}px; max-width: 35%; }
-    .top-left img { max-height: ${isA5 ? '50px' : '80px'}; object-fit: contain; }
+    .top-left img { max-height: ${isA5 ? '70px' : '110px'}; object-fit: contain; }
     .top-right { display: flex; gap: ${isA5 ? '12px' : '24px'}; text-align: left; align-items: flex-start; }
     .top-right .col { font-size: ${isA5 ? '7px' : '9.5px'}; line-height: 1.5; color: #333; }
     .top-right .col strong { font-size: ${isA5 ? '7.5px' : '10px'}; color: #111; display: block; margin-bottom: 2px; }
