@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,8 +16,9 @@ import { cn } from "@/lib/utils";
 import {
   ArrowLeft, Phone, MessageCircle, Send, Clock, MapPin,
   Package, Wallet, CheckCircle2, RefreshCw, Copy, ExternalLink,
-  Plus, Minus, X, Search, ShieldCheck, Truck,
+  Plus, Minus, X, Search, ShieldCheck, Truck, Loader2, AlertTriangle,
 } from "lucide-react";
+import { useAddressParser, type AutoFillStatus } from "@/hooks/use-address-parser";
 import {
   AlertDialog as AlertDialogRoot,
   AlertDialogAction as ADAction,
@@ -93,6 +94,9 @@ export default function WebOrderDetail() {
   const [callResult, setCallResult] = useState("");
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showPathaoModal, setShowPathaoModal] = useState(false);
+  const [detectedDistrict, setDetectedDistrict] = useState<string | null>(null);
+  const [detectedThana, setDetectedThana] = useState<string | null>(null);
+  const [addressParseApplied, setAddressParseApplied] = useState(false);
 
   /* ── Queries ── */
   const { data: order, isLoading } = useQuery({
@@ -142,7 +146,52 @@ export default function WebOrderDetail() {
   const { data: bdReport, isLoading: bdLoading, refetch: refetchBD } = useBDCourierSingle(customerPhone, !!customer);
   const riskInfo = getRiskLevel(bdReport?.success_rate);
 
-  /* ── Mutations ── */
+  // Address auto-parsing
+  const addressText = order?.delivery_address || customer?.address || "";
+  const existingDistrict = order?.delivery_district || customer?.district || "";
+  const existingThana = order?.delivery_thana || customer?.thana || "";
+
+  const { status: addressParseStatus } = useAddressParser({
+    address: addressText,
+    onAutoFill: (parsed) => {
+      if (parsed.district) setDetectedDistrict(parsed.district);
+      if (parsed.thana) setDetectedThana(parsed.thana);
+    },
+  });
+
+  // Auto-save detected district/thana to order if currently empty
+  const addressSaveMutation = useMutation({
+    mutationFn: async ({ district, thana }: { district?: string; thana?: string }) => {
+      const updates: any = { updated_at: new Date().toISOString() };
+      if (district) updates.delivery_district = district;
+      if (thana) updates.delivery_thana = thana;
+      const { error } = await supabase.from("orders").update(updates).eq("id", id!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["web-order", id] });
+      toast({ title: "✅ Address auto-filled", description: "District/Thana detected from address" });
+    },
+  });
+
+  // Apply auto-detected values when they arrive and fields are empty
+  useEffect(() => {
+    if (addressParseApplied || !order) return;
+    const needsDistrict = !existingDistrict && detectedDistrict;
+    const needsThana = !existingThana && detectedThana;
+    if (needsDistrict || needsThana) {
+      setAddressParseApplied(true);
+      addressSaveMutation.mutate({
+        district: needsDistrict ? detectedDistrict! : undefined,
+        thana: needsThana ? detectedThana! : undefined,
+      });
+    }
+  }, [detectedDistrict, detectedThana, existingDistrict, existingThana, order, addressParseApplied]);
+
+  // Determine display status for district/thana fields
+  const districtAutoFilled = !!(detectedDistrict && (!existingDistrict || existingDistrict === detectedDistrict));
+  const thanaAutoFilled = !!(detectedThana && (!existingThana || existingThana === detectedThana));
+  const showParsingIndicator = addressParseStatus === "parsing";
   const statusMutation = useMutation({
     mutationFn: async (newStatus: string) => {
       const oldStatus = order?.web_order_status || "processing";
@@ -542,16 +591,55 @@ export default function WebOrderDetail() {
                       <Input value={customer?.full_name || ""} readOnly className="rounded-lg h-9 text-sm" />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Address</label>
+                      <div className="flex items-center gap-2 mb-1">
+                        <label className="text-[11px] font-medium text-muted-foreground">Address</label>
+                        {showParsingIndicator && (
+                          <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                            <Loader2 className="w-3 h-3 animate-spin" /> Detecting...
+                          </span>
+                        )}
+                      </div>
                       <Textarea value={order.delivery_address || customer?.address || ""} readOnly rows={2} className="rounded-lg text-sm resize-none" />
                     </div>
                     <div>
-                      <label className="text-[11px] font-medium text-muted-foreground mb-1 block">District</label>
-                      <Input value={order.delivery_district || customer?.district || ""} readOnly className="rounded-lg h-9 text-sm" />
+                      <div className="flex items-center gap-2 mb-1">
+                        <label className="text-[11px] font-medium text-muted-foreground">District</label>
+                        {districtAutoFilled && (
+                          <span className="flex items-center gap-0.5 text-[10px] text-green-600 font-medium">
+                            <CheckCircle2 className="w-3 h-3" /> Auto detected
+                          </span>
+                        )}
+                        {addressParseStatus === "not_found" && !existingDistrict && (
+                          <span className="flex items-center gap-0.5 text-[10px] text-yellow-600 font-medium">
+                            <AlertTriangle className="w-3 h-3" /> Manual
+                          </span>
+                        )}
+                      </div>
+                      <Input
+                        value={detectedDistrict || order.delivery_district || customer?.district || ""}
+                        readOnly
+                        className={cn("rounded-lg h-9 text-sm", districtAutoFilled && "border-green-400 ring-1 ring-green-200")}
+                      />
                     </div>
                     <div>
-                      <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Thana</label>
-                      <Input value={order.delivery_thana || customer?.thana || ""} readOnly className="rounded-lg h-9 text-sm" />
+                      <div className="flex items-center gap-2 mb-1">
+                        <label className="text-[11px] font-medium text-muted-foreground">Thana</label>
+                        {thanaAutoFilled && (
+                          <span className="flex items-center gap-0.5 text-[10px] text-green-600 font-medium">
+                            <CheckCircle2 className="w-3 h-3" /> Auto detected
+                          </span>
+                        )}
+                        {addressParseStatus === "not_found" && !existingThana && (
+                          <span className="flex items-center gap-0.5 text-[10px] text-yellow-600 font-medium">
+                            <AlertTriangle className="w-3 h-3" /> Manual
+                          </span>
+                        )}
+                      </div>
+                      <Input
+                        value={detectedThana || order.delivery_thana || customer?.thana || ""}
+                        readOnly
+                        className={cn("rounded-lg h-9 text-sm", thanaAutoFilled && "border-green-400 ring-1 ring-green-200")}
+                      />
                     </div>
                   </div>
                 </CardContent>
