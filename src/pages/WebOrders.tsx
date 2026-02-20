@@ -225,7 +225,7 @@ export default function WebOrdersPage() {
 
       {/* Status Tabs - Dark glassmorphic style */}
       <div className="flex items-center justify-center">
-        <div className="inline-flex items-center gap-1 p-1.5 rounded-2xl bg-[#1a1a2e] shadow-xl">
+        <div className="inline-flex items-center gap-1 p-1.5 rounded-2xl bg-white shadow-sm border border-slate-100">
           {WEB_STATUSES.map((s) => (
             <button
               key={s.key}
@@ -233,8 +233,8 @@ export default function WebOrdersPage() {
               className={cn(
                 "relative flex flex-col items-center gap-0.5 px-4 py-2.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
                 activeTab === s.key
-                  ? "bg-[#2a2a42] text-white scale-110 shadow-lg shadow-primary/20 ring-1 ring-white/10 -translate-y-1"
-                  : "text-slate-500 hover:text-slate-300 hover:bg-white/5"
+                  ? "bg-slate-100 text-foreground scale-110 shadow-md -translate-y-1 ring-1 ring-slate-200"
+                  : "text-slate-400 hover:text-foreground hover:bg-slate-50"
               )}
             >
               <span className="text-base transition-transform duration-500"
