@@ -38,15 +38,15 @@
 
     --radius: 0.5rem;
 
-    --sidebar-background: 240 24% 15%;
-    --sidebar-foreground: 214 32% 91%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
     --sidebar-primary: 350 84% 49%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 18% 21%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 240 18% 21%;
+    --sidebar-accent: 210 20% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 32% 93%;
     --sidebar-ring: 350 84% 49%;
-    --sidebar-muted: 215 16% 65%;
+    --sidebar-muted: 215 16% 57%;
 
     --success: 160 84% 39%;
     --success-foreground: 0 0% 100%;
