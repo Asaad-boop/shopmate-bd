@@ -46,11 +46,7 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
     description: "",
     category_id: "",
     supplier_id: "",
-    china_price_cny: 0,
-    china_price_usd: 0,
-    shipping_cost_per_unit: 0,
-    customs_duty_per_unit: 0,
-    other_cost_per_unit: 0,
+    cost_price: 0,
     selling_price: 0,
     stock_quantity: 0,
     reorder_point: 10,
@@ -87,8 +83,7 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
     },
   });
 
-  const landedCost = form.china_price_usd * 110 + form.shipping_cost_per_unit + form.customs_duty_per_unit + form.other_cost_per_unit;
-  const profitPerUnit = form.selling_price - landedCost;
+  const profitPerUnit = form.selling_price - form.cost_price;
   const profitMargin = form.selling_price > 0 ? (profitPerUnit / form.selling_price) * 100 : 0;
 
   const mutation = useMutation({
@@ -100,12 +95,7 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
         description: form.description,
         category_id: form.category_id || null,
         supplier_id: form.supplier_id || null,
-        china_price_cny: form.china_price_cny,
-        china_price_usd: form.china_price_usd,
-        shipping_cost_per_unit: form.shipping_cost_per_unit,
-        customs_duty_per_unit: form.customs_duty_per_unit,
-        other_cost_per_unit: form.other_cost_per_unit,
-        landed_cost_bdt: landedCost,
+        landed_cost_bdt: form.cost_price,
         selling_price: form.selling_price,
         profit_per_unit: profitPerUnit,
         profit_margin_percent: profitMargin,
@@ -133,8 +123,7 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
   const resetForm = () => {
     setForm({
       name: "", sku: "", description: "", category_id: "", supplier_id: "",
-      china_price_cny: 0, china_price_usd: 0, shipping_cost_per_unit: 0,
-      customs_duty_per_unit: 0, other_cost_per_unit: 0, selling_price: 0,
+      cost_price: 0, selling_price: 0,
       stock_quantity: 0, reorder_point: 10, reorder_quantity: 50, unit: "pcs",
       image_url: "", weight_kg: 0, status: "active",
     });
@@ -270,34 +259,8 @@ export default function AddProductModal({ open, onOpenChange }: AddProductModalP
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-xs font-medium text-muted-foreground">China Price (CNY ¥)</Label>
-                  <Input type="number" value={form.china_price_cny} onChange={(e) => update("china_price_cny", parseFloat(e.target.value) || 0)} className="mt-1" />
-                </div>
-                <div>
-                  <Label className="text-xs font-medium text-muted-foreground">China Price (USD $)</Label>
-                  <Input type="number" value={form.china_price_usd} onChange={(e) => update("china_price_usd", parseFloat(e.target.value) || 0)} className="mt-1" />
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Label className="text-xs font-medium text-muted-foreground">Shipping/unit ৳</Label>
-                  <Input type="number" value={form.shipping_cost_per_unit} onChange={(e) => update("shipping_cost_per_unit", parseFloat(e.target.value) || 0)} className="mt-1" />
-                </div>
-                <div>
-                  <Label className="text-xs font-medium text-muted-foreground">Customs/unit ৳</Label>
-                  <Input type="number" value={form.customs_duty_per_unit} onChange={(e) => update("customs_duty_per_unit", parseFloat(e.target.value) || 0)} className="mt-1" />
-                </div>
-                <div>
-                  <Label className="text-xs font-medium text-muted-foreground">Other Costs ৳</Label>
-                  <Input type="number" value={form.other_cost_per_unit} onChange={(e) => update("other_cost_per_unit", parseFloat(e.target.value) || 0)} className="mt-1" />
-                </div>
-              </div>
-
-              {/* Pricing Summary */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-xs font-medium text-muted-foreground">Landed Cost (BDT)</Label>
-                  <div className="mt-1 px-3 py-2.5 rounded-lg bg-muted text-sm font-semibold">{formatBDT(landedCost)}</div>
+                  <Label className="text-xs font-medium text-muted-foreground">Cost Price ৳</Label>
+                  <Input type="number" value={form.cost_price} onChange={(e) => update("cost_price", parseFloat(e.target.value) || 0)} className="mt-1" />
                 </div>
                 <div>
                   <Label className="text-xs font-medium text-muted-foreground">Selling Price ৳ *</Label>
