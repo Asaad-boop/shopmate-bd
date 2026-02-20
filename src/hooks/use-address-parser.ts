@@ -12,7 +12,7 @@ interface UseAddressParserOptions {
 export function useAddressParser({ address, debounceMs = 500, onAutoFill }: UseAddressParserOptions) {
   const [status, setStatus] = useState<AutoFillStatus>("idle");
   const [result, setResult] = useState<ParseResult>({ district: null, thana: null });
-  const prevAddress = useRef(address);
+  const prevAddress = useRef("");
   const onAutoFillRef = useRef(onAutoFill);
   onAutoFillRef.current = onAutoFill;
 
