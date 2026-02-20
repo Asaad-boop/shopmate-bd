@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
-  MoreVertical, CheckCircle2, X, FileText, Package, ClipboardList,
-  FileSpreadsheet, Truck, Rocket, Zap, RefreshCw, Download,
-  Copy, Upload, Trash2, StickyNote, Tag, PackageCheck
+  CheckCircle2, X, FileText, Package, ClipboardList,
+  Truck, RefreshCw, Download,
+  Copy, Upload, Trash2, StickyNote, PackageCheck, MoreVertical
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -71,192 +73,194 @@ export function BulkActionsDropdown({
   ];
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className={cn(
-            "gap-1.5 rounded-lg border transition-all",
-            selectedCount > 0
-              ? "border-primary/40 text-primary hover:bg-primary/5 hover:border-primary"
-              : "text-muted-foreground"
-          )}
-        >
-          <MoreVertical className="w-4 h-4" />
-          Actions
-          {selectedCount > 0 && (
-            <span className="ml-1 bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-              {selectedCount}
-            </span>
-          )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="end"
-        sideOffset={8}
-        className="w-[300px] p-0 rounded-xl shadow-[0_12px_48px_-8px_rgba(0,0,0,0.15)] border bg-white z-50"
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setOpen(true)}
+        className={cn(
+          "gap-1.5 rounded-lg border transition-all",
+          selectedCount > 0
+            ? "border-primary/40 text-primary hover:bg-primary/5 hover:border-primary"
+            : "text-muted-foreground"
+        )}
       >
-        <div className="max-h-[80vh] overflow-y-auto">
-          {/* Top bar */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-            <span className="inline-flex items-center gap-1.5 bg-slate-800 text-white text-xs font-semibold px-3 py-1 rounded-full">
-              {selectedCount} selected
-            </span>
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={onSelectAll}
-                className="text-xs font-medium text-slate-500 hover:text-slate-800 px-2 py-1 rounded-md hover:bg-slate-100 transition-colors"
-              >
-                ✓ Select All
-              </button>
-              {selectedCount > 0 && (
+        <MoreVertical className="w-4 h-4" />
+        Actions
+        {selectedCount > 0 && (
+          <span className="ml-1 bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+            {selectedCount}
+          </span>
+        )}
+      </Button>
+
+      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setConfirmStatus(null); }}>
+        <DialogContent className="max-w-md p-0">
+          <DialogHeader className="px-6 py-4 border-b border-border">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-base">Bulk Actions</DialogTitle>
+                <DialogDescription className="text-xs mt-0.5">
+                  {selectedCount} orders selected
+                </DialogDescription>
+              </div>
+              <div className="flex items-center gap-1.5">
                 <button
-                  onClick={onDeselect}
-                  className="text-xs font-medium text-red-400 hover:text-red-600 px-1.5 py-1 rounded-md hover:bg-red-50 transition-colors"
+                  onClick={onSelectAll}
+                  className="text-xs font-medium text-muted-foreground hover:text-foreground px-2 py-1 rounded-md hover:bg-muted transition-colors"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  ✓ Select All
                 </button>
-              )}
-            </div>
-          </div>
-
-          {/* Section 1: Print */}
-          <div className="px-4 pt-3 pb-2">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
-              🖨️ Print Options
-            </p>
-            <div className="grid grid-cols-2 gap-1.5">
-              {printActions.map((action) => {
-                const Icon = action.icon;
-                return (
+                {selectedCount > 0 && (
                   <button
-                    key={action.key}
-                    onClick={() => { onPrint(action.key); setOpen(false); }}
-                    disabled={selectedCount === 0}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    onClick={onDeselect}
+                    className="text-xs font-medium text-destructive/60 hover:text-destructive px-1.5 py-1 rounded-md hover:bg-destructive/10 transition-colors"
                   >
-                    <Icon className={cn("w-3.5 h-3.5", action.color)} />
-                    {action.label}
+                    <X className="w-3.5 h-3.5" />
                   </button>
-                );
-              })}
+                )}
+              </div>
             </div>
-          </div>
+          </DialogHeader>
 
-          <div className="mx-4 h-px bg-slate-100" />
-
-          {/* Section 2: Status */}
-          <div className="px-4 pt-3 pb-2">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
-              ↻ Status Update
-            </p>
-            {selectedCount > 0 && (
-              <p className="text-[10px] text-slate-400 mb-2">
-                Update status ({selectedCount} selected)
+          <div className="max-h-[60vh] overflow-y-auto">
+            {/* Section 1: Print */}
+            <div className="px-6 pt-4 pb-3">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                🖨️ Print Options
               </p>
-            )}
-            <div className="space-y-0.5">
-              {statusActions.map((action) => {
-                const Icon = action.icon;
-                const isConfirming = confirmStatus === action.key;
-                return (
-                  <button
-                    key={action.key}
-                    onClick={() => handleStatusClick(action.key)}
-                    disabled={selectedCount === 0 || changing}
-                    className={cn(
-                      "flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-xs font-medium transition-all",
-                      isConfirming
-                        ? "bg-slate-800 text-white"
-                        : "text-slate-700 hover:bg-slate-50",
-                      "disabled:opacity-40 disabled:cursor-not-allowed"
-                    )}
-                  >
-                    <Icon className={cn("w-3.5 h-3.5", isConfirming ? "text-white" : action.color)} />
-                    <span className="flex-1 text-left">
-                      {isConfirming ? `${selectedCount} orders → ${action.label}?` : action.label}
-                    </span>
-                    {isConfirming && (
-                      <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded font-bold">
-                        Confirm ✓
+              <div className="grid grid-cols-2 gap-1.5">
+                {printActions.map((action) => {
+                  const Icon = action.icon;
+                  return (
+                    <button
+                      key={action.key}
+                      onClick={() => { onPrint(action.key); setOpen(false); }}
+                      disabled={selectedCount === 0}
+                      className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <Icon className={cn("w-3.5 h-3.5", action.color)} />
+                      {action.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mx-6 h-px bg-border" />
+
+            {/* Section 2: Status */}
+            <div className="px-6 pt-4 pb-3">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                ↻ Status Update
+              </p>
+              {selectedCount > 0 && (
+                <p className="text-[10px] text-muted-foreground mb-2">
+                  Update status ({selectedCount} selected)
+                </p>
+              )}
+              <div className="space-y-0.5">
+                {statusActions.map((action) => {
+                  const Icon = action.icon;
+                  const isConfirming = confirmStatus === action.key;
+                  return (
+                    <button
+                      key={action.key}
+                      onClick={() => handleStatusClick(action.key)}
+                      disabled={selectedCount === 0 || changing}
+                      className={cn(
+                        "flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg text-xs font-medium transition-all",
+                        isConfirming
+                          ? "bg-foreground text-background"
+                          : "text-foreground hover:bg-muted",
+                        "disabled:opacity-40 disabled:cursor-not-allowed"
+                      )}
+                    >
+                      <Icon className={cn("w-3.5 h-3.5", isConfirming ? "text-background" : action.color)} />
+                      <span className="flex-1 text-left">
+                        {isConfirming ? `${selectedCount} orders → ${action.label}?` : action.label}
                       </span>
-                    )}
+                      {isConfirming && (
+                        <span className="text-[10px] bg-background/20 px-1.5 py-0.5 rounded font-bold">
+                          Confirm ✓
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mx-6 h-px bg-border" />
+
+            {/* Section 3: Courier */}
+            <div className="px-6 pt-4 pb-3">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                🚚 Courier Services
+              </p>
+              <div className="space-y-0.5">
+                {couriers.map((c) => (
+                  <button
+                    key={c.key}
+                    onClick={() => { onCourier(c.key); setOpen(false); }}
+                    disabled={selectedCount === 0}
+                    className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg text-xs font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <span className={cn("w-5 h-5 rounded text-[10px] font-bold inline-flex items-center justify-center", c.bg)}>
+                      {c.letter}
+                    </span>
+                    Send to {c.name}
                   </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="mx-4 h-px bg-slate-100" />
-
-          {/* Section 3: Courier */}
-          <div className="px-4 pt-3 pb-2">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
-              🚚 Courier Services
-            </p>
-            <div className="space-y-0.5">
-              {couriers.map((c) => (
+                ))}
                 <button
-                  key={c.key}
-                  onClick={() => { onCourier(c.key); setOpen(false); }}
-                  disabled={selectedCount === 0}
-                  className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted transition-colors"
                 >
-                  <span className={cn("w-5 h-5 rounded text-[10px] font-bold inline-flex items-center justify-center", c.bg)}>
-                    {c.letter}
-                  </span>
-                  Send to {c.name}
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Refresh Courier Status
                 </button>
-              ))}
-              <button
-                className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-50 transition-colors"
-              >
-                <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
-                Refresh Courier Status
-              </button>
+              </div>
+            </div>
+
+            <div className="mx-6 h-px bg-border" />
+
+            {/* Section 4: Tools & Export */}
+            <div className="px-6 pt-4 pb-4">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                ⬇️ Tools & Export
+              </p>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  onClick={() => { onExport?.(); setOpen(false); }}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium text-foreground hover:bg-muted transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5 text-emerald-500" />
+                  Excel
+                </button>
+                <button
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium text-foreground hover:bg-muted transition-colors"
+                >
+                  <Copy className="w-3.5 h-3.5 text-blue-500" />
+                  Duplicates
+                </button>
+                <button
+                  onClick={() => { onExport?.(); setOpen(false); }}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium text-foreground hover:bg-muted transition-colors"
+                >
+                  <Upload className="w-3.5 h-3.5 text-indigo-500" />
+                  Export CSV
+                </button>
+                <button
+                  disabled={selectedCount === 0}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
-
-          <div className="mx-4 h-px bg-slate-100" />
-
-          {/* Section 4: Tools & Export */}
-          <div className="px-4 pt-3 pb-3">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
-              ⬇️ Tools & Export
-            </p>
-            <div className="grid grid-cols-2 gap-1.5">
-              <button
-                onClick={() => { onExport?.(); setOpen(false); }}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                <Download className="w-3.5 h-3.5 text-emerald-500" />
-                Excel
-              </button>
-              <button
-                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                <Copy className="w-3.5 h-3.5 text-blue-500" />
-                Duplicates
-              </button>
-              <button
-                onClick={() => { onExport?.(); setOpen(false); }}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                <Upload className="w-3.5 h-3.5 text-indigo-500" />
-                Export CSV
-              </button>
-              <button
-                disabled={selectedCount === 0}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
