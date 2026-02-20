@@ -59,12 +59,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useBDCourierSingle, getRiskLevel, getSuccessColor } from "@/hooks/use-bd-courier";
 import { PathaoTrackingCard } from "@/components/pathao/PathaoTrackingCard";
-import {
-  usePathaoCities,
-  usePathaoZones,
-  usePathaoStores,
-  usePathaoCreateOrder,
-} from "@/hooks/use-pathao";
+import { PathaoBookingModal } from "@/components/pathao/PathaoBookingModal";
 
 /* ─── Light Glass card utility ─── */
 const glass = "bg-white/70 backdrop-blur-xl border border-white/60 rounded-2xl shadow-[0_12px_40px_rgba(15,23,42,0.10)]";
@@ -152,7 +147,8 @@ export default function WebOrderDetail() {
   const [newNote, setNewNote] = useState("");
   const [callResult, setCallResult] = useState("");
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [pathaoSending, setPathaoSending] = useState(false);
+  
+  const [pathaoModalOpen, setPathaoModalOpen] = useState(false);
   const [detectedDistrict, setDetectedDistrict] = useState<string | null>(null);
   const [detectedThana, setDetectedThana] = useState<string | null>(null);
   const [addressParseApplied, setAddressParseApplied] = useState(false);
@@ -208,23 +204,6 @@ export default function WebOrderDetail() {
   const { data: bdReport, isLoading: bdLoading, refetch: refetchBD } = useBDCourierSingle(customerPhone, !!customer);
   const riskInfo = getRiskLevel(bdReport?.success_rate);
 
-  // Pathao direct-send hooks
-  const { data: pathaoCities } = usePathaoCities();
-  const { data: pathaoStores } = usePathaoStores();
-  const pathaoCreateOrder = usePathaoCreateOrder();
-  const { data: pathaoDefaults } = useQuery({
-    queryKey: ["pathao-defaults"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("settings")
-        .select("key, value")
-        .in("key", ["pathao_default_store", "pathao_delivery_type", "pathao_default_weight"]);
-      const map: Record<string, string> = {};
-      data?.forEach((s: any) => { map[s.key] = s.value || ""; });
-      return map;
-    },
-    staleTime: 60 * 1000,
-  });
 
   // Address auto-parsing
   const addressText = order?.delivery_address || customer?.address || "";
@@ -372,116 +351,6 @@ export default function WebOrderDetail() {
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
-  /* ── Direct Pathao Send ── */
-  const normalizePhone = (phone: string) => {
-    let p = phone.replace(/\s+/g, "");
-    if (p.startsWith("+88")) p = p.slice(3);
-    else if (p.startsWith("88") && p.length > 11) p = p.slice(2);
-    return p;
-  };
-
-  const handleDirectPathaoSend = async () => {
-    if (!order || !customer) return;
-    setPathaoSending(true);
-    try {
-      const storeId = pathaoDefaults?.pathao_default_store;
-      if (!storeId) {
-        toast({ title: "Pathao store সেট করা নেই", description: "Settings এ গিয়ে default store সেট করুন", variant: "destructive" });
-        setPathaoSending(false);
-        return;
-      }
-      const district = order.delivery_district || customer?.district || "";
-      const matchedCity = pathaoCities?.find((c: any) =>
-        c.city_name.toLowerCase() === district.toLowerCase() ||
-        c.city_name.toLowerCase().includes(district.toLowerCase()) ||
-        district.toLowerCase().includes(c.city_name.toLowerCase())
-      );
-      if (!matchedCity) {
-        toast({ title: "City match হয়নি", description: `"${district}" Pathao city তে পাওয়া যায়নি`, variant: "destructive" });
-        setPathaoSending(false);
-        return;
-      }
-      const { data: zonesData } = await supabase.functions.invoke("pathao-proxy", {
-        body: { action: "zones", city_id: matchedCity.city_id },
-      });
-      const fetchedZones = zonesData?.data?.data || [];
-      const thana = order.delivery_thana || customer?.thana || "";
-      let matchedZone = fetchedZones.find((z: any) =>
-        z.zone_name.toLowerCase() === thana.toLowerCase() ||
-        z.zone_name.toLowerCase().includes(thana.toLowerCase()) ||
-        thana.toLowerCase().includes(z.zone_name.toLowerCase())
-      );
-      if (!matchedZone && fetchedZones.length > 0) matchedZone = fetchedZones[0];
-      if (!matchedZone) {
-        toast({ title: "Zone match হয়নি", variant: "destructive" });
-        setPathaoSending(false);
-        return;
-      }
-      const totalItems = items?.reduce((sum, i) => sum + i.quantity, 0) || 1;
-      const isCOD = order.payment_method?.toLowerCase() === "cod" || order.payment_status !== "paid";
-      const desc = items?.map((i) => (i.products as any)?.name).filter(Boolean).join(", ") || "";
-      const deliveryType = pathaoDefaults?.pathao_delivery_type || "48";
-      const weight = pathaoDefaults?.pathao_default_weight || "0.5";
-      const orderPayload = {
-        orders: [{
-          store_id: Number(storeId),
-          merchant_order_id: order.order_number,
-          recipient_name: customer.full_name || "",
-          recipient_phone: normalizePhone(customer.phone || ""),
-          recipient_address: order.delivery_address || customer.address || "",
-          recipient_city: matchedCity.city_id,
-          recipient_zone: matchedZone.zone_id,
-          delivery_type: Number(deliveryType),
-          item_type: 2,
-          special_instruction: "",
-          item_quantity: totalItems,
-          item_weight: Number(weight),
-          amount_to_collect: isCOD ? Number(order.total_amount || 0) : 0,
-          item_description: desc,
-        }],
-      };
-      pathaoCreateOrder.mutate(orderPayload, {
-        onSuccess: async (data) => {
-          const consignment = data?.data?.[0] || data?.[0];
-          const consignmentId = consignment?.consignment_id || "";
-          const trackingCode = consignment?.tracking_code || "";
-          if (consignmentId) {
-            await supabase.from("orders").update({
-              pathao_consignment_id: String(consignmentId),
-              pathao_tracking_code: trackingCode,
-              courier_status: "Pending",
-              updated_at: new Date().toISOString(),
-            }).eq("id", order.id);
-            await supabase.from("web_order_notes").insert({
-              order_id: order.id, note_type: "activity",
-              content: `Order sent to Pathao. Consignment: ${consignmentId}`, created_by: "Staff",
-            });
-            toast({ title: "✅ Pathao এ order পাঠানো হয়েছে!", description: `Consignment: ${consignmentId}` });
-          } else {
-            await supabase.from("orders").update({
-              courier_status: "Processing",
-              updated_at: new Date().toISOString(),
-            }).eq("id", order.id);
-            await supabase.from("web_order_notes").insert({
-              order_id: order.id, note_type: "activity",
-              content: `Order sent to Pathao (bulk). ${data?.message || "Processing..."}`, created_by: "Staff",
-            });
-            toast({ title: "✅ Pathao এ order পাঠানো হয়েছে!", description: data?.message || "Processing..." });
-          }
-          queryClient.invalidateQueries({ queryKey: ["web-order", order.id] });
-          queryClient.invalidateQueries({ queryKey: ["web-order-notes", order.id] });
-          setPathaoSending(false);
-        },
-        onError: (err) => {
-          toast({ title: "Pathao এ পাঠাতে ব্যর্থ", description: err.message, variant: "destructive" });
-          setPathaoSending(false);
-        },
-      });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-      setPathaoSending(false);
-    }
-  };
 
   /* ── Loading ── */
   if (isLoading) {
@@ -1118,11 +987,10 @@ export default function WebOrderDetail() {
             {currentStatus === "confirm" && !order.pathao_consignment_id && (
               <section className="bg-emerald-50/80 backdrop-blur-xl border border-emerald-200/60 rounded-2xl p-4 shadow-sm">
                 <Button
-                  onClick={handleDirectPathaoSend}
-                  disabled={pathaoSending || pathaoCreateOrder.isPending}
+                  onClick={() => setPathaoModalOpen(true)}
                   className="w-full rounded-xl h-10 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs gap-2"
                 >
-                  {(pathaoSending || pathaoCreateOrder.isPending) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />}
+                  <Truck className="w-4 h-4" />
                   Send to Pathao
                 </Button>
                 <p className="text-[10px] text-emerald-600 text-center mt-2">Order confirmed — ready to ship</p>
@@ -1202,6 +1070,15 @@ export default function WebOrderDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Pathao Booking Modal */}
+      <PathaoBookingModal
+        open={pathaoModalOpen}
+        onOpenChange={setPathaoModalOpen}
+        order={order}
+        customer={customer}
+        items={items || []}
+      />
 
     </div>
   );
