@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { formatBDT, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { Search, Phone, MessageCircle, ExternalLink, Radio } from "lucide-react";
+import { Search, Phone, MessageCircle, ExternalLink, Radio, ClipboardList, Clock, CheckCircle2, PhoneOff, Pause, Wallet, XCircle, CircleCheck } from "lucide-react";
 import { useBDCourierBulk, getSuccessColor } from "@/hooks/use-bd-courier";
 import {
   DropdownMenu as DropdownMenuRoot,
@@ -20,14 +20,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const WEB_STATUSES = [
-  { key: "all", label: "All", emoji: "📋", color: "bg-muted text-foreground" },
-  { key: "processing", label: "Processing", emoji: "🟡", color: "bg-yellow-100 text-yellow-800" },
-  { key: "good_but_no_response", label: "Good But No Response", emoji: "🟢", color: "bg-emerald-100 text-emerald-800" },
-  { key: "no_response", label: "No Response", emoji: "🔴", color: "bg-red-100 text-red-800" },
-  { key: "on_hold", label: "On Hold", emoji: "⏸️", color: "bg-blue-100 text-blue-800" },
-  { key: "advance_payment", label: "Advance Payment", emoji: "💰", color: "bg-amber-100 text-amber-800" },
-  { key: "cancel", label: "Cancel", emoji: "❌", color: "bg-red-100 text-red-800" },
-  { key: "confirm", label: "Confirm", emoji: "🟢", color: "bg-green-100 text-green-800" },
+  { key: "all", label: "All", icon: ClipboardList, color: "bg-muted text-foreground" },
+  { key: "processing", label: "Processing", icon: Clock, color: "bg-yellow-100 text-yellow-800" },
+  { key: "good_but_no_response", label: "Good", icon: CheckCircle2, color: "bg-emerald-100 text-emerald-800" },
+  { key: "no_response", label: "No Response", icon: PhoneOff, color: "bg-red-100 text-red-800" },
+  { key: "on_hold", label: "On Hold", icon: Pause, color: "bg-blue-100 text-blue-800" },
+  { key: "advance_payment", label: "Advance", icon: Wallet, color: "bg-amber-100 text-amber-800" },
+  { key: "cancel", label: "Cancel", icon: XCircle, color: "bg-red-100 text-red-800" },
+  { key: "confirm", label: "Confirm", icon: CircleCheck, color: "bg-green-100 text-green-800" },
 ] as const;
 
 export default function WebOrdersPage() {
@@ -223,36 +223,40 @@ export default function WebOrdersPage() {
         )}
       </div>
 
-      {/* Status Tabs - Dark glassmorphic style */}
+      {/* Status Tabs - Minimal modern */}
       <div className="flex items-center justify-center">
-        <div className="inline-flex items-center gap-1 p-1.5 rounded-2xl bg-white shadow-sm border border-slate-100">
-          {WEB_STATUSES.map((s) => (
-            <button
-              key={s.key}
-              onClick={() => { setActiveTab(s.key); setSelected([]); }}
-              className={cn(
-                "relative flex flex-col items-center gap-0.5 px-4 py-2.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
-                activeTab === s.key
-                  ? "bg-slate-100 text-foreground scale-110 shadow-md -translate-y-1 ring-1 ring-slate-200"
-                  : "text-slate-400 hover:text-foreground hover:bg-slate-50"
-              )}
-            >
-              <span className="text-base transition-transform duration-500"
-                style={{ transform: activeTab === s.key ? 'scale(1.15)' : 'scale(1)' }}
-              >{s.emoji}</span>
-              <span className="hidden sm:inline text-[11px]">{s.label}</span>
-              {(statusCounts[s.key] || 0) > 0 && (
-                <span className={cn(
-                  "absolute -top-1.5 -right-1.5 text-[9px] font-bold min-w-[18px] h-[18px] px-1 rounded-full inline-flex items-center justify-center transition-all duration-300",
+        <div className="inline-flex items-center gap-0.5 p-1 rounded-2xl bg-slate-900/95 backdrop-blur-xl shadow-lg border border-white/10">
+          {WEB_STATUSES.map((s) => {
+            const Icon = s.icon;
+            return (
+              <button
+                key={s.key}
+                onClick={() => { setActiveTab(s.key); setSelected([]); }}
+                className={cn(
+                  "relative flex flex-col items-center gap-1 px-4 py-2 rounded-xl text-[11px] font-medium whitespace-nowrap transition-all duration-400 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
                   activeTab === s.key
-                    ? "bg-primary text-white shadow-md shadow-primary/40"
-                    : "bg-slate-600 text-slate-300"
-                )}>
-                  {statusCounts[s.key]}
-                </span>
-              )}
-            </button>
-          ))}
+                    ? "bg-white/15 text-white scale-105 -translate-y-0.5"
+                    : "text-white/40 hover:text-white/70 hover:bg-white/5"
+                )}
+              >
+                <Icon className={cn(
+                  "w-4 h-4 transition-all duration-400",
+                  activeTab === s.key ? "text-white" : "text-white/40"
+                )} />
+                <span className="hidden sm:inline">{s.label}</span>
+                {(statusCounts[s.key] || 0) > 0 && (
+                  <span className={cn(
+                    "absolute -top-1 -right-1 text-[9px] font-bold min-w-[16px] h-[16px] px-1 rounded-full inline-flex items-center justify-center transition-all duration-300",
+                    activeTab === s.key
+                      ? "bg-primary text-white"
+                      : "bg-white/20 text-white/60"
+                  )}>
+                    {statusCounts[s.key]}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -275,11 +279,14 @@ export default function WebOrdersPage() {
               </Button>
             </DDTrigger>
             <DDContent>
-              {WEB_STATUSES.filter((s) => s.key !== "all").map((s) => (
-                <DDItem key={s.key} onClick={() => bulkMutation.mutate(s.key)}>
-                  {s.emoji} Move to {s.label}
-                </DDItem>
-              ))}
+              {WEB_STATUSES.filter((s) => s.key !== "all").map((s) => {
+                const Icon = s.icon;
+                return (
+                  <DDItem key={s.key} onClick={() => bulkMutation.mutate(s.key)}>
+                    <Icon className="w-3.5 h-3.5 mr-1.5" /> Move to {s.label}
+                  </DDItem>
+                );
+              })}
             </DDContent>
           </DropdownMenuRoot>
         )}
