@@ -223,33 +223,36 @@ export default function WebOrdersPage() {
         )}
       </div>
 
-      {/* Status Tabs - Minimal modern */}
-      <div className="flex items-center justify-center">
-        <div className="inline-flex items-center gap-0.5 p-1 rounded-2xl bg-slate-900/95 backdrop-blur-xl shadow-lg border border-white/10">
+      {/* Status Tabs - Liquid glass white */}
+      <div className="flex items-center justify-center py-1">
+        <div className="inline-flex items-center gap-1 p-1.5 rounded-[28px] bg-white/80 backdrop-blur-2xl shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)] border border-white/60">
           {WEB_STATUSES.map((s) => {
             const Icon = s.icon;
+            const isActive = activeTab === s.key;
             return (
               <button
                 key={s.key}
                 onClick={() => { setActiveTab(s.key); setSelected([]); }}
                 className={cn(
-                  "relative flex flex-col items-center gap-1 px-4 py-2 rounded-xl text-[11px] font-medium whitespace-nowrap transition-all duration-400 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
-                  activeTab === s.key
-                    ? "bg-white/15 text-white scale-105 -translate-y-0.5"
-                    : "text-white/40 hover:text-white/70 hover:bg-white/5"
+                  "relative flex flex-col items-center gap-1 px-4 py-2.5 rounded-[20px] text-[11px] font-medium whitespace-nowrap",
+                  "transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+                  isActive
+                    ? "bg-slate-800/90 text-white scale-[1.08] -translate-y-1 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.25)] backdrop-blur-xl"
+                    : "text-slate-400 hover:text-slate-600 hover:bg-slate-100/60"
                 )}
               >
                 <Icon className={cn(
-                  "w-4 h-4 transition-all duration-400",
-                  activeTab === s.key ? "text-white" : "text-white/40"
-                )} />
+                  "w-[18px] h-[18px] transition-all duration-500",
+                  isActive ? "text-white drop-shadow-[0_0_6px_rgba(255,255,255,0.4)]" : "text-slate-400"
+                )} strokeWidth={isActive ? 2.2 : 1.8} />
                 <span className="hidden sm:inline">{s.label}</span>
                 {(statusCounts[s.key] || 0) > 0 && (
                   <span className={cn(
-                    "absolute -top-1 -right-1 text-[9px] font-bold min-w-[16px] h-[16px] px-1 rounded-full inline-flex items-center justify-center transition-all duration-300",
-                    activeTab === s.key
-                      ? "bg-primary text-white"
-                      : "bg-white/20 text-white/60"
+                    "absolute -top-1.5 -right-1.5 text-[9px] font-bold min-w-[18px] h-[18px] px-1 rounded-full inline-flex items-center justify-center",
+                    "transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+                    isActive
+                      ? "bg-primary text-white scale-110 shadow-md shadow-primary/30"
+                      : "bg-slate-200 text-slate-500 scale-100"
                   )}>
                     {statusCounts[s.key]}
                   </span>
