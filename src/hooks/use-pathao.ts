@@ -65,8 +65,11 @@ export function usePathaoCreateOrder() {
     mutationFn: async (orderData: Record<string, unknown>) => {
       const { data, error } = await invoke({ action: "create_order", order: orderData });
       if (error) throw error;
-      if (data?.type === "error" || data?.code !== 200) {
-        throw new Error(data?.message || "Failed to create Pathao order");
+      if (!data?._ok || data?.type === "error" || data?.code !== 200) {
+        const msg = data?.message || data?.errors
+          ? JSON.stringify(data.errors || data.message)
+          : "Failed to create Pathao order";
+        throw new Error(msg);
       }
       return data;
     },
