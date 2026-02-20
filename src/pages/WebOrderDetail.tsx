@@ -61,26 +61,26 @@ import { useBDCourierSingle, getRiskLevel, getSuccessColor } from "@/hooks/use-b
 import { PathaoBookingModal } from "@/components/pathao/PathaoBookingModal";
 import { PathaoTrackingCard } from "@/components/pathao/PathaoTrackingCard";
 
-/* ─── Glass card utility ─── */
-const glass = "bg-white/[0.07] backdrop-blur-xl border border-white/[0.12] rounded-2xl shadow-xl";
-const glassLight = "bg-white/[0.05] backdrop-blur-lg border border-white/[0.08] rounded-xl";
-const glassHeader = "bg-white/[0.08] backdrop-blur-xl border-b border-white/[0.12]";
+/* ─── Light Glass card utility ─── */
+const glass = "bg-white/70 backdrop-blur-xl border border-white/60 rounded-2xl shadow-[0_12px_40px_rgba(15,23,42,0.10)]";
+const glassLight = "bg-white/50 backdrop-blur-lg border border-slate-200/60 rounded-xl shadow-sm";
+const glassHeader = "bg-white/60 backdrop-blur-xl border-b border-slate-200/60";
 
-/* ─── STATUS CONFIG ─── */
+/* ─── STATUS CONFIG (light tinted) ─── */
 const STATUS_BUTTONS = [
-  { key: "processing", label: "Processing", emoji: "🟡", color: "from-yellow-500/20 to-yellow-600/10 border-yellow-500/30 text-yellow-300", active: "from-yellow-500 to-yellow-600 text-white border-yellow-400" },
-  { key: "confirm", label: "Confirm", emoji: "🟢", color: "from-green-500/20 to-green-600/10 border-green-500/30 text-green-300", active: "from-green-500 to-green-600 text-white border-green-400" },
-  { key: "good_but_no_response", label: "Good No Resp", emoji: "🔵", color: "from-blue-500/20 to-blue-600/10 border-blue-500/30 text-blue-300", active: "from-blue-500 to-blue-600 text-white border-blue-400" },
-  { key: "no_response", label: "No Response", emoji: "🔴", color: "from-red-500/20 to-red-600/10 border-red-500/30 text-red-300", active: "from-red-500 to-red-600 text-white border-red-400" },
-  { key: "on_hold", label: "On Hold", emoji: "⏸️", color: "from-indigo-500/20 to-indigo-600/10 border-indigo-500/30 text-indigo-300", active: "from-indigo-500 to-indigo-600 text-white border-indigo-400" },
-  { key: "advance_payment", label: "Advance", emoji: "🟠", color: "from-orange-500/20 to-orange-600/10 border-orange-500/30 text-orange-300", active: "from-orange-500 to-orange-600 text-white border-orange-400" },
+  { key: "processing", label: "Processing", emoji: "🟡", color: "bg-amber-50 border-l-4 border-l-amber-400 border-y border-r border-amber-200/60 text-amber-800", active: "bg-amber-100 border-l-4 border-l-amber-500 border-y border-r border-amber-300 text-amber-900 font-bold" },
+  { key: "confirm", label: "Confirm", emoji: "🟢", color: "bg-emerald-50 border-l-4 border-l-emerald-400 border-y border-r border-emerald-200/60 text-emerald-800", active: "bg-emerald-100 border-l-4 border-l-emerald-500 border-y border-r border-emerald-300 text-emerald-900 font-bold" },
+  { key: "good_but_no_response", label: "Good No Resp", emoji: "🔵", color: "bg-sky-50 border-l-4 border-l-sky-400 border-y border-r border-sky-200/60 text-sky-800", active: "bg-sky-100 border-l-4 border-l-sky-500 border-y border-r border-sky-300 text-sky-900 font-bold" },
+  { key: "no_response", label: "No Response", emoji: "🔴", color: "bg-rose-50 border-l-4 border-l-rose-400 border-y border-r border-rose-200/60 text-rose-800", active: "bg-rose-100 border-l-4 border-l-rose-500 border-y border-r border-rose-300 text-rose-900 font-bold" },
+  { key: "on_hold", label: "On Hold", emoji: "⏸️", color: "bg-indigo-50 border-l-4 border-l-indigo-400 border-y border-r border-indigo-200/60 text-indigo-800", active: "bg-indigo-100 border-l-4 border-l-indigo-500 border-y border-r border-indigo-300 text-indigo-900 font-bold" },
+  { key: "advance_payment", label: "Advance", emoji: "🟠", color: "bg-orange-50 border-l-4 border-l-orange-400 border-y border-r border-orange-200/60 text-orange-800", active: "bg-orange-100 border-l-4 border-l-orange-500 border-y border-r border-orange-300 text-orange-900 font-bold" },
 ] as const;
 
 const CALL_OPTIONS = [
-  { key: "answered", label: "Answered", emoji: "✅", active: "bg-green-500 text-white ring-green-500", idle: "text-green-400 ring-green-500/30 hover:bg-green-500/10" },
-  { key: "no_answer", label: "No Answer", emoji: "📵", active: "bg-orange-500 text-white ring-orange-500", idle: "text-orange-400 ring-orange-500/30 hover:bg-orange-500/10" },
-  { key: "busy", label: "Busy", emoji: "🔴", active: "bg-red-500 text-white ring-red-500", idle: "text-red-400 ring-red-500/30 hover:bg-red-500/10" },
-  { key: "voicemail", label: "Voicemail", emoji: "📩", active: "bg-gray-500 text-white ring-gray-500", idle: "text-gray-400 ring-gray-500/30 hover:bg-gray-500/10" },
+  { key: "answered", label: "Answered", emoji: "✅", active: "bg-emerald-100 text-emerald-800 ring-emerald-400", idle: "text-emerald-700 ring-emerald-200 hover:bg-emerald-50" },
+  { key: "no_answer", label: "No Answer", emoji: "📵", active: "bg-orange-100 text-orange-800 ring-orange-400", idle: "text-orange-700 ring-orange-200 hover:bg-orange-50" },
+  { key: "busy", label: "Busy", emoji: "🔴", active: "bg-rose-100 text-rose-800 ring-rose-400", idle: "text-rose-700 ring-rose-200 hover:bg-rose-50" },
+  { key: "voicemail", label: "Voicemail", emoji: "📩", active: "bg-slate-200 text-slate-800 ring-slate-400", idle: "text-slate-600 ring-slate-200 hover:bg-slate-50" },
 ];
 
 const QUICK_NOTES = ["Call before delivery", "Fragile", "Gift wrap", "Deliver after 6 PM"];
@@ -117,25 +117,25 @@ const timeAgo = (dateStr: string) => {
 
 const noteTypeDot = (type: string) => {
   switch (type) {
-    case "call_log": return "bg-blue-400";
-    case "status_change": return "bg-yellow-400";
-    case "activity": return "bg-green-400";
-    default: return "bg-gray-400";
+    case "call_log": return "bg-sky-400";
+    case "status_change": return "bg-amber-400";
+    case "activity": return "bg-emerald-400";
+    default: return "bg-slate-300";
   }
 };
 
 const segmentColors: Record<string, { bg: string; text: string }> = {
-  vip: { bg: "bg-amber-500/20", text: "text-amber-300" },
-  regular: { bg: "bg-blue-500/20", text: "text-blue-300" },
-  new: { bg: "bg-green-500/20", text: "text-green-300" },
+  vip: { bg: "bg-amber-100", text: "text-amber-700" },
+  regular: { bg: "bg-sky-100", text: "text-sky-700" },
+  new: { bg: "bg-emerald-100", text: "text-emerald-700" },
 };
 
 const avatarColors = [
-  "from-blue-500 to-indigo-600",
-  "from-emerald-500 to-teal-600",
-  "from-orange-500 to-red-500",
-  "from-purple-500 to-pink-600",
-  "from-cyan-500 to-blue-600",
+  "from-sky-400 to-indigo-500",
+  "from-emerald-400 to-teal-500",
+  "from-orange-400 to-rose-500",
+  "from-purple-400 to-pink-500",
+  "from-cyan-400 to-sky-500",
 ];
 
 /* ═══════════════════════════════════════════ */
@@ -352,17 +352,17 @@ export default function WebOrderDetail() {
   /* ── Loading ── */
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#0a0a14] p-6">
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 p-6">
         <div className="max-w-[1600px] mx-auto space-y-5">
-          <Skeleton className="h-16 w-full rounded-2xl bg-white/5" />
+          <Skeleton className="h-16 w-full rounded-2xl bg-slate-100" />
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
             <div className="lg:col-span-8 space-y-5">
-              <Skeleton className="h-80 rounded-2xl bg-white/5" />
-              <Skeleton className="h-48 rounded-2xl bg-white/5" />
+              <Skeleton className="h-80 rounded-2xl bg-slate-100" />
+              <Skeleton className="h-48 rounded-2xl bg-slate-100" />
             </div>
             <div className="lg:col-span-4 space-y-5">
-              <Skeleton className="h-60 rounded-2xl bg-white/5" />
-              <Skeleton className="h-48 rounded-2xl bg-white/5" />
+              <Skeleton className="h-60 rounded-2xl bg-slate-100" />
+              <Skeleton className="h-48 rounded-2xl bg-slate-100" />
             </div>
           </div>
         </div>
@@ -371,8 +371,8 @@ export default function WebOrderDetail() {
   }
 
   if (!order) return (
-    <div className="min-h-screen bg-[#0a0a14] flex items-center justify-center">
-      <p className="text-white/40 text-lg">Order not found</p>
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 flex items-center justify-center">
+      <p className="text-slate-400 text-lg">Order not found</p>
     </div>
   );
 
@@ -389,74 +389,74 @@ export default function WebOrderDetail() {
   const grandTotal = order.total_amount || 0;
 
   return (
-    <div className="min-h-screen bg-[#0a0a14] text-white/90 relative overflow-hidden">
-      {/* Ambient glow backgrounds */}
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 relative overflow-hidden">
+      {/* Decorative pastel gradients */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-40 -left-40 w-[500px] h-[500px] bg-purple-600/[0.07] rounded-full blur-[120px]" />
-        <div className="absolute top-1/3 -right-40 w-[400px] h-[400px] bg-blue-600/[0.06] rounded-full blur-[100px]" />
-        <div className="absolute bottom-0 left-1/3 w-[600px] h-[300px] bg-emerald-600/[0.04] rounded-full blur-[120px]" />
+        <div className="absolute -top-40 -left-40 w-[500px] h-[500px] bg-sky-200/40 rounded-full blur-[120px]" />
+        <div className="absolute top-1/3 -right-40 w-[400px] h-[400px] bg-purple-200/35 rounded-full blur-[100px]" />
+        <div className="absolute bottom-0 left-1/3 w-[600px] h-[300px] bg-emerald-200/35 rounded-full blur-[120px]" />
       </div>
 
       {/* ═══ STICKY HEADER ═══ */}
       <header className={cn("sticky top-0 z-50 px-4 lg:px-6 py-3", glassHeader)}>
         <div className="max-w-[1600px] mx-auto flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate("/web-orders")}
-            className="rounded-xl h-9 w-9 text-white/60 hover:text-white hover:bg-white/10">
+            className="rounded-xl h-9 w-9 text-slate-500 hover:text-slate-900 hover:bg-slate-100/80">
             <ArrowLeft className="w-4 h-4" />
           </Button>
 
-          <h1 className="text-base font-bold tracking-tight text-white">{order.order_number}</h1>
+          <h1 className="text-base font-bold tracking-tight text-slate-900">{order.order_number}</h1>
 
           {statusConfig && (
             <span className={cn(
-              "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-gradient-to-r border",
+              "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold",
               statusConfig.active
             )}>
               {statusConfig.emoji} {currentStatus.replace(/_/g, " ").toUpperCase()}
             </span>
           )}
 
-          <span className="text-[11px] text-white/30 hidden sm:block">
+          <span className="text-[11px] text-slate-400 hidden sm:block">
             Updated {timeAgo(order.updated_at || order.created_at || "")}
           </span>
 
           <div className="ml-auto flex items-center gap-2">
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="sm" className="rounded-xl text-white/50 hover:text-white hover:bg-white/10 gap-1.5 text-xs h-8">
+                <Button variant="ghost" size="sm" className="rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100/80 gap-1.5 text-xs h-8">
                   <History className="w-3.5 h-3.5" /> Courier
                 </Button>
               </SheetTrigger>
-              <SheetContent className="bg-[#12121f] border-white/10 text-white">
-                <SheetHeader><SheetTitle className="text-white">Courier History</SheetTitle></SheetHeader>
+              <SheetContent className="bg-white/90 backdrop-blur-xl border-slate-200/60 text-slate-900">
+                <SheetHeader><SheetTitle className="text-slate-900">Courier History</SheetTitle></SheetHeader>
                 <div className="mt-6 space-y-3">
                   {order.pathao_tracking_code ? (
                     <div className={cn(glassLight, "p-4")}>
-                      <p className="text-xs text-white/50 mb-1">Tracking Code</p>
-                      <p className="font-mono text-sm">{order.pathao_tracking_code}</p>
+                      <p className="text-xs text-slate-500 mb-1">Tracking Code</p>
+                      <p className="font-mono text-sm text-slate-900">{order.pathao_tracking_code}</p>
                     </div>
                   ) : (
-                    <p className="text-sm text-white/30 text-center py-8">No courier history yet</p>
+                    <p className="text-sm text-slate-400 text-center py-8">No courier history yet</p>
                   )}
                 </div>
               </SheetContent>
             </Sheet>
-            <Button variant="ghost" size="icon" className="rounded-xl h-8 w-8 text-white/50 hover:text-white hover:bg-white/10">
+            <Button variant="ghost" size="icon" className="rounded-xl h-8 w-8 text-slate-500 hover:text-slate-900 hover:bg-slate-100/80">
               <Printer className="w-3.5 h-3.5" />
             </Button>
-            <Button variant="ghost" size="icon" className="rounded-xl h-8 w-8 text-white/50 hover:text-white hover:bg-white/10">
+            <Button variant="ghost" size="icon" className="rounded-xl h-8 w-8 text-slate-500 hover:text-slate-900 hover:bg-slate-100/80">
               <Save className="w-3.5 h-3.5" />
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-xl h-8 w-8 text-white/50 hover:text-white hover:bg-white/10">
+                <Button variant="ghost" size="icon" className="rounded-xl h-8 w-8 text-slate-500 hover:text-slate-900 hover:bg-slate-100/80">
                   <MoreHorizontal className="w-3.5 h-3.5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="bg-[#1a1a2e] border-white/10 text-white/80 rounded-xl">
-                <DropdownMenuItem className="text-xs focus:bg-white/10">Duplicate Order</DropdownMenuItem>
-                <DropdownMenuItem className="text-xs focus:bg-white/10">Export PDF</DropdownMenuItem>
-                <DropdownMenuItem className="text-xs text-red-400 focus:bg-red-500/10">Delete Order</DropdownMenuItem>
+              <DropdownMenuContent className="bg-white/90 backdrop-blur-xl border-slate-200/60 text-slate-700 rounded-xl shadow-lg">
+                <DropdownMenuItem className="text-xs focus:bg-slate-50">Duplicate Order</DropdownMenuItem>
+                <DropdownMenuItem className="text-xs focus:bg-slate-50">Export PDF</DropdownMenuItem>
+                <DropdownMenuItem className="text-xs text-rose-600 focus:bg-rose-50">Delete Order</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -473,11 +473,11 @@ export default function WebOrderDetail() {
             {/* 1) ORDERED PRODUCTS */}
             <section className={cn(glass, "p-5")}>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-                  <Package className="w-4 h-4 text-white/40" />
+                <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                  <Package className="w-4 h-4 text-slate-400" />
                   Ordered Products ({items?.length || 0})
                 </h2>
-                <Button size="sm" className="rounded-xl h-8 text-xs gap-1.5 bg-white/10 hover:bg-white/15 text-white border-0">
+                <Button size="sm" className="rounded-xl h-8 text-xs gap-1.5 bg-sky-600 hover:bg-sky-700 text-white border-0">
                   <Plus className="w-3 h-3" /> Add Product
                 </Button>
               </div>
@@ -488,39 +488,39 @@ export default function WebOrderDetail() {
                   const pName = product?.name || (item as any).product_name_fallback || "Product";
                   const pInitial = pName[0].toUpperCase();
                   return (
-                    <div key={item.id} className="flex items-center gap-4 p-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.07] transition-all duration-200 group">
-                      <div className="w-12 h-12 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                    <div key={item.id} className="flex items-center gap-4 p-3 rounded-xl bg-white/60 border border-slate-200/60 hover:bg-white/90 transition-all duration-200 group">
+                      <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200/60 flex items-center justify-center overflow-hidden shrink-0">
                         {product?.image_url ? (
                           <img src={product.image_url} alt="" className="w-full h-full object-cover" />
                         ) : (
-                          <span className="text-sm font-bold text-white/40">{pInitial}</span>
+                          <span className="text-sm font-bold text-slate-400">{pInitial}</span>
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm text-white/90 truncate">{pName}</p>
+                        <p className="font-medium text-sm text-slate-900 truncate">{pName}</p>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] text-blue-400 font-mono">{product?.sku || "-"}</span>
+                          <span className="text-[10px] text-sky-600 font-mono">{product?.sku || "-"}</span>
                           {product?.stock_quantity != null && (
-                            <span className={cn("text-[10px]", product.stock_quantity < 10 ? "text-red-400" : "text-white/30")}>
+                            <span className={cn("text-[10px]", product.stock_quantity < 10 ? "text-rose-500" : "text-slate-400")}>
                               Stock: {product.stock_quantity}
                             </span>
                           )}
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <button className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
-                          <Minus className="w-3 h-3 text-white/60" />
+                        <button className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors border border-slate-200/60">
+                          <Minus className="w-3 h-3 text-slate-500" />
                         </button>
-                        <span className="w-8 text-center font-bold text-sm tabular-nums">{item.quantity}</span>
-                        <button className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
-                          <Plus className="w-3 h-3 text-white/60" />
+                        <span className="w-8 text-center font-bold text-sm tabular-nums text-slate-900">{item.quantity}</span>
+                        <button className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors border border-slate-200/60">
+                          <Plus className="w-3 h-3 text-slate-500" />
                         </button>
                       </div>
                       <div className="text-right shrink-0 w-20">
-                        <p className="text-[11px] text-white/30">{formatBDT(item.unit_price)} ea</p>
-                        <p className="text-sm font-semibold tabular-nums">{formatBDT(item.total_price)}</p>
+                        <p className="text-[11px] text-slate-400">{formatBDT(item.unit_price)} ea</p>
+                        <p className="text-sm font-semibold tabular-nums text-slate-900">{formatBDT(item.total_price)}</p>
                       </div>
-                      <button className="w-7 h-7 rounded-lg flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100">
+                      <button className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-colors opacity-0 group-hover:opacity-100">
                         <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -528,48 +528,48 @@ export default function WebOrderDetail() {
                 })}
                 {(!items || items.length === 0) && (
                   <div className="text-center py-10">
-                    <Package className="w-8 h-8 mx-auto text-white/10 mb-2" />
-                    <p className="text-sm text-white/30">No products added yet</p>
+                    <Package className="w-8 h-8 mx-auto text-slate-200 mb-2" />
+                    <p className="text-sm text-slate-400">No products added yet</p>
                   </div>
                 )}
               </div>
 
               {/* Subtotal footer */}
               {items && items.length > 0 && (
-                <div className="mt-4 pt-3 border-t border-white/[0.08] flex items-center justify-between text-sm">
-                  <span className="text-white/40">Subtotal</span>
-                  <span className="font-semibold tabular-nums">{formatBDT(subtotal)}</span>
+                <div className="mt-4 pt-3 border-t border-slate-200/60 flex items-center justify-between text-sm">
+                  <span className="text-slate-500">Subtotal</span>
+                  <span className="font-semibold tabular-nums text-slate-900">{formatBDT(subtotal)}</span>
                 </div>
               )}
             </section>
 
             {/* 2) DELIVERY & NOTES */}
             <section className={cn(glass, "p-5")}>
-              <h2 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
-                <Truck className="w-4 h-4 text-white/40" />
+              <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2 mb-4">
+                <Truck className="w-4 h-4 text-slate-400" />
                 Delivery & Notes
               </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                 <div>
-                  <label className="text-[11px] text-white/40 font-medium mb-1.5 block">Source</label>
-                  <div className="h-9 rounded-xl bg-white/[0.06] border border-white/[0.08] flex items-center px-3 text-sm capitalize">
+                  <label className="text-[11px] text-slate-500 font-medium mb-1.5 block">Source</label>
+                  <div className="h-9 rounded-xl bg-white/80 border border-slate-200/60 flex items-center px-3 text-sm capitalize text-slate-900">
                     {order.channel || "Manual"}
                   </div>
                 </div>
                 <div>
-                  <label className="text-[11px] text-white/40 font-medium mb-1.5 block">Delivery Method</label>
-                  <div className="h-9 rounded-xl bg-white/[0.06] border border-white/[0.08] flex items-center px-3 text-sm">
+                  <label className="text-[11px] text-slate-500 font-medium mb-1.5 block">Delivery Method</label>
+                  <div className="h-9 rounded-xl bg-white/80 border border-slate-200/60 flex items-center px-3 text-sm text-slate-900">
                     {order.pathao_consignment_id ? "Pathao" : "Custom"}
                   </div>
                 </div>
                 <div>
-                  <label className="text-[11px] text-white/40 font-medium mb-1.5 block">Tracking ID</label>
-                  <div className="h-9 rounded-xl bg-white/[0.06] border border-white/[0.08] flex items-center px-3 text-sm font-mono">
+                  <label className="text-[11px] text-slate-500 font-medium mb-1.5 block">Tracking ID</label>
+                  <div className="h-9 rounded-xl bg-white/80 border border-slate-200/60 flex items-center px-3 text-sm font-mono text-slate-900">
                     {order.pathao_tracking_code || "—"}
                     {order.pathao_tracking_code && (
                       <button onClick={() => { navigator.clipboard.writeText(order.pathao_tracking_code!); toast({ title: "Copied!" }); }}
-                        className="ml-auto text-white/30 hover:text-white/60"><Copy className="w-3 h-3" /></button>
+                        className="ml-auto text-slate-400 hover:text-slate-600"><Copy className="w-3 h-3" /></button>
                     )}
                   </div>
                 </div>
@@ -577,20 +577,20 @@ export default function WebOrderDetail() {
 
               {/* Note */}
               <div className="space-y-2">
-                <label className="text-[11px] text-white/40 font-medium block">Note</label>
+                <label className="text-[11px] text-slate-500 font-medium block">Note</label>
                 <Textarea
                   value={newNote}
                   onChange={(e) => setNewNote(e.target.value)}
                   placeholder="Add delivery instructions..."
                   rows={3}
-                  className="bg-white/[0.06] border-white/[0.08] text-white placeholder:text-white/20 rounded-xl resize-none focus:ring-1 focus:ring-white/20 focus:border-white/20"
+                  className="bg-white/80 border-slate-200/60 text-slate-900 placeholder:text-slate-300 rounded-xl resize-none focus:ring-2 focus:ring-sky-400/40 focus:border-sky-300"
                 />
                 <div className="flex flex-wrap gap-1.5">
                   {QUICK_NOTES.map((chip) => (
                     <button
                       key={chip}
                       onClick={() => setNewNote((prev) => prev ? `${prev}, ${chip}` : chip)}
-                      className="px-2.5 py-1 rounded-lg text-[10px] font-medium bg-white/[0.06] hover:bg-white/[0.12] text-white/50 hover:text-white/80 border border-white/[0.08] transition-all"
+                      className="px-2.5 py-1 rounded-lg text-[10px] font-medium bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200/60 transition-all"
                     >
                       {chip}
                     </button>
@@ -600,7 +600,7 @@ export default function WebOrderDetail() {
                   <Button
                     onClick={() => noteMutation.mutate()}
                     disabled={noteMutation.isPending}
-                    className="rounded-xl h-8 text-xs bg-white/10 hover:bg-white/15 border-0 text-white gap-1.5"
+                    className="rounded-xl h-8 text-xs bg-sky-600 hover:bg-sky-700 text-white border-0 gap-1.5"
                     size="sm"
                   >
                     <Send className="w-3 h-3" /> Save Note
@@ -610,41 +610,41 @@ export default function WebOrderDetail() {
 
               {/* Previous notes */}
               {notes?.filter((n) => n.note_type === "note").slice(0, 3).map((note) => (
-                <div key={note.id} className="mt-2 p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                  <p className="text-xs text-white/60">{note.content}</p>
-                  <p className="text-[10px] text-white/20 mt-1">{note.created_by} • {timeAgo(note.created_at)}</p>
+                <div key={note.id} className="mt-2 p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/40">
+                  <p className="text-xs text-slate-600">{note.content}</p>
+                  <p className="text-[10px] text-slate-400 mt-1">{note.created_by} • {timeAgo(note.created_at)}</p>
                 </div>
               ))}
             </section>
 
             {/* 3) ADDRESS */}
             <section className={cn(glass, "p-5")}>
-              <h2 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
-                <MapPin className="w-4 h-4 text-white/40" />
+              <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2 mb-4">
+                <MapPin className="w-4 h-4 text-slate-400" />
                 Address
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <div className="flex items-center gap-2 mb-1.5">
-                    <label className="text-[11px] text-white/40 font-medium">District</label>
+                    <label className="text-[11px] text-slate-500 font-medium">District</label>
                     {districtAutoFilled && (
-                      <span className="flex items-center gap-0.5 text-[10px] text-green-400 font-medium">
+                      <span className="flex items-center gap-0.5 text-[10px] text-emerald-600 font-medium">
                         <CheckCircle2 className="w-3 h-3" /> Auto
                       </span>
                     )}
-                    {showParsingIndicator && <Loader2 className="w-3 h-3 animate-spin text-white/30" />}
+                    {showParsingIndicator && <Loader2 className="w-3 h-3 animate-spin text-slate-400" />}
                   </div>
                   <Input
                     value={detectedDistrict || (districtEmpty ? "" : existingDistrict)}
                     readOnly
-                    className={cn("rounded-xl h-9 text-sm bg-white/[0.06] border-white/[0.08] text-white", districtAutoFilled && "border-green-500/30 ring-1 ring-green-500/20")}
+                    className={cn("rounded-xl h-9 text-sm bg-white/80 border-slate-200/60 text-slate-900", districtAutoFilled && "border-emerald-300 ring-1 ring-emerald-200")}
                   />
                 </div>
                 <div>
                   <div className="flex items-center gap-2 mb-1.5">
-                    <label className="text-[11px] text-white/40 font-medium">Thana</label>
+                    <label className="text-[11px] text-slate-500 font-medium">Thana</label>
                     {thanaAutoFilled && (
-                      <span className="flex items-center gap-0.5 text-[10px] text-green-400 font-medium">
+                      <span className="flex items-center gap-0.5 text-[10px] text-emerald-600 font-medium">
                         <CheckCircle2 className="w-3 h-3" /> Auto
                       </span>
                     )}
@@ -652,15 +652,15 @@ export default function WebOrderDetail() {
                   <Input
                     value={detectedThana || (thanaEmpty ? "" : existingThana)}
                     readOnly
-                    className={cn("rounded-xl h-9 text-sm bg-white/[0.06] border-white/[0.08] text-white", thanaAutoFilled && "border-green-500/30 ring-1 ring-green-500/20")}
+                    className={cn("rounded-xl h-9 text-sm bg-white/80 border-slate-200/60 text-slate-900", thanaAutoFilled && "border-emerald-300 ring-1 ring-emerald-200")}
                   />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="text-[11px] text-white/40 font-medium mb-1.5 block">Full Address</label>
+                  <label className="text-[11px] text-slate-500 font-medium mb-1.5 block">Full Address</label>
                   <Textarea
                     value={order.delivery_address || customer?.address || ""}
                     readOnly rows={2}
-                    className="rounded-xl text-sm bg-white/[0.06] border-white/[0.08] text-white resize-none"
+                    className="rounded-xl text-sm bg-white/80 border-slate-200/60 text-slate-900 resize-none"
                   />
                 </div>
               </div>
@@ -668,8 +668,8 @@ export default function WebOrderDetail() {
 
             {/* 4) CALL LOG */}
             <section className={cn(glass, "p-5")}>
-              <h2 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
-                <Phone className="w-4 h-4 text-white/40" />
+              <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2 mb-4">
+                <Phone className="w-4 h-4 text-slate-400" />
                 Call Log
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
@@ -689,18 +689,18 @@ export default function WebOrderDetail() {
               </div>
               {callResult && (
                 <Button onClick={() => callLogMutation.mutate()} disabled={callLogMutation.isPending}
-                  className="w-full rounded-xl h-9 bg-white/10 hover:bg-white/15 text-white border-0 text-xs gap-1.5 mb-3">
+                  className="w-full rounded-xl h-9 bg-sky-600 hover:bg-sky-700 text-white border-0 text-xs gap-1.5 mb-3">
                   <Send className="w-3 h-3" /> Log Call
                 </Button>
               )}
               {callLogs.length > 0 && (
                 <div className="space-y-1.5 mt-2">
                   {callLogs.slice(0, 5).map((log) => (
-                    <div key={log.id} className="flex items-center gap-3 p-2 rounded-lg bg-white/[0.03] text-xs">
+                    <div key={log.id} className="flex items-center gap-3 p-2 rounded-lg bg-slate-50/80 text-xs border border-slate-200/40">
                       <span>📞</span>
-                      <span className="capitalize font-medium text-white/70">{log.call_result?.replace("_", " ")}</span>
-                      <span className="text-white/20">•</span>
-                      <span className="text-white/30 flex items-center gap-1"><Clock className="w-3 h-3" />{timeAgo(log.created_at)}</span>
+                      <span className="capitalize font-medium text-slate-700">{log.call_result?.replace("_", " ")}</span>
+                      <span className="text-slate-300">•</span>
+                      <span className="text-slate-400 flex items-center gap-1"><Clock className="w-3 h-3" />{timeAgo(log.created_at)}</span>
                     </div>
                   ))}
                 </div>
@@ -709,19 +709,19 @@ export default function WebOrderDetail() {
 
             {/* 5) ACTIVITY LOG */}
             <section className={cn(glass, "p-5")}>
-              <h2 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
-                <Clock className="w-4 h-4 text-white/40" />
+              <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2 mb-4">
+                <Clock className="w-4 h-4 text-slate-400" />
                 Activity Log
               </h2>
               {notes && notes.length > 0 ? (
                 <div className="relative space-y-4 pl-6">
-                  <div className="absolute left-[9px] top-2 bottom-2 w-px bg-white/[0.08]" />
+                  <div className="absolute left-[9px] top-2 bottom-2 w-px bg-slate-200" />
                   {notes.map((note) => (
                     <div key={note.id} className="relative flex gap-3">
-                      <div className={cn("absolute left-[-15px] top-1.5 w-2.5 h-2.5 rounded-full ring-2 ring-[#0a0a14]", noteTypeDot(note.note_type))} />
+                      <div className={cn("absolute left-[-15px] top-1.5 w-2.5 h-2.5 rounded-full ring-2 ring-white", noteTypeDot(note.note_type))} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs text-white/70">{note.content}</p>
-                        <div className="flex items-center gap-2 mt-1 text-[10px] text-white/25">
+                        <p className="text-xs text-slate-700">{note.content}</p>
+                        <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-400">
                           <span>{note.created_by || "System"}</span>
                           <span>•</span>
                           <span>{timeAgo(note.created_at)}</span>
@@ -732,8 +732,8 @@ export default function WebOrderDetail() {
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <Clock className="w-6 h-6 mx-auto text-white/10 mb-2" />
-                  <p className="text-xs text-white/25">No activity yet</p>
+                  <Clock className="w-6 h-6 mx-auto text-slate-200 mb-2" />
+                  <p className="text-xs text-slate-400">No activity yet</p>
                 </div>
               )}
             </section>
@@ -745,64 +745,52 @@ export default function WebOrderDetail() {
             {/* 1) CUSTOMER CARD */}
             <section className={cn(glass, "p-5")}>
               <div className="flex items-center gap-3 mb-4">
-                <div className={cn("w-11 h-11 rounded-xl bg-gradient-to-br flex items-center justify-center text-white font-bold text-lg shrink-0", avatarGrad)}>
+                <div className={cn("w-11 h-11 rounded-xl bg-gradient-to-br flex items-center justify-center text-white font-bold text-lg shadow-md", avatarGrad)}>
                   {initial}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-sm truncate">{customer?.full_name || "Unknown"}</h3>
-                    <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-semibold capitalize", segColor.bg, segColor.text)}>
+                    <p className="font-bold text-sm text-slate-900 truncate">{customer?.full_name || "Unknown"}</p>
+                    <span className={cn("px-1.5 py-0.5 rounded text-[9px] font-bold uppercase", segColor.bg, segColor.text)}>
                       {segment}
                     </span>
-                    {(customer?.total_orders || 0) > 0 ? (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-500/20 text-blue-300">RETURNING</span>
-                    ) : (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-500/20 text-green-300">NEW</span>
-                    )}
                   </div>
-                  <p className="text-xs text-white/40 font-mono mt-0.5">{customer?.phone || "-"}</p>
+                  <p className="text-xs text-slate-500 font-mono mt-0.5">{customerPhone}</p>
                 </div>
               </div>
 
-              {customer?.address && (
-                <div className="flex items-start gap-2 p-2.5 rounded-xl bg-white/[0.04] mb-3">
-                  <MapPin className="w-3.5 h-3.5 mt-0.5 text-white/25 shrink-0" />
-                  <p className="text-xs text-white/50 line-clamp-2">
-                    {customer.address}{customer?.district ? `, ${customer.district}` : ""}
-                  </p>
-                </div>
-              )}
-
-              {/* Quick Actions */}
-              <div className="flex gap-2">
-                {customer?.phone && (
+              {/* Quick actions */}
+              <div className="flex items-center gap-2 mb-4">
+                {customerPhone && (
                   <>
-                    <a href={`tel:${customer.phone}`} className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-xl text-xs font-medium bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors">
+                    <a href={`tel:${customerPhone}`}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200/60 hover:bg-sky-100 transition-colors">
                       <Phone className="w-3 h-3" /> Call
                     </a>
-                    <a href={`sms:${customer.phone}`} className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-xl text-xs font-medium bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors">
-                      <Send className="w-3 h-3" /> SMS
+                    <a href={`sms:${customerPhone}`}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold bg-slate-50 text-slate-700 border border-slate-200/60 hover:bg-slate-100 transition-colors">
+                      <MessageCircle className="w-3 h-3" /> SMS
                     </a>
-                    <a href={`https://wa.me/${customer.phone?.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer"
-                      className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-xl text-xs font-medium bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors">
-                      <MessageCircle className="w-3 h-3" /> WA
+                    <a href={`https://wa.me/88${customerPhone.replace(/^0/, "")}`} target="_blank" rel="noreferrer"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60 hover:bg-emerald-100 transition-colors">
+                      <Send className="w-3 h-3" /> WA
                     </a>
                   </>
                 )}
               </div>
 
-              {/* Customer stats */}
-              <div className="grid grid-cols-3 gap-2 mt-3">
-                <div className="p-2 rounded-xl bg-white/[0.04] text-center">
-                  <p className="text-[10px] text-white/25 uppercase">Orders</p>
-                  <p className="font-bold text-sm mt-0.5">{customer?.total_orders || 0}</p>
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="p-2 rounded-xl bg-slate-50/80 border border-slate-200/40 text-center">
+                  <p className="text-[10px] text-slate-400 uppercase">Orders</p>
+                  <p className="font-bold text-sm mt-0.5 text-slate-900">{customer?.total_orders ?? 0}</p>
                 </div>
-                <div className="p-2 rounded-xl bg-white/[0.04] text-center">
-                  <p className="text-[10px] text-white/25 uppercase">Spent</p>
-                  <p className="font-bold text-sm mt-0.5">{formatBDT(customer?.total_spent)}</p>
+                <div className="p-2 rounded-xl bg-slate-50/80 border border-slate-200/40 text-center">
+                  <p className="text-[10px] text-slate-400 uppercase">Spent</p>
+                  <p className="font-bold text-sm mt-0.5 text-slate-900">{formatBDT(customer?.total_spent)}</p>
                 </div>
-                <div className="p-2 rounded-xl bg-white/[0.04] text-center">
-                  <p className="text-[10px] text-white/25 uppercase">Success</p>
+                <div className="p-2 rounded-xl bg-slate-50/80 border border-slate-200/40 text-center">
+                  <p className="text-[10px] text-slate-400 uppercase">Success</p>
                   <p className="font-bold text-sm mt-0.5" style={{ color: bdReport ? getSuccessColor(bdReport.success_rate) : undefined }}>
                     {bdReport ? `${Math.round(bdReport.success_rate)}%` : "--"}
                   </p>
@@ -811,11 +799,11 @@ export default function WebOrderDetail() {
 
               {/* BD Courier gauge */}
               {bdReport && (
-                <div className="mt-3 p-3 rounded-xl bg-white/[0.04]">
+                <div className="mt-3 p-3 rounded-xl bg-slate-50/80 border border-slate-200/40">
                   <div className="flex items-center gap-3">
                     <div className="relative w-12 h-12 shrink-0">
                       <svg className="w-12 h-12 -rotate-90" viewBox="0 0 48 48">
-                        <circle cx="24" cy="24" r="18" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="4" />
+                        <circle cx="24" cy="24" r="18" fill="none" stroke="hsl(214 32% 91%)" strokeWidth="4" />
                         <circle cx="24" cy="24" r="18" fill="none"
                           stroke={getSuccessColor(bdReport.success_rate)}
                           strokeWidth="4"
@@ -830,10 +818,10 @@ export default function WebOrderDetail() {
                       </div>
                     </div>
                     <div>
-                      <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold", riskInfo.bg?.replace("-100", "-500/20")?.replace("-50", "-500/20") || "bg-white/10", riskInfo.color?.replace("-800", "-300")?.replace("-700", "-300") || "text-white/50")}>
+                      <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold", riskInfo.bg || "bg-slate-100", riskInfo.color || "text-slate-600")}>
                         {riskInfo.label}
                       </span>
-                      <p className="text-[10px] text-white/25 mt-1">{bdReport.total_orders} total • {bdReport.successful_orders} success</p>
+                      <p className="text-[10px] text-slate-400 mt-1">{bdReport.total_orders} total • {bdReport.successful_orders} success</p>
                     </div>
                   </div>
                 </div>
@@ -842,37 +830,37 @@ export default function WebOrderDetail() {
 
             {/* 2) PAYMENT CARD */}
             <section className={cn(glass, "p-5")}>
-              <h2 className="text-sm font-semibold text-white mb-4">Payment</h2>
+              <h2 className="text-sm font-semibold text-slate-900 mb-4">Payment</h2>
               <div className="space-y-3">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-white/40">Method</span>
-                  <span className="capitalize font-medium">{order.payment_method || "COD"}</span>
+                  <span className="text-slate-500">Method</span>
+                  <span className="capitalize font-medium text-slate-900">{order.payment_method || "COD"}</span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-white/40">Status</span>
+                  <span className="text-slate-500">Status</span>
                   <span className={cn("px-2 py-0.5 rounded-lg text-[10px] font-semibold",
-                    order.payment_status === "paid" ? "bg-green-500/20 text-green-300" : "bg-orange-500/20 text-orange-300"
+                    order.payment_status === "paid" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
                   )}>
                     {order.payment_status || "pending"}
                   </span>
                 </div>
-                <Separator className="bg-white/[0.08]" />
+                <Separator className="bg-slate-200/60" />
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-white/40">Discount</span>
+                  <span className="text-slate-500">Discount</span>
                   {discount > 0 ? (
-                    <span className="text-red-400">-{formatBDT(discount)}</span>
+                    <span className="text-rose-600">-{formatBDT(discount)}</span>
                   ) : (
-                    <span className="text-white/30">৳0</span>
+                    <span className="text-slate-400">৳0</span>
                   )}
                 </div>
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-white/40">Delivery</span>
-                  <span className="tabular-nums">{formatBDT(deliveryCharge)}</span>
+                  <span className="text-slate-500">Delivery</span>
+                  <span className="tabular-nums text-slate-900">{formatBDT(deliveryCharge)}</span>
                 </div>
                 {order.cod_amount ? (
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-white/40">COD Amount</span>
-                    <span className="tabular-nums">{formatBDT(order.cod_amount)}</span>
+                    <span className="text-slate-500">COD Amount</span>
+                    <span className="tabular-nums text-slate-900">{formatBDT(order.cod_amount)}</span>
                   </div>
                 ) : null}
               </div>
@@ -880,33 +868,33 @@ export default function WebOrderDetail() {
 
             {/* 3) TOTALS / ORDER SUMMARY */}
             <section className={cn(glass, "p-5")}>
-              <h2 className="text-sm font-semibold text-white mb-4">Order Summary</h2>
+              <h2 className="text-sm font-semibold text-slate-900 mb-4">Order Summary</h2>
               <div className="space-y-2 text-xs">
-                <div className="flex justify-between"><span className="text-white/40">Subtotal</span><span className="tabular-nums">{formatBDT(subtotal)}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Subtotal</span><span className="tabular-nums text-slate-900">{formatBDT(subtotal)}</span></div>
                 {discount > 0 && (
-                  <div className="flex justify-between"><span className="text-white/40">Discount</span><span className="text-red-400 tabular-nums">-{formatBDT(discount)}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Discount</span><span className="text-rose-600 tabular-nums">-{formatBDT(discount)}</span></div>
                 )}
-                <div className="flex justify-between"><span className="text-white/40">Delivery</span><span className="tabular-nums">{formatBDT(deliveryCharge)}</span></div>
-                <Separator className="bg-white/[0.08] my-2" />
+                <div className="flex justify-between"><span className="text-slate-500">Delivery</span><span className="tabular-nums text-slate-900">{formatBDT(deliveryCharge)}</span></div>
+                <Separator className="bg-slate-200/60 my-2" />
                 <div className="flex justify-between items-baseline">
-                  <span className="text-sm font-semibold">Grand Total</span>
-                  <span className="text-2xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent tabular-nums">
+                  <span className="text-sm font-semibold text-slate-900">Grand Total</span>
+                  <span className="text-2xl font-bold bg-gradient-to-r from-sky-600 to-emerald-500 bg-clip-text text-transparent tabular-nums">
                     {formatBDT(grandTotal)}
                   </span>
                 </div>
               </div>
               {/* Mini summary */}
-              <div className="mt-3 p-2.5 rounded-xl bg-white/[0.04] grid grid-cols-2 gap-x-4 gap-y-1.5 text-[10px]">
-                <div className="flex justify-between"><span className="text-white/25">Items</span><span className="text-white/50">{items?.length || 0}</span></div>
-                <div className="flex justify-between"><span className="text-white/25">Qty</span><span className="text-white/50">{items?.reduce((s, i) => s + i.quantity, 0) || 0}</span></div>
-                <div className="flex justify-between"><span className="text-white/25">Source</span><span className="text-white/50 capitalize">{order.channel}</span></div>
-                <div className="flex justify-between"><span className="text-white/25">Method</span><span className="text-white/50">{order.payment_method || "COD"}</span></div>
+              <div className="mt-3 p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/40 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[10px]">
+                <div className="flex justify-between"><span className="text-slate-400">Items</span><span className="text-slate-600">{items?.length || 0}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">Qty</span><span className="text-slate-600">{items?.reduce((s, i) => s + i.quantity, 0) || 0}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">Source</span><span className="text-slate-600 capitalize">{order.channel}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">Method</span><span className="text-slate-600">{order.payment_method || "COD"}</span></div>
               </div>
             </section>
 
             {/* 4) ORDER ACTIONS / STATUS */}
             <section className={cn(glass, "p-5")}>
-              <h2 className="text-sm font-semibold text-white mb-3">Status Actions</h2>
+              <h2 className="text-sm font-semibold text-slate-900 mb-3">Status Actions</h2>
               <div className="space-y-1.5">
                 {STATUS_BUTTONS.map((s) => {
                   const isActive = currentStatus === s.key;
@@ -917,7 +905,7 @@ export default function WebOrderDetail() {
                           <button
                             disabled={isActive || statusMutation.isPending}
                             className={cn(
-                              "w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 border bg-gradient-to-r",
+                              "w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200",
                               isActive ? s.active : s.color,
                               (isActive || statusMutation.isPending) && "opacity-50 cursor-not-allowed"
                             )}
@@ -926,15 +914,15 @@ export default function WebOrderDetail() {
                             {isActive && <CheckCircle2 className="w-3.5 h-3.5 ml-auto" />}
                           </button>
                         </ADTrigger>
-                        <ADContent className="rounded-2xl bg-[#1a1a2e] border-white/10 text-white">
+                        <ADContent className="rounded-2xl bg-white/90 backdrop-blur-xl border-slate-200/60 text-slate-900 shadow-xl">
                           <ADHeader>
-                            <ADTitle className="text-white">Confirm this order?</ADTitle>
-                            <ADDesc className="text-white/50">This will move the order to the main processing queue.</ADDesc>
+                            <ADTitle className="text-slate-900">Confirm this order?</ADTitle>
+                            <ADDesc className="text-slate-500">This will move the order to the main processing queue.</ADDesc>
                           </ADHeader>
                           <ADFooter>
-                            <ADCancel className="rounded-xl bg-white/10 border-white/10 text-white hover:bg-white/20">Cancel</ADCancel>
+                            <ADCancel className="rounded-xl bg-white/70 border-slate-200 text-slate-900 hover:bg-white">Cancel</ADCancel>
                             <ADAction onClick={() => confirmMutation.mutate()} disabled={confirmMutation.isPending}
-                              className="rounded-xl bg-green-600 hover:bg-green-700">
+                              className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white">
                               {confirmMutation.isPending ? "Confirming..." : "✅ Confirm Order"}
                             </ADAction>
                           </ADFooter>
@@ -949,7 +937,7 @@ export default function WebOrderDetail() {
                         onClick={() => { setReasonModal({ open: true, type: "on_hold" }); setReasonValue(""); setReasonNote(""); }}
                         disabled={isActive || statusMutation.isPending}
                         className={cn(
-                          "w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 border bg-gradient-to-r",
+                          "w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200",
                           isActive ? s.active : s.color,
                           (isActive || statusMutation.isPending) && "opacity-50 cursor-not-allowed"
                         )}
@@ -965,7 +953,7 @@ export default function WebOrderDetail() {
                       onClick={() => statusMutation.mutate({ newStatus: s.key })}
                       disabled={isActive || statusMutation.isPending}
                       className={cn(
-                        "w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 border bg-gradient-to-r",
+                        "w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200",
                         isActive ? s.active : s.color,
                         (isActive || statusMutation.isPending) && "opacity-50 cursor-not-allowed"
                       )}
@@ -980,10 +968,10 @@ export default function WebOrderDetail() {
                   onClick={() => { setReasonModal({ open: true, type: "cancel" }); setReasonValue(""); setReasonNote(""); }}
                   disabled={currentStatus === "cancel" || statusMutation.isPending}
                   className={cn(
-                    "w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 border bg-gradient-to-r mt-2",
+                    "w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 mt-2",
                     currentStatus === "cancel"
-                      ? "from-red-600 to-red-700 text-white border-red-500 opacity-50 cursor-not-allowed"
-                      : "from-red-500/20 to-red-600/10 border-red-500/30 text-red-300 hover:from-red-500/30"
+                      ? "bg-rose-100 border-l-4 border-l-rose-500 border-y border-r border-rose-300 text-rose-900 opacity-50 cursor-not-allowed"
+                      : "bg-rose-50 border-l-4 border-l-rose-400 border-y border-r border-rose-200/60 text-rose-700 hover:bg-rose-100"
                   )}
                 >
                   ❌ Cancel
@@ -994,14 +982,14 @@ export default function WebOrderDetail() {
 
             {/* Pathao */}
             {currentStatus === "confirm" && !order.pathao_consignment_id && (
-              <section className={cn("bg-green-500/10 backdrop-blur-xl border border-green-500/20 rounded-2xl p-4")}>
+              <section className="bg-emerald-50/80 backdrop-blur-xl border border-emerald-200/60 rounded-2xl p-4 shadow-sm">
                 <Button
                   onClick={() => setShowPathaoModal(true)}
-                  className="w-full rounded-xl h-10 bg-green-600 hover:bg-green-700 text-white font-semibold text-xs gap-2"
+                  className="w-full rounded-xl h-10 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs gap-2"
                 >
                   <Truck className="w-4 h-4" /> Send to Pathao
                 </Button>
-                <p className="text-[10px] text-green-300/60 text-center mt-2">Order confirmed — ready to ship</p>
+                <p className="text-[10px] text-emerald-600 text-center mt-2">Order confirmed — ready to ship</p>
               </section>
             )}
 
@@ -1017,24 +1005,24 @@ export default function WebOrderDetail() {
 
       {/* Reason Modal for Cancel / On Hold */}
       <Dialog open={reasonModal.open} onOpenChange={(open) => setReasonModal((prev) => ({ ...prev, open }))}>
-        <DialogContent className="rounded-2xl bg-[#1a1a2e] border-white/10 text-white max-w-md">
+        <DialogContent className="rounded-2xl bg-white/90 backdrop-blur-xl border-slate-200/60 text-slate-900 max-w-md shadow-xl">
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
+            <DialogTitle className="text-slate-900 flex items-center gap-2">
               {reasonModal.type === "cancel" ? "❌ Cancel Order" : "⏸️ Put On Hold"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <label className="text-[11px] text-white/40 font-medium mb-1.5 block">
-                Reason <span className="text-red-400">*</span>
+              <label className="text-[11px] text-slate-500 font-medium mb-1.5 block">
+                Reason <span className="text-rose-500">*</span>
               </label>
               <Select value={reasonValue} onValueChange={setReasonValue}>
-                <SelectTrigger className="rounded-xl bg-white/[0.06] border-white/[0.1] text-white h-10 focus:ring-white/20">
+                <SelectTrigger className="rounded-xl bg-white/80 border-slate-200/60 text-slate-900 h-10 focus:ring-sky-400/40">
                   <SelectValue placeholder="Select a reason..." />
                 </SelectTrigger>
-                <SelectContent className="bg-[#1a1a2e] border-white/10 text-white rounded-xl">
+                <SelectContent className="bg-white/95 backdrop-blur-xl border-slate-200/60 text-slate-900 rounded-xl shadow-lg">
                   {(reasonModal.type === "cancel" ? CANCEL_REASONS : HOLD_REASONS).map((r) => (
-                    <SelectItem key={r} value={r} className="text-white/80 focus:bg-white/10 focus:text-white rounded-lg">
+                    <SelectItem key={r} value={r} className="text-slate-700 focus:bg-slate-50 focus:text-slate-900 rounded-lg">
                       {r}
                     </SelectItem>
                   ))}
@@ -1042,19 +1030,19 @@ export default function WebOrderDetail() {
               </Select>
             </div>
             <div>
-              <label className="text-[11px] text-white/40 font-medium mb-1.5 block">Additional Note (optional)</label>
+              <label className="text-[11px] text-slate-500 font-medium mb-1.5 block">Additional Note (optional)</label>
               <Textarea
                 value={reasonNote}
                 onChange={(e) => setReasonNote(e.target.value)}
                 placeholder="Add more details..."
                 rows={3}
-                className="bg-white/[0.06] border-white/[0.1] text-white placeholder:text-white/20 rounded-xl resize-none focus:ring-1 focus:ring-white/20"
+                className="bg-white/80 border-slate-200/60 text-slate-900 placeholder:text-slate-300 rounded-xl resize-none focus:ring-2 focus:ring-sky-400/40 focus:border-sky-300"
               />
             </div>
           </div>
           <DialogFooter className="gap-2">
             <Button variant="ghost" onClick={() => setReasonModal({ open: false, type: "cancel" })}
-              className="rounded-xl bg-white/10 border-white/10 text-white hover:bg-white/20">
+              className="rounded-xl bg-white/70 border border-slate-200 text-slate-900 hover:bg-white">
               Go Back
             </Button>
             <Button
@@ -1068,7 +1056,7 @@ export default function WebOrderDetail() {
               className={cn(
                 "rounded-xl font-semibold",
                 reasonModal.type === "cancel"
-                  ? "bg-red-600 hover:bg-red-700 text-white"
+                  ? "bg-rose-600 hover:bg-rose-700 text-white"
                   : "bg-indigo-600 hover:bg-indigo-700 text-white"
               )}
             >
