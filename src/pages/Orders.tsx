@@ -22,7 +22,7 @@ import { DamageReturnModal } from "@/components/orders/DamageReturnModal";
 import { ScanMode } from "@/components/orders/ScanMode";
 import { PathaoBookingModal } from "@/components/pathao/PathaoBookingModal";
 import { printInvoice, printBulkInvoices, printPickingList, printPackingSlip, printBarcodeLabels } from "@/components/orders/PrintInvoice";
-import { BulkActionToolbar } from "@/components/orders/BulkActionToolbar";
+import { BulkActionsDropdown } from "@/components/orders/BulkActionsDropdown";
 import { CODReconciliation } from "@/components/orders/CODReconciliation";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -260,9 +260,24 @@ export default function OrdersPage() {
           >
             <ScanLine className="w-4 h-4 mr-1" /> Scan Mode
           </Button>
-          <Button variant="outline" size="sm" onClick={exportCSV} disabled={!filtered?.length}>
-            <Download className="w-4 h-4 mr-1" /> Export CSV
-          </Button>
+          <BulkActionsDropdown
+            selectedCount={selectedIds.size}
+            totalCount={filtered?.length || 0}
+            onSelectAll={toggleAll}
+            onDeselect={() => setSelectedIds(new Set())}
+            onStatusChange={handleBulkStatus}
+            onPrint={handleBulkPrint}
+            onCourier={(courier) => {
+              if (courier === "pathao") {
+                const firstSelected = orders?.find((o) => selectedIds.has(o.id));
+                if (firstSelected) openPathaoModal(firstSelected);
+              } else {
+                toast({ title: `${courier} integration coming soon` });
+              }
+            }}
+            onExport={exportCSV}
+            changing={changing}
+          />
           <Link to="/orders/new">
             <Button size="sm">
               <Plus className="w-4 h-4 mr-1" /> New Order
@@ -346,22 +361,7 @@ export default function OrdersPage() {
         </CardContent>
       </Card>
 
-      {/* Floating Bulk Action Toolbar */}
-      <BulkActionToolbar
-        selectedCount={selectedIds.size}
-        onDeselect={() => setSelectedIds(new Set())}
-        onStatusChange={handleBulkStatus}
-        onPrint={handleBulkPrint}
-        onCourier={(courier) => {
-          if (courier === "pathao") {
-            const firstSelected = orders?.find((o) => selectedIds.has(o.id));
-            if (firstSelected) openPathaoModal(firstSelected);
-          } else {
-            toast({ title: `${courier} integration coming soon` });
-          }
-        }}
-        changing={changing}
-      />
+      {/* Bulk actions now in top bar dropdown */}
 
       {/* Table */}
       <Card>
