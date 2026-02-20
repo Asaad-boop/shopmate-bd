@@ -165,6 +165,13 @@ export function PathaoBookingModal({
     );
   };
 
+  const normalizePhone = (phone: string) => {
+    let p = phone.replace(/\s+/g, "");
+    if (p.startsWith("+88")) p = p.slice(3);
+    else if (p.startsWith("88") && p.length > 11) p = p.slice(2);
+    return p;
+  };
+
   const handleSendToPathao = () => {
     if (!storeId || !recipientName || !recipientPhone || !recipientAddress || !cityId || !zoneId) {
       toast({ title: "Please fill all required fields", variant: "destructive" });
@@ -177,7 +184,7 @@ export function PathaoBookingModal({
           store_id: Number(storeId),
           merchant_order_id: order.order_number,
           recipient_name: recipientName,
-          recipient_phone: recipientPhone,
+          recipient_phone: normalizePhone(recipientPhone),
           recipient_address: recipientAddress,
           recipient_city: cityId,
           recipient_zone: zoneId,
