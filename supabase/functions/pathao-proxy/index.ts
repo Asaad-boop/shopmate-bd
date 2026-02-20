@@ -89,8 +89,10 @@ async function callPathao(
 
   const res = await fetch(`${PATHAO_BASE}${path}`, opts);
   const data = await res.json();
-  return new Response(JSON.stringify(data), {
-    status: res.ok ? 200 : res.status,
+  // Always return 200 so supabase.functions.invoke passes the body through.
+  // Include original status so the client can detect Pathao-level errors.
+  return new Response(JSON.stringify({ ...data, _status: res.status, _ok: res.ok }), {
+    status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
