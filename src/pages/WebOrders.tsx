@@ -223,28 +223,30 @@ export default function WebOrdersPage() {
         )}
       </div>
 
-      {/* Status Tabs - Pill style like reference */}
+      {/* Status Tabs - Dark glassmorphic style */}
       <div className="flex items-center justify-center">
-        <div className="inline-flex items-center gap-0.5 p-1 rounded-full bg-slate-100/70 border border-slate-200/60">
+        <div className="inline-flex items-center gap-1 p-1.5 rounded-2xl bg-[#1a1a2e] shadow-xl">
           {WEB_STATUSES.map((s) => (
             <button
               key={s.key}
               onClick={() => { setActiveTab(s.key); setSelected([]); }}
               className={cn(
-                "relative px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-300 ease-in-out whitespace-nowrap",
+                "relative flex flex-col items-center gap-0.5 px-4 py-2.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
                 activeTab === s.key
-                  ? "bg-white shadow-sm text-foreground"
-                  : "text-slate-400 hover:text-foreground"
+                  ? "bg-[#2a2a42] text-white scale-110 shadow-lg shadow-primary/20 ring-1 ring-white/10 -translate-y-1"
+                  : "text-slate-500 hover:text-slate-300 hover:bg-white/5"
               )}
             >
-              <span className="hidden sm:inline">{s.label}</span>
-              <span className="sm:hidden">{s.emoji}</span>
+              <span className="text-base transition-transform duration-500"
+                style={{ transform: activeTab === s.key ? 'scale(1.15)' : 'scale(1)' }}
+              >{s.emoji}</span>
+              <span className="hidden sm:inline text-[11px]">{s.label}</span>
               {(statusCounts[s.key] || 0) > 0 && (
                 <span className={cn(
-                  "ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full inline-flex items-center justify-center",
+                  "absolute -top-1.5 -right-1.5 text-[9px] font-bold min-w-[18px] h-[18px] px-1 rounded-full inline-flex items-center justify-center transition-all duration-300",
                   activeTab === s.key
-                    ? "bg-primary text-white"
-                    : "bg-slate-200/80 text-slate-400"
+                    ? "bg-primary text-white shadow-md shadow-primary/40"
+                    : "bg-slate-600 text-slate-300"
                 )}>
                   {statusCounts[s.key]}
                 </span>
