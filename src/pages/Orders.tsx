@@ -21,6 +21,7 @@ import { DamageReturnModal } from "@/components/orders/DamageReturnModal";
 import { ScanMode } from "@/components/orders/ScanMode";
 import { PathaoBookingModal } from "@/components/pathao/PathaoBookingModal";
 import { printInvoice, printBulkInvoices, printPickingList, printPackingSlip, printBarcodeLabels } from "@/components/orders/PrintInvoice";
+import { BulkActionToolbar } from "@/components/orders/BulkActionToolbar";
 import { CODReconciliation } from "@/components/orders/CODReconciliation";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -331,39 +332,22 @@ export default function OrdersPage() {
         </CardContent>
       </Card>
 
-      {/* Bulk Action Bar */}
-      {selectedIds.size > 0 && (
-        <div className="sticky top-0 z-20 bg-card border rounded-lg p-3 flex flex-wrap items-center gap-2 shadow-sm">
-          <span className="text-sm font-medium">{selectedIds.size} টি order selected</span>
-          <div className="flex gap-1.5 flex-wrap ml-auto">
-            <Button size="sm" variant="outline" onClick={() => handleBulkStatus("packed")} disabled={changing}>
-              <Package className="w-3.5 h-3.5 mr-1" /> Packed
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => handleBulkStatus("shipped")} disabled={changing}>
-              <Truck className="w-3.5 h-3.5 mr-1" /> Shipped
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => handleBulkStatus("delivered")} disabled={changing}>
-              <CheckCircle className="w-3.5 h-3.5 mr-1" /> Delivered
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => handleBulkStatus("cancelled")} disabled={changing}>
-              <XCircle className="w-3.5 h-3.5 mr-1" /> Cancel
-            </Button>
-            <div className="w-px bg-border mx-1 h-6 self-center" />
-            <Button size="sm" variant="outline" onClick={() => handleBulkPrint("invoice")}>
-              <Printer className="w-3.5 h-3.5 mr-1" /> Invoice
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => handleBulkPrint("picking")}>
-              📋 Picking
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => handleBulkPrint("packing")}>
-              📦 Packing
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => handleBulkPrint("barcode")}>
-              <Tag className="w-3.5 h-3.5 mr-1" /> Barcode
-            </Button>
-          </div>
-        </div>
-      )}
+      {/* Floating Bulk Action Toolbar */}
+      <BulkActionToolbar
+        selectedCount={selectedIds.size}
+        onDeselect={() => setSelectedIds(new Set())}
+        onStatusChange={handleBulkStatus}
+        onPrint={handleBulkPrint}
+        onCourier={(courier) => {
+          if (courier === "pathao") {
+            const firstSelected = orders?.find((o) => selectedIds.has(o.id));
+            if (firstSelected) openPathaoModal(firstSelected);
+          } else {
+            toast({ title: `${courier} integration coming soon` });
+          }
+        }}
+        changing={changing}
+      />
 
       {/* Table */}
       <Card>
