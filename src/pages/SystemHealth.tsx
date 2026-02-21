@@ -16,7 +16,7 @@ import {
 import {
   HardDrive, FileText, Users, Package, BarChart3, Database, Image,
   AlertTriangle, Bug, CheckCircle2, Clock, Plus, ChevronDown, ChevronUp,
-  Server, Shield, ShoppingCart, Bell, Boxes, Wallet,
+  Server, Shield, ShoppingCart, Bell, Boxes, Wallet, Sparkles,
 } from "lucide-react";
 
 /* ── Types ── */
@@ -172,6 +172,13 @@ export default function SystemHealth() {
   });
 
   /* ── Actions ── */
+  async function fixWithAI(issue: SystemIssue) {
+    const prompt = `Please fix this bug in our ERP system:\n\nModule: ${issue.module || "N/A"}\nSeverity: ${issue.severity}\nTitle: ${issue.title}\nDescription: ${issue.description || "No description"}\n\nFind the relevant code and fix it.`;
+    await navigator.clipboard.writeText(prompt);
+    await supabase.from("system_issues").update({ status: "in_progress" }).eq("id", issue.id);
+    toast({ title: "Prompt Copied!", description: "Paste it into Lovable chat to start fixing." });
+  }
+
   async function markResolved(id: string) {
     await supabase.from("system_issues").update({ status: "resolved" }).eq("id", id);
   }
@@ -431,11 +438,18 @@ export default function SystemHealth() {
                       </div>
                     </div>
                     {issue.status !== "resolved" && (
-                      <Button size="sm" variant="outline"
-                        className="border-emerald-600/50 text-emerald-400 hover:bg-emerald-500/20 text-xs shrink-0"
-                        onClick={e => { e.stopPropagation(); markResolved(issue.id); }}>
-                        Mark Resolved
-                      </Button>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Button size="sm" variant="outline"
+                          className="border-cyan-600/50 text-cyan-400 hover:bg-cyan-500/20 text-xs gap-1"
+                          onClick={e => { e.stopPropagation(); fixWithAI(issue); }}>
+                          <Sparkles className="w-3 h-3" /> Fix with AI
+                        </Button>
+                        <Button size="sm" variant="outline"
+                          className="border-emerald-600/50 text-emerald-400 hover:bg-emerald-500/20 text-xs"
+                          onClick={e => { e.stopPropagation(); markResolved(issue.id); }}>
+                          Mark Resolved
+                        </Button>
+                      </div>
                     )}
                   </div>
                   {expanded && issue.description && (
