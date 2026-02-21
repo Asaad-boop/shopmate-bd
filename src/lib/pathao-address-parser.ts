@@ -281,8 +281,21 @@ export function parseAddress(
     reasons.push(`City auto-detected: ${detectedCity}`);
   }
 
-  // Get city definition
-  const cityDef = CITY_DEFINITIONS[city] || DHAKA_CITY;
+  // Get city definition — if city has no dictionary, return low-confidence empty result
+  const cityDef = CITY_DEFINITIONS[city];
+  if (!cityDef) {
+    return {
+      city,
+      zone: "",
+      area: "",
+      confidence: 0,
+      needs_manual_review: true,
+      mapping_mode: "auto" as const,
+      reasons: [`No zone dictionary for city "${city}" — manual selection required`],
+      top_suggestions: [],
+      address_normalized,
+    };
+  }
 
   // B) Check hard rules FIRST
   const hardRule = checkHardRules(address_normalized);
