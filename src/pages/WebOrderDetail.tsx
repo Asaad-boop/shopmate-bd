@@ -42,7 +42,7 @@ import { useAddressParser } from "@/hooks/use-address-parser";
 import { useBDCourierSingle, getRiskLevel, getSuccessColor } from "@/hooks/use-bd-courier";
 import { PathaoTrackingCard } from "@/components/pathao/PathaoTrackingCard";
 import { AddressFixDrawer } from "@/components/orders/AddressFixDrawer";
-import { mapAddressToPathao, type MappingResult } from "@/lib/address-mapper";
+import { mapAddressToPathao, type MappingResult, findBestMatch } from "@/lib/address-mapper";
 import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/use-pathao";
 import { useCompanySettings } from "@/hooks/use-company-settings";
 import { useInvoiceSettings } from "@/hooks/use-invoice-settings";
@@ -340,22 +340,32 @@ export default function WebOrderDetail() {
     }
   }, [detectedDistrict, detectedThana, districtEmpty, thanaEmpty, order, addressParseApplied]);
 
-  // Auto-match detected district → Pathao city
+  // Auto-match detected district → Pathao city (supports Bengali + English via fuzzy match)
   useEffect(() => {
     if (!pathaoCities?.length) return;
     const district = detectedDistrict || deliveryForm.city;
-    if (!district || pathaoCityId) return;
-    const match = pathaoCities.find(c => c.city_name.toLowerCase() === district.toLowerCase());
-    if (match) setPathaoCityId(match.city_id);
+    if (!district || district === "-" || pathaoCityId) return;
+    const candidates = pathaoCities.map(c => ({ id: c.city_id, name: c.city_name }));
+    const match = findBestMatch(district, candidates);
+    if (match.best && match.score >= 0.70) {
+      setPathaoCityId(match.best.id);
+      // Update deliveryForm.city to English name
+      setDeliveryForm(f => ({ ...f, city: match.best!.name }));
+    }
   }, [pathaoCities, detectedDistrict, deliveryForm.city]);
 
-  // Auto-match detected thana → Pathao zone
+  // Auto-match detected thana → Pathao zone (supports Bengali + English via fuzzy match)
   useEffect(() => {
     if (!pathaoZones?.length) return;
     const thana = detectedThana || deliveryForm.zone;
-    if (!thana || pathaoZoneId) return;
-    const match = pathaoZones.find(z => z.zone_name.toLowerCase() === thana.toLowerCase());
-    if (match) setPathaoZoneId(match.zone_id);
+    if (!thana || thana === "-" || pathaoZoneId) return;
+    const candidates = pathaoZones.map(z => ({ id: z.zone_id, name: z.zone_name }));
+    const match = findBestMatch(thana, candidates);
+    if (match.best && match.score >= 0.65) {
+      setPathaoZoneId(match.best.id);
+      // Update deliveryForm.zone to English name
+      setDeliveryForm(f => ({ ...f, zone: match.best!.name }));
+    }
   }, [pathaoZones, detectedThana, deliveryForm.zone]);
 
   // Reset zone when city changes
@@ -966,12 +976,12 @@ export default function WebOrderDetail() {
                       <span className="text-[9px] text-muted-foreground">AI:</span>
                       {detectedDistrict && (
                         <Badge variant="outline" className="text-[9px] bg-emerald-50 text-emerald-700 border-emerald-200 gap-1 px-1.5 py-0">
-                          <CheckCircle2 className="w-2.5 h-2.5" /> {detectedDistrict}
+                          <CheckCircle2 className="w-2.5 h-2.5" /> {selectedCityName || detectedDistrict}
                         </Badge>
                       )}
                       {detectedThana && (
                         <Badge variant="outline" className="text-[9px] bg-emerald-50 text-emerald-700 border-emerald-200 gap-1 px-1.5 py-0">
-                          <CheckCircle2 className="w-2.5 h-2.5" /> {detectedThana}
+                          <CheckCircle2 className="w-2.5 h-2.5" /> {selectedZoneName || detectedThana}
                         </Badge>
                       )}
                     </div>
