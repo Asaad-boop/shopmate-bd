@@ -1190,24 +1190,25 @@ export default function WebOrderDetail() {
           </div>
         </div>
 
-        {/* ═══ STICKY BOTTOM CONFIRM BAR (58px) ═══ */}
-        <div className="h-[58px] shrink-0 bg-[#1a1a2e] backdrop-blur-xl border-t border-white/10 flex items-center px-5 z-30 shadow-[0_-4px_20px_rgba(0,0,0,0.3)]">
+        {/* ═══ STICKY BOTTOM CONFIRM BAR ═══ */}
+        <div className="h-[62px] shrink-0 bg-[#12122a]/95 backdrop-blur-2xl border-t border-white/[0.06] flex items-center px-6 z-30 shadow-[0_-8px_30px_rgba(0,0,0,0.4)] animate-fade-in"
+          style={{ animationDelay: "0.2s", animationFillMode: "both" }}>
           {/* Left: Order info */}
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="w-2.5 h-2.5 rounded-full bg-[#6c63ff] shrink-0 ring-2 ring-[#6c63ff]/30" />
+            <div className="w-2.5 h-2.5 rounded-full bg-[#6c63ff] shrink-0 ring-4 ring-[#6c63ff]/20 animate-[pulse_3s_ease-in-out_infinite]" />
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-white truncate">Order #{order.order_number} — {customer?.full_name || "Customer"}</p>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+              <p className="text-[13px] font-semibold text-white/95 truncate tracking-tight">Order #{order.order_number} — {customer?.full_name || "Customer"}</p>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/20">
                   📋 {statusCfg.label}
                 </span>
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-white/10 text-white/70">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-medium bg-white/[0.06] text-white/60 border border-white/[0.06]">
                   🛒 {order.channel}
                 </span>
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-white/10 text-white/70">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-medium bg-white/[0.06] text-white/60 border border-white/[0.06]">
                   📦 {totalItemCount} Item{totalItemCount !== 1 ? "s" : ""}
                 </span>
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-red-500/20 text-red-300 border border-red-500/30">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-medium bg-red-500/15 text-red-300 border border-red-500/20">
                   🚚 Pathao
                 </span>
               </div>
@@ -1215,37 +1216,48 @@ export default function WebOrderDetail() {
           </div>
 
           {/* Divider */}
-          <div className="w-px h-8 bg-white/10 mx-4" />
+          <div className="w-px h-9 bg-gradient-to-b from-transparent via-white/10 to-transparent mx-5" />
 
           {/* Center: Grand Total */}
-          <div className="text-right mr-4">
-            <p className="text-[10px] font-medium text-white/50 uppercase tracking-wider">Grand Total</p>
-            <p className="text-2xl font-extrabold text-[#6c63ff]">৳{grandTotal.toLocaleString()}</p>
+          <div className="text-right mr-5">
+            <p className="text-[9px] font-semibold text-white/40 uppercase tracking-[0.15em]">Grand Total</p>
+            <p className="text-[26px] font-black text-[#6c63ff] leading-none mt-0.5 drop-shadow-[0_0_12px_rgba(108,99,255,0.3)]">৳{grandTotal.toLocaleString()}</p>
           </div>
 
-          {/* Center-right: Confirm button */}
+          {/* Center: Confirm button */}
           <AlertDialogRoot open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
             <Button onClick={() => setShowConfirmDialog(true)} disabled={confirmSending || currentStatus === "confirm"}
-              className="h-11 px-8 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm gap-2 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-400/40 transition-all hover:-translate-y-0.5 disabled:opacity-50">
+              className="h-11 px-8 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 text-white font-bold text-sm gap-2 shadow-[0_4px_20px_rgba(16,185,129,0.4)] hover:shadow-[0_6px_28px_rgba(16,185,129,0.5)] transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.97] disabled:opacity-40 disabled:hover:translate-y-0">
               {confirmSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
               Confirm Order
             </Button>
-            <ADContent>
-              <ADHeader>
-                <ADTitle>Confirm this order?</ADTitle>
-                <ADDesc>Order #{order.order_number} will be confirmed and moved to Orders list. Stock will be deducted.</ADDesc>
-              </ADHeader>
-              <ADFooter>
-                <ADCancel>Cancel</ADCancel>
+            <ADContent className="rounded-2xl border-0 bg-[#1a1a2e] text-white shadow-[0_25px_60px_rgba(0,0,0,0.5)] p-0 overflow-hidden max-w-sm data-[state=open]:animate-scale-in data-[state=closed]:animate-scale-out">
+              {/* Gradient header stripe */}
+              <div className="h-1.5 bg-gradient-to-r from-[#6c63ff] via-emerald-400 to-[#6c63ff]" />
+              <div className="p-6 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-emerald-500/15 flex items-center justify-center mx-auto mb-4 ring-4 ring-emerald-500/10">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+                </div>
+                <ADHeader className="space-y-2 p-0">
+                  <ADTitle className="text-lg font-bold text-white">Confirm this order?</ADTitle>
+                  <ADDesc className="text-white/50 text-sm leading-relaxed">
+                    Order <span className="font-semibold text-[#6c63ff]">#{order.order_number}</span> will be confirmed and moved to the Orders list. Stock will be deducted automatically.
+                  </ADDesc>
+                </ADHeader>
+              </div>
+              <ADFooter className="px-6 pb-6 pt-0 flex gap-3">
+                <ADCancel className="flex-1 h-11 rounded-xl bg-white/[0.06] border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all duration-200">
+                  Cancel
+                </ADCancel>
                 <ADAction onClick={handleConfirmWithMapping} disabled={confirmSending}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                  {confirmSending ? <><Loader2 className="w-4 h-4 animate-spin mr-1" /> Confirming...</> : "✅ Yes, Confirm"}
+                  className="flex-1 h-11 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 text-white font-bold shadow-lg shadow-emerald-500/25 transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.97]">
+                  {confirmSending ? <><Loader2 className="w-4 h-4 animate-spin mr-1.5" /> Confirming...</> : "✅ Yes, Confirm"}
                 </ADAction>
               </ADFooter>
             </ADContent>
           </AlertDialogRoot>
 
-          {/* Right spacer to push confirm toward middle */}
+          {/* Right spacer */}
           <div className="flex-1" />
         </div>
 
