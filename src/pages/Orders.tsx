@@ -31,6 +31,7 @@ import {
   ClipboardList, PackageCheck, Undo2, Flame, Copy, Loader2, MapPin, type LucideIcon
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { mapAddressToPathao } from "@/lib/address-mapper";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 

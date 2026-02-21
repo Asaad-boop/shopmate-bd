@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -59,14 +58,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useBDCourierSingle, getRiskLevel, getSuccessColor } from "@/hooks/use-bd-courier";
 import { PathaoTrackingCard } from "@/components/pathao/PathaoTrackingCard";
-import { PathaoBookingModal } from "@/components/pathao/PathaoBookingModal";
+import { AddressFixDrawer } from "@/components/orders/AddressFixDrawer";
+import { mapAddressToPathao, type MappingResult } from "@/lib/address-mapper";
 
 /* ─── Light Glass card utility ─── */
 const glass = "bg-white/70 backdrop-blur-xl border border-white/60 rounded-2xl shadow-[0_12px_40px_rgba(15,23,42,0.10)]";
 const glassLight = "bg-white/50 backdrop-blur-lg border border-slate-200/60 rounded-xl shadow-sm";
 const glassHeader = "bg-white/60 backdrop-blur-xl border-b border-slate-200/60";
 
-/* ─── STATUS CONFIG (light tinted) ─── */
+/* ─── STATUS CONFIG ─── */
 const STATUS_BUTTONS = [
   { key: "processing", label: "Processing", emoji: "🟡", color: "bg-amber-50 border-l-4 border-l-amber-400 border-y border-r border-amber-200/60 text-amber-800", active: "bg-amber-100 border-l-4 border-l-amber-500 border-y border-r border-amber-300 text-amber-900 font-bold" },
   { key: "confirm", label: "Confirm", emoji: "🟢", color: "bg-emerald-50 border-l-4 border-l-emerald-400 border-y border-r border-emerald-200/60 text-emerald-800", active: "bg-emerald-100 border-l-4 border-l-emerald-500 border-y border-r border-emerald-300 text-emerald-900 font-bold" },
@@ -86,23 +86,14 @@ const CALL_OPTIONS = [
 const QUICK_NOTES = ["Call before delivery", "Fragile", "Gift wrap", "Deliver after 6 PM"];
 
 const CANCEL_REASONS = [
-  "Customer requested cancellation",
-  "Duplicate order",
-  "Out of stock",
-  "Fraudulent order",
-  "Price dispute",
-  "Wrong product ordered",
-  "Other",
+  "Customer requested cancellation", "Duplicate order", "Out of stock",
+  "Fraudulent order", "Price dispute", "Wrong product ordered", "Other",
 ];
 
 const HOLD_REASONS = [
-  "Waiting for customer confirmation",
-  "Payment verification pending",
-  "Address clarification needed",
-  "Customer unreachable",
-  "Stock arriving soon",
-  "Customer requested delay",
-  "Other",
+  "Waiting for customer confirmation", "Payment verification pending",
+  "Address clarification needed", "Customer unreachable",
+  "Stock arriving soon", "Customer requested delay", "Other",
 ];
 
 /* ─── HELPERS ─── */
@@ -131,12 +122,17 @@ const segmentColors: Record<string, { bg: string; text: string }> = {
 };
 
 const avatarColors = [
-  "from-sky-400 to-indigo-500",
-  "from-emerald-400 to-teal-500",
-  "from-orange-400 to-rose-500",
-  "from-purple-400 to-pink-500",
+  "from-sky-400 to-indigo-500", "from-emerald-400 to-teal-500",
+  "from-orange-400 to-rose-500", "from-purple-400 to-pink-500",
   "from-cyan-400 to-sky-500",
 ];
+
+const normalizePhone = (phone: string) => {
+  let p = phone.replace(/\s+/g, "");
+  if (p.startsWith("+88")) p = p.slice(3);
+  else if (p.startsWith("88") && p.length > 11) p = p.slice(2);
+  return p;
+};
 
 /* ═══════════════════════════════════════════ */
 export default function WebOrderDetail() {
@@ -147,8 +143,12 @@ export default function WebOrderDetail() {
   const [newNote, setNewNote] = useState("");
   const [callResult, setCallResult] = useState("");
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [confirmSending, setConfirmSending] = useState(false);
   
-  const [pathaoModalOpen, setPathaoModalOpen] = useState(false);
+  // Address fix drawer
+  const [addressFixOpen, setAddressFixOpen] = useState(false);
+  const [addressMappingResult, setAddressMappingResult] = useState<MappingResult | null>(null);
+
   const [detectedDistrict, setDetectedDistrict] = useState<string | null>(null);
   const [detectedThana, setDetectedThana] = useState<string | null>(null);
   const [addressParseApplied, setAddressParseApplied] = useState(false);
@@ -176,7 +176,7 @@ export default function WebOrderDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("order_items")
-        .select("*, products(name, sku, image_url, stock_quantity)")
+        .select("*, products(name, sku, image_url, stock_quantity, weight_kg)")
         .eq("order_id", id!);
       if (error) throw error;
       return data;
@@ -198,14 +198,28 @@ export default function WebOrderDetail() {
     enabled: !!id,
   });
 
+  // Pathao defaults
+  const { data: pathaoDefaults } = useQuery({
+    queryKey: ["pathao-defaults"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("settings")
+        .select("key, value")
+        .in("key", ["pathao_default_store", "pathao_delivery_type", "pathao_default_weight"]);
+      const map: Record<string, string> = {};
+      data?.forEach((s: any) => { map[s.key] = s.value || ""; });
+      return map;
+    },
+    staleTime: 60 * 1000,
+  });
+
   const customer = order?.customers as any;
   const customerPhone = customer?.phone || "";
 
   const { data: bdReport, isLoading: bdLoading, refetch: refetchBD } = useBDCourierSingle(customerPhone, !!customer);
   const riskInfo = getRiskLevel(bdReport?.success_rate);
 
-
-  // Address auto-parsing
+  // Address auto-parsing (for display only — no mapping at web order stage)
   const addressText = order?.delivery_address || customer?.address || "";
   const isEmptyValue = (v: string | null | undefined) => !v || v === "-" || v.trim() === "";
   const existingDistrict = order?.delivery_district || customer?.district || "";
@@ -252,7 +266,7 @@ export default function WebOrderDetail() {
   const thanaAutoFilled = !!(detectedThana && (thanaEmpty || existingThana === detectedThana));
   const showParsingIndicator = addressParseStatus === "parsing";
 
-  /* ── Mutations ── */
+  /* ── Status mutation ── */
   const statusMutation = useMutation({
     mutationFn: async ({ newStatus, reason, note }: { newStatus: string; reason?: string; note?: string }) => {
       const oldStatus = order?.web_order_status || "processing";
@@ -278,16 +292,94 @@ export default function WebOrderDetail() {
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
-  const confirmMutation = useMutation({
-    mutationFn: async () => {
+  /* ── Send to Pathao (direct, no modal) ── */
+  const sendToPathao = async (cityId: number, cityName: string, zoneId: number, zoneName: string) => {
+    if (!order || !customer) return;
+    const storeId = pathaoDefaults?.pathao_default_store;
+    const deliveryType = pathaoDefaults?.pathao_delivery_type || "48";
+    const defaultWeight = pathaoDefaults?.pathao_default_weight || "0.5";
+
+    if (!storeId) {
+      toast({ title: "Pathao store সেট করুন", description: "Settings → Pathao → Default Store", variant: "destructive" });
+      return;
+    }
+
+    const orderItems = items || [];
+    const totalWeight = orderItems.reduce((sum: number, i: any) => sum + ((i.products as any)?.weight_kg || 0) * i.quantity, 0);
+    const weight = totalWeight > 0 ? Math.round(totalWeight * 10) / 10 : Number(defaultWeight);
+    const isCOD = order.payment_method?.toLowerCase() === "cod" || order.payment_status !== "paid";
+    const totalItems = orderItems.reduce((sum: number, i: any) => sum + i.quantity, 0) || 1;
+    const desc = orderItems.map((i: any) => (i.products as any)?.name).filter(Boolean).join(", ") || "";
+
+    const orderPayload = {
+      orders: [{
+        store_id: Number(storeId),
+        merchant_order_id: order.order_number,
+        recipient_name: customer.full_name,
+        recipient_phone: normalizePhone(customer.phone),
+        recipient_address: order.delivery_address || customer.address || "",
+        recipient_city: cityId,
+        recipient_zone: zoneId,
+        delivery_type: Number(deliveryType),
+        item_type: 2,
+        special_instruction: "",
+        item_quantity: totalItems,
+        item_weight: weight,
+        amount_to_collect: isCOD ? Number(order.total_amount || 0) : 0,
+        item_description: desc,
+      }],
+    };
+
+    const { data: result, error: sendErr } = await supabase.functions.invoke("pathao-proxy", { body: { action: "create_order", order: orderPayload } });
+    if (sendErr) throw sendErr;
+    if (result?._ok === false) {
+      throw new Error(result?.message || JSON.stringify(result?.errors) || "Pathao API error");
+    }
+
+    const consignment = result?.data?.[0] || result?.[0];
+    const consignmentId = consignment?.consignment_id || "";
+    const trackingCode = consignment?.tracking_code || "";
+
+    if (consignmentId) {
+      await supabase.from("orders").update({
+        pathao_consignment_id: String(consignmentId),
+        pathao_tracking_code: trackingCode,
+        courier_status: "Pending",
+        delivery_district: cityName,
+        delivery_thana: zoneName,
+        updated_at: new Date().toISOString(),
+      }).eq("id", id!);
+      await supabase.from("web_order_notes").insert({
+        order_id: id, note_type: "activity",
+        content: `Sent to Pathao • consignmentId=${consignmentId}`, created_by: "Staff",
+      });
+      toast({ title: "✅ Pathao এ পাঠানো হয়েছে!", description: `Consignment: ${consignmentId}` });
+    } else {
+      await supabase.from("orders").update({ courier_status: "Processing", updated_at: new Date().toISOString() }).eq("id", id!);
+      await supabase.from("web_order_notes").insert({
+        order_id: id, note_type: "activity",
+        content: `Sent to Pathao (bulk). ${result?.message || "Processing..."}`, created_by: "Staff",
+      });
+      toast({ title: "✅ Pathao এ পাঠানো হয়েছে!", description: result?.message || "Processing..." });
+    }
+  };
+
+  /* ── CONFIRM with auto-mapping ── */
+  const handleConfirmWithMapping = async () => {
+    if (!order || !customer) return;
+    setConfirmSending(true);
+    try {
+      // 1. Confirm order (update status + deduct stock)
       await supabase
         .from("orders")
         .update({ web_order_status: "confirm", status: "pending", updated_at: new Date().toISOString() })
         .eq("id", id!);
+
       const { data: orderItems } = await supabase
         .from("order_items")
         .select("product_id, quantity, products(id, name, stock_quantity)")
         .eq("order_id", id!);
+
       if (orderItems) {
         for (const item of orderItems) {
           const product = item.products as any;
@@ -303,22 +395,112 @@ export default function WebOrderDetail() {
           });
         }
       }
-      await supabase.from("web_order_notes").insert({
-        order_id: id, note_type: "activity",
-        content: "Order confirmed and moved to Order List (Pending)", created_by: "Staff",
-      });
-    },
-    onSuccess: () => {
-      toast({ title: "✅ Order confirmed!", description: "Moved to Order List" });
+
+      // 2. Auto-map address
+      const fullAddress = order.delivery_address || customer?.address || "";
+
+      // Fetch Pathao cities
+      const { data: citiesData, error: citiesErr } = await supabase.functions.invoke("pathao-proxy", { body: { action: "cities" } });
+      if (citiesErr) throw citiesErr;
+      const cities = citiesData?.data?.data || [];
+
+      // Run mapping on full address
+      const mappingResult = mapAddressToPathao(fullAddress, cities, []);
+
+      if (mappingResult.success && mappingResult.cityId) {
+        // Fetch zones for matched city
+        const { data: zonesData } = await supabase.functions.invoke("pathao-proxy", { body: { action: "zones", city_id: mappingResult.cityId } });
+        const zones = zonesData?.data?.data || [];
+
+        // Re-run mapping with zones
+        const fullMapping = mapAddressToPathao(fullAddress, cities, zones);
+
+        // Log mapping
+        await supabase.from("web_order_notes").insert({
+          order_id: id, note_type: "activity",
+          content: `Auto-mapped address: district=${fullMapping.cityName} (${Math.round(fullMapping.cityScore * 100)}%), thana=${fullMapping.zoneName} (${Math.round(fullMapping.zoneScore * 100)}%)`,
+          created_by: "System",
+        });
+
+        if (fullMapping.success && fullMapping.cityId && fullMapping.zoneId) {
+          // Mapping success → send to Pathao
+          await supabase.from("web_order_notes").insert({
+            order_id: id, note_type: "activity",
+            content: "Order confirmed and moved to Order List (Pending)", created_by: "Staff",
+          });
+
+          try {
+            await sendToPathao(fullMapping.cityId, fullMapping.cityName, fullMapping.zoneId, fullMapping.zoneName);
+          } catch (pathaoErr: any) {
+            console.error("Pathao send error:", pathaoErr);
+            toast({ title: "Order confirmed but Pathao send failed", description: pathaoErr.message, variant: "destructive" });
+            await supabase.from("orders").update({ courier_status: "PATHAO_FAILED", updated_at: new Date().toISOString() }).eq("id", id!);
+            await supabase.from("web_order_notes").insert({
+              order_id: id, note_type: "activity",
+              content: `Pathao failed: ${pathaoErr.message}`, created_by: "Staff",
+            });
+          }
+        } else {
+          // Zone mapping failed → ADDRESS_FIX_REQUIRED
+          setAddressMappingResult(fullMapping);
+          await supabase.from("orders").update({ courier_status: "ADDRESS_FIX_REQUIRED", updated_at: new Date().toISOString() }).eq("id", id!);
+          await supabase.from("web_order_notes").insert({
+            order_id: id, note_type: "activity",
+            content: `Confirm blocked: mapping missing — Zone score ${Math.round(fullMapping.zoneScore * 100)}% below threshold`,
+            created_by: "System",
+          });
+          await supabase.from("web_order_notes").insert({
+            order_id: id, note_type: "activity",
+            content: "Order confirmed and moved to Order List (Pending)", created_by: "Staff",
+          });
+          toast({ title: "📍 Address fix required", description: "City/Zone mapping needs manual selection" });
+          setAddressFixOpen(true);
+        }
+      } else {
+        // District mapping failed → ADDRESS_FIX_REQUIRED
+        setAddressMappingResult(mappingResult);
+        await supabase.from("orders").update({ courier_status: "ADDRESS_FIX_REQUIRED", updated_at: new Date().toISOString() }).eq("id", id!);
+        await supabase.from("web_order_notes").insert({
+          order_id: id, note_type: "activity",
+          content: `Confirm blocked: mapping missing — City score ${Math.round(mappingResult.cityScore * 100)}% below threshold`,
+          created_by: "System",
+        });
+        await supabase.from("web_order_notes").insert({
+          order_id: id, note_type: "activity",
+          content: "Order confirmed and moved to Order List (Pending)", created_by: "Staff",
+        });
+        toast({ title: "📍 Address fix required", description: "District mapping needs manual selection" });
+        setAddressFixOpen(true);
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setConfirmSending(false);
       setShowConfirmDialog(false);
       queryClient.invalidateQueries({ queryKey: ["web-order", id] });
       queryClient.invalidateQueries({ queryKey: ["web-order-notes", id] });
       queryClient.invalidateQueries({ queryKey: ["web-orders"] });
       queryClient.invalidateQueries({ queryKey: ["orders-full"] });
       queryClient.invalidateQueries({ queryKey: ["order-status-counts"] });
-    },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
-  });
+    }
+  };
+
+  /* ── Address fix accept handler ── */
+  const [addressFixSending, setAddressFixSending] = useState(false);
+  const handleAddressFixAccept = async (cityId: number, cityName: string, zoneId: number, zoneName: string) => {
+    setAddressFixSending(true);
+    try {
+      await sendToPathao(cityId, cityName, zoneId, zoneName);
+      setAddressFixOpen(false);
+    } catch (err: any) {
+      toast({ title: "Pathao send failed", description: err.message, variant: "destructive" });
+      await supabase.from("orders").update({ courier_status: "PATHAO_FAILED" }).eq("id", id!);
+    } finally {
+      setAddressFixSending(false);
+      queryClient.invalidateQueries({ queryKey: ["web-order", id] });
+      queryClient.invalidateQueries({ queryKey: ["web-order-notes", id] });
+    }
+  };
 
   const noteMutation = useMutation({
     mutationFn: async () => {
@@ -350,7 +532,6 @@ export default function WebOrderDetail() {
     },
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
-
 
   /* ── Loading ── */
   if (isLoading) {
@@ -391,6 +572,13 @@ export default function WebOrderDetail() {
   const deliveryCharge = order.delivery_charge || 0;
   const grandTotal = order.total_amount || 0;
 
+  // Mapping confidence display
+  const mappingScoreColor = (score: number) => {
+    if (score >= 0.85) return "bg-emerald-100 text-emerald-700 border-emerald-200";
+    if (score >= 0.65) return "bg-amber-100 text-amber-700 border-amber-200";
+    return "bg-red-100 text-red-700 border-red-200";
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 relative overflow-hidden">
       {/* Decorative pastel gradients */}
@@ -419,6 +607,17 @@ export default function WebOrderDetail() {
             </span>
           )}
 
+          {/* Courier status badge */}
+          {order.courier_status === "ADDRESS_FIX_REQUIRED" && (
+            <Badge
+              variant="outline"
+              className="text-[10px] bg-orange-50 text-orange-700 border-orange-200 gap-1 cursor-pointer"
+              onClick={() => setAddressFixOpen(true)}
+            >
+              <MapPin className="w-3 h-3" /> Fix Address
+            </Badge>
+          )}
+
           <span className="text-[11px] text-slate-400 hidden sm:block">
             Updated {timeAgo(order.updated_at || order.created_at || "")}
           </span>
@@ -433,10 +632,20 @@ export default function WebOrderDetail() {
               <SheetContent className="bg-white/90 backdrop-blur-xl border-slate-200/60 text-slate-900">
                 <SheetHeader><SheetTitle className="text-slate-900">Courier History</SheetTitle></SheetHeader>
                 <div className="mt-6 space-y-3">
-                  {order.pathao_tracking_code ? (
+                  {order.pathao_consignment_id ? (
                     <div className={cn(glassLight, "p-4")}>
-                      <p className="text-xs text-slate-500 mb-1">Tracking Code</p>
-                      <p className="font-mono text-sm text-slate-900">{order.pathao_tracking_code}</p>
+                      <p className="text-xs text-slate-500 mb-1">Consignment ID</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-mono text-sm text-slate-900">{order.pathao_consignment_id}</p>
+                        <button onClick={() => { navigator.clipboard.writeText(order.pathao_consignment_id!); toast({ title: "Copied!" }); }}
+                          className="text-slate-400 hover:text-slate-600"><Copy className="w-3 h-3" /></button>
+                      </div>
+                      {order.pathao_tracking_code && (
+                        <div className="mt-2">
+                          <p className="text-xs text-slate-500 mb-1">Tracking Code</p>
+                          <p className="font-mono text-sm text-slate-900">{order.pathao_tracking_code}</p>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <p className="text-sm text-slate-400 text-center py-8">No courier history yet</p>
@@ -537,7 +746,6 @@ export default function WebOrderDetail() {
                 )}
               </div>
 
-              {/* Subtotal footer */}
               {items && items.length > 0 && (
                 <div className="mt-4 pt-3 border-t border-slate-200/60 flex items-center justify-between text-sm">
                   <span className="text-slate-500">Subtotal</span>
@@ -567,11 +775,11 @@ export default function WebOrderDetail() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-[11px] text-slate-500 font-medium mb-1.5 block">Tracking ID</label>
+                  <label className="text-[11px] text-slate-500 font-medium mb-1.5 block">Consignment ID</label>
                   <div className="h-9 rounded-xl bg-white/80 border border-slate-200/60 flex items-center px-3 text-sm font-mono text-slate-900">
-                    {order.pathao_tracking_code || "—"}
-                    {order.pathao_tracking_code && (
-                      <button onClick={() => { navigator.clipboard.writeText(order.pathao_tracking_code!); toast({ title: "Copied!" }); }}
+                    {order.pathao_consignment_id || "—"}
+                    {order.pathao_consignment_id && (
+                      <button onClick={() => { navigator.clipboard.writeText(order.pathao_consignment_id!); toast({ title: "Copied!" }); }}
                         className="ml-auto text-slate-400 hover:text-slate-600"><Copy className="w-3 h-3" /></button>
                     )}
                   </div>
@@ -611,7 +819,6 @@ export default function WebOrderDetail() {
                 )}
               </div>
 
-              {/* Previous notes */}
               {notes?.filter((n) => n.note_type === "note").slice(0, 3).map((note) => (
                 <div key={note.id} className="mt-2 p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/40">
                   <p className="text-xs text-slate-600">{note.content}</p>
@@ -620,7 +827,7 @@ export default function WebOrderDetail() {
               ))}
             </section>
 
-            {/* 3) ADDRESS */}
+            {/* 3) ADDRESS with confidence chips */}
             <section className={cn(glass, "p-5")}>
               <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2 mb-4">
                 <MapPin className="w-4 h-4 text-slate-400" />
@@ -762,7 +969,6 @@ export default function WebOrderDetail() {
                 </div>
               </div>
 
-              {/* Quick actions */}
               <div className="flex items-center gap-2 mb-4">
                 {customerPhone && (
                   <>
@@ -782,7 +988,6 @@ export default function WebOrderDetail() {
                 )}
               </div>
 
-              {/* Stats */}
               <div className="grid grid-cols-3 gap-2">
                 <div className="p-2 rounded-xl bg-slate-50/80 border border-slate-200/40 text-center">
                   <p className="text-[10px] text-slate-400 uppercase">Orders</p>
@@ -800,7 +1005,6 @@ export default function WebOrderDetail() {
                 </div>
               </div>
 
-              {/* BD Courier gauge */}
               {bdReport && (
                 <div className="mt-3 p-3 rounded-xl bg-slate-50/80 border border-slate-200/40">
                   <div className="flex items-center gap-3">
@@ -869,7 +1073,7 @@ export default function WebOrderDetail() {
               </div>
             </section>
 
-            {/* 3) TOTALS / ORDER SUMMARY */}
+            {/* 3) ORDER SUMMARY */}
             <section className={cn(glass, "p-5")}>
               <h2 className="text-sm font-semibold text-slate-900 mb-4">Order Summary</h2>
               <div className="space-y-2 text-xs">
@@ -886,7 +1090,6 @@ export default function WebOrderDetail() {
                   </span>
                 </div>
               </div>
-              {/* Mini summary */}
               <div className="mt-3 p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/40 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[10px]">
                 <div className="flex justify-between"><span className="text-slate-400">Items</span><span className="text-slate-600">{items?.length || 0}</span></div>
                 <div className="flex justify-between"><span className="text-slate-400">Qty</span><span className="text-slate-600">{items?.reduce((s, i) => s + i.quantity, 0) || 0}</span></div>
@@ -895,7 +1098,7 @@ export default function WebOrderDetail() {
               </div>
             </section>
 
-            {/* 4) ORDER ACTIONS / STATUS */}
+            {/* 4) STATUS ACTIONS */}
             <section className={cn(glass, "p-5")}>
               <h2 className="text-sm font-semibold text-slate-900 mb-3">Status Actions</h2>
               <div className="space-y-1.5">
@@ -906,27 +1109,30 @@ export default function WebOrderDetail() {
                       <AlertDialogRoot key={s.key} open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
                         <ADTrigger asChild>
                           <button
-                            disabled={isActive || statusMutation.isPending}
+                            disabled={isActive || statusMutation.isPending || confirmSending}
                             className={cn(
                               "w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200",
                               isActive ? s.active : s.color,
-                              (isActive || statusMutation.isPending) && "opacity-50 cursor-not-allowed"
+                              (isActive || statusMutation.isPending || confirmSending) && "opacity-50 cursor-not-allowed"
                             )}
                           >
                             <span>{s.emoji}</span> {s.label}
-                            {isActive && <CheckCircle2 className="w-3.5 h-3.5 ml-auto" />}
+                            {confirmSending && <Loader2 className="w-3.5 h-3.5 ml-auto animate-spin" />}
+                            {isActive && !confirmSending && <CheckCircle2 className="w-3.5 h-3.5 ml-auto" />}
                           </button>
                         </ADTrigger>
                         <ADContent className="rounded-2xl bg-white/90 backdrop-blur-xl border-slate-200/60 text-slate-900 shadow-xl">
                           <ADHeader>
                             <ADTitle className="text-slate-900">Confirm this order?</ADTitle>
-                            <ADDesc className="text-slate-500">This will move the order to the main processing queue.</ADDesc>
+                            <ADDesc className="text-slate-500">
+                              This will confirm the order, deduct stock, and automatically map the address for Pathao courier.
+                            </ADDesc>
                           </ADHeader>
                           <ADFooter>
                             <ADCancel className="rounded-xl bg-white/70 border-slate-200 text-slate-900 hover:bg-white">Cancel</ADCancel>
-                            <ADAction onClick={() => confirmMutation.mutate()} disabled={confirmMutation.isPending}
+                            <ADAction onClick={handleConfirmWithMapping} disabled={confirmSending}
                               className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white">
-                              {confirmMutation.isPending ? "Confirming..." : "✅ Confirm Order"}
+                              {confirmSending ? <><Loader2 className="w-4 h-4 animate-spin mr-1" /> Confirming...</> : "✅ Confirm Order"}
                             </ADAction>
                           </ADFooter>
                         </ADContent>
@@ -983,17 +1189,17 @@ export default function WebOrderDetail() {
               </div>
             </section>
 
-            {/* Pathao */}
-            {currentStatus === "confirm" && !order.pathao_consignment_id && (
-              <section className="bg-emerald-50/80 backdrop-blur-xl border border-emerald-200/60 rounded-2xl p-4 shadow-sm">
+            {/* Pathao status section — only shown after confirm */}
+            {currentStatus === "confirm" && order.courier_status === "ADDRESS_FIX_REQUIRED" && (
+              <section className="bg-orange-50/80 backdrop-blur-xl border border-orange-200/60 rounded-2xl p-4 shadow-sm">
                 <Button
-                  onClick={() => setPathaoModalOpen(true)}
-                  className="w-full rounded-xl h-10 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs gap-2"
+                  onClick={() => setAddressFixOpen(true)}
+                  className="w-full rounded-xl h-10 bg-orange-600 hover:bg-orange-700 text-white font-semibold text-xs gap-2"
                 >
-                  <Truck className="w-4 h-4" />
-                  Send to Pathao
+                  <MapPin className="w-4 h-4" />
+                  Fix Address & Send to Pathao
                 </Button>
-                <p className="text-[10px] text-emerald-600 text-center mt-2">Order confirmed — ready to ship</p>
+                <p className="text-[10px] text-orange-600 text-center mt-2">Address mapping failed — manual selection needed</p>
               </section>
             )}
 
@@ -1071,15 +1277,17 @@ export default function WebOrderDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Pathao Booking Modal */}
-      <PathaoBookingModal
-        open={pathaoModalOpen}
-        onOpenChange={setPathaoModalOpen}
-        order={order}
-        customer={customer}
-        items={items || []}
+      {/* Address Fix Drawer */}
+      <AddressFixDrawer
+        open={addressFixOpen}
+        onOpenChange={setAddressFixOpen}
+        orderId={id || ""}
+        orderNumber={order.order_number}
+        fullAddress={order.delivery_address || customer?.address || ""}
+        mappingResult={addressMappingResult}
+        onAccept={handleAddressFixAccept}
+        loading={addressFixSending}
       />
-
     </div>
   );
 }
