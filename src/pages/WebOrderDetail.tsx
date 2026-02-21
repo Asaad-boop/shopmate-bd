@@ -1190,9 +1190,10 @@ export default function WebOrderDetail() {
           </div>
         </div>
 
-        {/* ═══ STICKY BOTTOM CONFIRM BAR ═══ */}
-        <div className="h-[62px] shrink-0 bg-[#12122a]/95 backdrop-blur-2xl border-t border-white/[0.06] flex items-center px-6 z-30 shadow-[0_-8px_30px_rgba(0,0,0,0.4)] animate-fade-in"
-          style={{ animationDelay: "0.2s", animationFillMode: "both" }}>
+        {/* ═══ FLOATING BOTTOM CONFIRM BAR ═══ */}
+        <div className="shrink-0 px-4 pb-3 pt-2 z-30">
+          <div className="h-[58px] bg-[#12122a]/95 backdrop-blur-2xl rounded-2xl border border-white/[0.08] flex items-center px-6 shadow-[0_8px_40px_rgba(0,0,0,0.45),0_0_0_1px_rgba(255,255,255,0.05)_inset] animate-fade-in"
+            style={{ animationDelay: "0.15s", animationFillMode: "both" }}>
           {/* Left: Order info */}
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <div className="w-2.5 h-2.5 rounded-full bg-[#6c63ff] shrink-0 ring-4 ring-[#6c63ff]/20 animate-[pulse_3s_ease-in-out_infinite]" />
@@ -1259,6 +1260,7 @@ export default function WebOrderDetail() {
 
           {/* Right spacer */}
           <div className="flex-1" />
+          </div>
         </div>
 
         {/* ═══ REASON MODAL ═══ */}
