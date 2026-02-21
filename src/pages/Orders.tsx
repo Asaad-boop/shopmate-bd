@@ -28,8 +28,9 @@ import {
   Plus, Search, Download, Upload, ScanLine, MoreHorizontal,
   Eye, Edit, Printer, Tag, Package, Truck, CheckCircle,
   XCircle, RotateCcw, AlertTriangle, Banknote, Clock,
-  ClipboardList, PackageCheck, Undo2, Flame, Copy, Loader2, type LucideIcon
+  ClipboardList, PackageCheck, Undo2, Flame, Copy, Loader2, MapPin, type LucideIcon
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -274,9 +275,10 @@ export default function OrdersPage() {
 
     if (!district) {
       setPathaoSendingStatus((prev) => ({ ...prev, [order.id]: "failed" }));
-      await supabase.from("orders").update({ courier_status: "PATHAO_FAILED", updated_at: new Date().toISOString() }).eq("id", order.id);
-      await supabase.from("web_order_notes").insert({ order_id: order.id, note_type: "activity", content: "Pathao failed: Address mapping missing — district not found", created_by: "Staff" });
-      toast({ title: "❌ Address mapping missing", description: `#${order.order_number} — District not set`, variant: "destructive" });
+      await supabase.from("orders").update({ courier_status: "ADDRESS_FIX_REQUIRED", updated_at: new Date().toISOString() }).eq("id", order.id);
+      await supabase.from("web_order_notes").insert({ order_id: order.id, note_type: "activity", content: "Confirm blocked: mapping missing — district not found", created_by: "Staff" });
+      toast({ title: "📍 Address mapping required", description: `#${order.order_number} — please fix City/Zone/Area` });
+      queryClient.invalidateQueries({ queryKey: ["orders-full"] });
       return;
     }
 
@@ -288,7 +290,15 @@ export default function OrdersPage() {
       if (citiesErr) throw citiesErr;
       const cities = citiesData?.data?.data || [];
       const matchedCity = cities.find((c: any) => c.city_name.toLowerCase().includes(district.toLowerCase()));
-      if (!matchedCity) throw new Error(`Address mapping missing: City "${district}" not found`);
+      if (!matchedCity) {
+        // Address mapping failure — not PATHAO_FAILED
+        await supabase.from("orders").update({ courier_status: "ADDRESS_FIX_REQUIRED", updated_at: new Date().toISOString() }).eq("id", order.id);
+        await supabase.from("web_order_notes").insert({ order_id: order.id, note_type: "activity", content: `Confirm blocked: mapping missing — City "${district}" not found in Pathao`, created_by: "Staff" });
+        setPathaoSendingStatus((prev) => ({ ...prev, [order.id]: "failed" }));
+        toast({ title: "📍 Address mapping required", description: `#${order.order_number} — please fix City/Zone/Area` });
+        queryClient.invalidateQueries({ queryKey: ["orders-full"] });
+        return;
+      }
 
       // Fetch zones
       const { data: zonesData, error: zonesErr } = await supabase.functions.invoke("pathao-proxy", { body: { action: "zones", city_id: matchedCity.city_id } });
@@ -296,7 +306,14 @@ export default function OrdersPage() {
       const zones = zonesData?.data?.data || [];
       let matchedZone = zones.find((z: any) => z.zone_name.toLowerCase().includes(thana.toLowerCase()));
       if (!matchedZone && zones.length > 0) matchedZone = zones[0]; // fallback to first zone
-      if (!matchedZone) throw new Error(`Address mapping missing: Zone "${thana}" not found`);
+      if (!matchedZone) {
+        await supabase.from("orders").update({ courier_status: "ADDRESS_FIX_REQUIRED", updated_at: new Date().toISOString() }).eq("id", order.id);
+        await supabase.from("web_order_notes").insert({ order_id: order.id, note_type: "activity", content: `Confirm blocked: mapping missing — Zone "${thana}" not found in Pathao`, created_by: "Staff" });
+        setPathaoSendingStatus((prev) => ({ ...prev, [order.id]: "failed" }));
+        toast({ title: "📍 Address mapping required", description: `#${order.order_number} — please fix City/Zone/Area` });
+        queryClient.invalidateQueries({ queryKey: ["orders-full"] });
+        return;
+      }
 
       // Calculate weight
       const totalWeight = items.reduce((sum: number, i: any) => sum + ((i.products as any)?.weight_kg || 0) * i.quantity, 0);
@@ -651,19 +668,33 @@ export default function OrdersPage() {
                               <Loader2 className="w-3 h-3 animate-spin" /> Sending…
                             </Badge>
                           ) : order.pathao_consignment_id ? (
-                            <div className="flex items-center gap-1">
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] font-mono bg-emerald-50 text-emerald-700 border-emerald-200 cursor-pointer hover:bg-emerald-100 transition-colors"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(order.pathao_consignment_id || "");
-                                  toast({ title: "Copied!", description: order.pathao_consignment_id });
-                                }}
-                              >
-                                {order.pathao_consignment_id}
-                                <Copy className="w-2.5 h-2.5 ml-1" />
-                              </Badge>
-                            </div>
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] font-mono bg-emerald-50 text-emerald-700 border-emerald-200 cursor-pointer hover:bg-emerald-100 transition-colors gap-1"
+                              onClick={() => {
+                                navigator.clipboard.writeText(order.pathao_consignment_id || "");
+                                toast({ title: "Copied!", description: order.pathao_consignment_id });
+                              }}
+                            >
+                              <Truck className="w-3 h-3" />
+                              {order.pathao_consignment_id}
+                              <Copy className="w-2.5 h-2.5" />
+                            </Badge>
+                          ) : order.courier_status === "ADDRESS_FIX_REQUIRED" ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] bg-orange-50 text-orange-700 border-orange-200 cursor-pointer gap-1"
+                                    onClick={() => navigate(`/orders/${order.id}`)}
+                                  >
+                                    <MapPin className="w-3 h-3" /> Fix Address
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>Click to fix City/Zone/Area mapping</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           ) : order.courier_status === "PATHAO_FAILED" ? (
                             <Badge variant="outline" className="text-[10px] bg-red-50 text-red-600 border-red-200">
                               Failed
@@ -713,9 +744,20 @@ export default function OrdersPage() {
                               <DropdownMenuSub>
                                 <DropdownMenuSubTrigger>📮 Send to Courier</DropdownMenuSubTrigger>
                                 <DropdownMenuSubContent>
-                                  <DropdownMenuItem onClick={() => sendOrderToPathao(order)} disabled={pathaoSendingStatus[order.id] === "sending"}>
-                                    Pathao
-                                  </DropdownMenuItem>
+                                  {order.web_order_status && order.web_order_status !== "confirm" ? (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <DropdownMenuItem disabled>Pathao</DropdownMenuItem>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Available after Confirm</TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  ) : (
+                                    <DropdownMenuItem onClick={() => sendOrderToPathao(order)} disabled={pathaoSendingStatus[order.id] === "sending"}>
+                                      Pathao
+                                    </DropdownMenuItem>
+                                  )}
                                 </DropdownMenuSubContent>
                               </DropdownMenuSub>
                               <DropdownMenuSeparator />
