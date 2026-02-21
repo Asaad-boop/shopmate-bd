@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -42,7 +42,7 @@ import { useAddressParser } from "@/hooks/use-address-parser";
 import { useBDCourierSingle, getRiskLevel, getSuccessColor } from "@/hooks/use-bd-courier";
 import { PathaoTrackingCard } from "@/components/pathao/PathaoTrackingCard";
 import { AddressFixDrawer } from "@/components/orders/AddressFixDrawer";
-import { mapAddressToPathao, type MappingResult, findBestMatch } from "@/lib/address-mapper";
+import { mapAddressToPathao, type MappingResult, findBestMatch, DISTRICT_SYNONYMS, THANA_SYNONYMS } from "@/lib/address-mapper";
 import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/use-pathao";
 import { useCompanySettings } from "@/hooks/use-company-settings";
 import { useInvoiceSettings } from "@/hooks/use-invoice-settings";
@@ -176,6 +176,7 @@ export default function WebOrderDetail() {
   const [pathaoAreaId, setPathaoAreaId] = useState<number | null>(null);
   const [citySearch, setCitySearch] = useState("");
   const [zoneSearch, setZoneSearch] = useState("");
+  const isAutoMappingCity = useRef(false);
 
   const { data: pathaoCities, isLoading: citiesLoading } = usePathaoCities();
   const { data: pathaoZones, isLoading: zonesLoading } = usePathaoZones(pathaoCityId);
@@ -346,13 +347,18 @@ export default function WebOrderDetail() {
     const district = detectedDistrict || deliveryForm.city;
     if (!district || district === "-" || pathaoCityId) return;
     const candidates = pathaoCities.map(c => ({ id: c.city_id, name: c.city_name }));
-    const match = findBestMatch(district, candidates);
+    // Try district name first, then full address for cross-script matching
+    let match = findBestMatch(district, candidates, DISTRICT_SYNONYMS);
+    if (!match.best || match.score < 0.70) {
+      const address = order?.delivery_address || deliveryForm.address;
+      if (address) match = findBestMatch(address, candidates, DISTRICT_SYNONYMS);
+    }
     if (match.best && match.score >= 0.70) {
+      isAutoMappingCity.current = true;
       setPathaoCityId(match.best.id);
-      // Update deliveryForm.city to English name
       setDeliveryForm(f => ({ ...f, city: match.best!.name }));
     }
-  }, [pathaoCities, detectedDistrict, deliveryForm.city]);
+  }, [pathaoCities, detectedDistrict, deliveryForm.city, order?.delivery_address]);
 
   // Auto-match detected thana → Pathao zone (supports Bengali + English via fuzzy match)
   useEffect(() => {
@@ -360,13 +366,17 @@ export default function WebOrderDetail() {
     const thana = detectedThana || deliveryForm.zone;
     if (!thana || thana === "-" || pathaoZoneId) return;
     const candidates = pathaoZones.map(z => ({ id: z.zone_id, name: z.zone_name }));
-    const match = findBestMatch(thana, candidates);
+    // Try thana name first, then full address for cross-script matching
+    let match = findBestMatch(thana, candidates, THANA_SYNONYMS);
+    if (!match.best || match.score < 0.65) {
+      const address = order?.delivery_address || deliveryForm.address;
+      if (address) match = findBestMatch(address, candidates, THANA_SYNONYMS);
+    }
     if (match.best && match.score >= 0.65) {
       setPathaoZoneId(match.best.id);
-      // Update deliveryForm.zone to English name
       setDeliveryForm(f => ({ ...f, zone: match.best!.name }));
     }
-  }, [pathaoZones, detectedThana, deliveryForm.zone]);
+  }, [pathaoZones, detectedThana, deliveryForm.zone, order?.delivery_address]);
 
   // Auto-match address → Pathao area (fuzzy match against area names)
   useEffect(() => {
@@ -381,8 +391,15 @@ export default function WebOrderDetail() {
     }
   }, [pathaoAreas, order?.delivery_address, deliveryForm.address]);
 
-  // Reset zone when city changes
-  useEffect(() => { setPathaoZoneId(null); setPathaoAreaId(null); }, [pathaoCityId]);
+  // Reset zone/area only on MANUAL city changes (skip auto-mapping)
+  useEffect(() => {
+    if (isAutoMappingCity.current) {
+      isAutoMappingCity.current = false;
+      return;
+    }
+    setPathaoZoneId(null);
+    setPathaoAreaId(null);
+  }, [pathaoCityId]);
 
   // Filtered lists for search
   const filteredCities = pathaoCities?.filter(c => c.city_name.toLowerCase().includes(citySearch.toLowerCase())) || [];
