@@ -20,7 +20,6 @@ import { applyStatusChange, applyDamageReturn } from "@/hooks/use-orders";
 import { StatusChangeModal } from "@/components/orders/StatusChangeModal";
 import { DamageReturnModal } from "@/components/orders/DamageReturnModal";
 import { ScanMode } from "@/components/orders/ScanMode";
-import { PathaoBookingModal } from "@/components/pathao/PathaoBookingModal";
 import { printInvoice, printBulkInvoices, printPickingList, printPackingSlip, printBarcodeLabels } from "@/components/orders/PrintInvoice";
 import { BulkActionsDropdown } from "@/components/orders/BulkActionsDropdown";
 import { CODReconciliation } from "@/components/orders/CODReconciliation";
@@ -29,7 +28,7 @@ import {
   Plus, Search, Download, Upload, ScanLine, MoreHorizontal,
   Eye, Edit, Printer, Tag, Package, Truck, CheckCircle,
   XCircle, RotateCcw, AlertTriangle, Banknote, Clock,
-  ClipboardList, PackageCheck, Undo2, Flame, type LucideIcon
+  ClipboardList, PackageCheck, Undo2, Flame, Copy, Loader2, type LucideIcon
 } from "lucide-react";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -70,8 +69,25 @@ export default function OrdersPage() {
   // Modals
   const [statusModal, setStatusModal] = useState<{ open: boolean; orderId: string; orderNumber: string; newStatus: string } | null>(null);
   const [damageModal, setDamageModal] = useState<{ open: boolean; orderId: string; orderNumber: string } | null>(null);
-  const [pathaoModal, setPathaoModal] = useState<{ open: boolean; order: any; customer: any; items: any[] } | null>(null);
   const [changing, setChanging] = useState(false);
+
+  // Direct Pathao sending state: orderId -> "sending" | "success" | "failed"
+  const [pathaoSendingStatus, setPathaoSendingStatus] = useState<Record<string, "sending" | "success" | "failed">>({});
+
+  // Pathao defaults
+  const { data: pathaoDefaults } = useQuery({
+    queryKey: ["pathao-defaults"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("settings")
+        .select("key, value")
+        .in("key", ["pathao_default_store", "pathao_delivery_type", "pathao_default_weight"]);
+      const map: Record<string, string> = {};
+      data?.forEach((s: any) => { map[s.key] = s.value || ""; });
+      return map;
+    },
+    staleTime: 60 * 1000,
+  });
 
   // Fetch orders with items and customers
   const { data: orders, isLoading } = useQuery({
@@ -222,14 +238,138 @@ export default function OrdersPage() {
     if (type === "barcode") printBarcodeLabels(selected, companySettings);
   };
 
-  // Send to Pathao
-  const openPathaoModal = (order: any) => {
-    setPathaoModal({
-      open: true,
-      order,
-      customer: order.customers,
-      items: order.order_items || [],
-    });
+  // Normalise phone for Pathao
+  const normalizePhone = (phone: string) => {
+    let p = phone.replace(/\s+/g, "");
+    if (p.startsWith("+88")) p = p.slice(3);
+    else if (p.startsWith("88") && p.length > 11) p = p.slice(2);
+    return p;
+  };
+
+  // Direct send to Pathao — no modal
+  const sendOrderToPathao = async (order: any) => {
+    const customer = order.customers as any;
+    const items = (order.order_items || []) as any[];
+    const storeId = pathaoDefaults?.pathao_default_store;
+    const deliveryType = pathaoDefaults?.pathao_delivery_type || "48";
+    const defaultWeight = pathaoDefaults?.pathao_default_weight || "0.5";
+
+    if (!storeId) {
+      toast({ title: "Pathao store সেট করুন", description: "Settings → Pathao → Default Store সেট করুন", variant: "destructive" });
+      return;
+    }
+
+    if (!customer?.phone || !customer?.full_name) {
+      // Mark failed
+      setPathaoSendingStatus((prev) => ({ ...prev, [order.id]: "failed" }));
+      await supabase.from("orders").update({ courier_status: "PATHAO_FAILED", updated_at: new Date().toISOString() }).eq("id", order.id);
+      await supabase.from("web_order_notes").insert({ order_id: order.id, note_type: "activity", content: "Pathao failed: Customer info missing", created_by: "Staff" });
+      toast({ title: "❌ Customer info missing", description: `#${order.order_number}`, variant: "destructive" });
+      return;
+    }
+
+    // Map district → Pathao city
+    const district = (order.delivery_district || customer?.district || "").trim();
+    const thana = (order.delivery_thana || customer?.thana || "").trim();
+
+    if (!district) {
+      setPathaoSendingStatus((prev) => ({ ...prev, [order.id]: "failed" }));
+      await supabase.from("orders").update({ courier_status: "PATHAO_FAILED", updated_at: new Date().toISOString() }).eq("id", order.id);
+      await supabase.from("web_order_notes").insert({ order_id: order.id, note_type: "activity", content: "Pathao failed: Address mapping missing — district not found", created_by: "Staff" });
+      toast({ title: "❌ Address mapping missing", description: `#${order.order_number} — District not set`, variant: "destructive" });
+      return;
+    }
+
+    setPathaoSendingStatus((prev) => ({ ...prev, [order.id]: "sending" }));
+
+    try {
+      // Fetch cities
+      const { data: citiesData, error: citiesErr } = await supabase.functions.invoke("pathao-proxy", { body: { action: "cities" } });
+      if (citiesErr) throw citiesErr;
+      const cities = citiesData?.data?.data || [];
+      const matchedCity = cities.find((c: any) => c.city_name.toLowerCase().includes(district.toLowerCase()));
+      if (!matchedCity) throw new Error(`Address mapping missing: City "${district}" not found`);
+
+      // Fetch zones
+      const { data: zonesData, error: zonesErr } = await supabase.functions.invoke("pathao-proxy", { body: { action: "zones", city_id: matchedCity.city_id } });
+      if (zonesErr) throw zonesErr;
+      const zones = zonesData?.data?.data || [];
+      let matchedZone = zones.find((z: any) => z.zone_name.toLowerCase().includes(thana.toLowerCase()));
+      if (!matchedZone && zones.length > 0) matchedZone = zones[0]; // fallback to first zone
+      if (!matchedZone) throw new Error(`Address mapping missing: Zone "${thana}" not found`);
+
+      // Calculate weight
+      const totalWeight = items.reduce((sum: number, i: any) => sum + ((i.products as any)?.weight_kg || 0) * i.quantity, 0);
+      const weight = totalWeight > 0 ? Math.round(totalWeight * 10) / 10 : Number(defaultWeight);
+
+      const isCOD = order.payment_method?.toLowerCase() === "cod" || order.payment_status !== "paid";
+      const totalItems = items.reduce((sum: number, i: any) => sum + i.quantity, 0) || 1;
+      const desc = items.map((i: any) => (i.products as any)?.name).filter(Boolean).join(", ") || "";
+
+      const orderPayload = {
+        orders: [{
+          store_id: Number(storeId),
+          merchant_order_id: order.order_number,
+          recipient_name: customer.full_name,
+          recipient_phone: normalizePhone(customer.phone),
+          recipient_address: order.delivery_address || customer.address || "",
+          recipient_city: matchedCity.city_id,
+          recipient_zone: matchedZone.zone_id,
+          delivery_type: Number(deliveryType),
+          item_type: 2,
+          special_instruction: "",
+          item_quantity: totalItems,
+          item_weight: weight,
+          amount_to_collect: isCOD ? Number(order.total_amount || 0) : 0,
+          item_description: desc,
+        }],
+      };
+
+      const { data: result, error: sendErr } = await supabase.functions.invoke("pathao-proxy", { body: { action: "create_order", order: orderPayload } });
+      if (sendErr) throw sendErr;
+      if (result?._ok === false) {
+        const msg = result?.message || (result?.errors ? JSON.stringify(result.errors) : "Pathao API error");
+        throw new Error(msg);
+      }
+
+      const consignment = result?.data?.[0] || result?.[0];
+      const consignmentId = consignment?.consignment_id || "";
+      const trackingCode = consignment?.tracking_code || "";
+
+      if (consignmentId) {
+        await supabase.from("orders").update({
+          pathao_consignment_id: String(consignmentId),
+          pathao_tracking_code: trackingCode,
+          courier_status: "Pending",
+          updated_at: new Date().toISOString(),
+        }).eq("id", order.id);
+        await supabase.from("web_order_notes").insert({ order_id: order.id, note_type: "activity", content: `Sent to Pathao • consignmentId=${consignmentId}`, created_by: "Staff" });
+        toast({ title: "✅ Pathao এ পাঠানো হয়েছে!", description: `#${order.order_number} → ${consignmentId}` });
+      } else {
+        await supabase.from("orders").update({ courier_status: "Processing", updated_at: new Date().toISOString() }).eq("id", order.id);
+        await supabase.from("web_order_notes").insert({ order_id: order.id, note_type: "activity", content: `Sent to Pathao (bulk). ${result?.message || "Processing..."}`, created_by: "Staff" });
+        toast({ title: "✅ Pathao এ পাঠানো হয়েছে!", description: result?.message || "Processing..." });
+      }
+
+      setPathaoSendingStatus((prev) => ({ ...prev, [order.id]: "success" }));
+      queryClient.invalidateQueries({ queryKey: ["orders-full"] });
+      queryClient.invalidateQueries({ queryKey: ["order-status-counts"] });
+    } catch (err: any) {
+      console.error("Pathao send error:", err);
+      setPathaoSendingStatus((prev) => ({ ...prev, [order.id]: "failed" }));
+      await supabase.from("orders").update({ courier_status: "PATHAO_FAILED", updated_at: new Date().toISOString() }).eq("id", order.id);
+      await supabase.from("web_order_notes").insert({ order_id: order.id, note_type: "activity", content: `Pathao failed: ${err.message}`, created_by: "Staff" });
+      toast({ title: "❌ Pathao failed", description: `#${order.order_number}: ${err.message}`, variant: "destructive" });
+      queryClient.invalidateQueries({ queryKey: ["orders-full"] });
+    }
+  };
+
+  // Bulk send to Pathao
+  const handleBulkPathaoSend = async () => {
+    const selectedOrders = orders?.filter((o) => selectedIds.has(o.id)) || [];
+    for (const order of selectedOrders) {
+      sendOrderToPathao(order); // fire and forget per order — each manages its own state
+    }
   };
 
   // CSV Export
@@ -276,8 +416,7 @@ export default function OrdersPage() {
             onPrint={handleBulkPrint}
             onCourier={(courier) => {
               if (courier === "pathao") {
-                const firstSelected = orders?.find((o) => selectedIds.has(o.id));
-                if (firstSelected) openPathaoModal(firstSelected);
+                handleBulkPathaoSend();
               } else {
                 toast({ title: `${courier} integration coming soon` });
               }
@@ -507,13 +646,28 @@ export default function OrdersPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {order.pathao_consignment_id ? (
-                            <div>
-                              <p className="text-xs font-mono">{order.pathao_tracking_code}</p>
-                              <Badge variant="outline" className="text-[10px]">
-                                {order.courier_status || "Pending"}
+                          {pathaoSendingStatus[order.id] === "sending" ? (
+                            <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 gap-1">
+                              <Loader2 className="w-3 h-3 animate-spin" /> Sending…
+                            </Badge>
+                          ) : order.pathao_consignment_id ? (
+                            <div className="flex items-center gap-1">
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] font-mono bg-emerald-50 text-emerald-700 border-emerald-200 cursor-pointer hover:bg-emerald-100 transition-colors"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(order.pathao_consignment_id || "");
+                                  toast({ title: "Copied!", description: order.pathao_consignment_id });
+                                }}
+                              >
+                                {order.pathao_consignment_id}
+                                <Copy className="w-2.5 h-2.5 ml-1" />
                               </Badge>
                             </div>
+                          ) : order.courier_status === "PATHAO_FAILED" ? (
+                            <Badge variant="outline" className="text-[10px] bg-red-50 text-red-600 border-red-200">
+                              Failed
+                            </Badge>
                           ) : (
                             <span className="text-muted-foreground">—</span>
                           )}
@@ -559,7 +713,7 @@ export default function OrdersPage() {
                               <DropdownMenuSub>
                                 <DropdownMenuSubTrigger>📮 Send to Courier</DropdownMenuSubTrigger>
                                 <DropdownMenuSubContent>
-                                  <DropdownMenuItem onClick={() => openPathaoModal(order)}>
+                                  <DropdownMenuItem onClick={() => sendOrderToPathao(order)} disabled={pathaoSendingStatus[order.id] === "sending"}>
                                     Pathao
                                   </DropdownMenuItem>
                                 </DropdownMenuSubContent>
@@ -616,15 +770,6 @@ export default function OrdersPage() {
         />
       )}
 
-      {pathaoModal && (
-        <PathaoBookingModal
-          open={pathaoModal.open}
-          onOpenChange={(open) => !open && setPathaoModal(null)}
-          order={pathaoModal.order}
-          customer={pathaoModal.customer}
-          items={pathaoModal.items}
-        />
-      )}
 
       <CODReconciliation open={codPanelOpen} onOpenChange={setCodPanelOpen} />
     </div>
