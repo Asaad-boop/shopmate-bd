@@ -13,7 +13,7 @@
 /* ── Normalization Maps ── */
 
 export const BN_EN_ALIAS_MAP: Record<string, string> = {
-  // Bengali script → English
+  // Bengali script → English (Dhaka)
   "ঢাকা": "dhaka", "ধানমন্ডি": "dhanmondi", "ধানমণ্ডি": "dhanmondi",
   "মিরপুর": "mirpur", "উত্তরা": "uttara", "গুলশান": "gulshan",
   "বনানী": "banani", "মোহাম্মদপুর": "mohammadpur", "মহম্মদপুর": "mohammadpur",
@@ -30,6 +30,25 @@ export const BN_EN_ALIAS_MAP: Record<string, string> = {
   "বনশ্রী": "banasree", "লালবাগ": "lalbagh",
   "পান্থপথ": "panthapath", "কারওয়ান বাজার": "kawran bazar",
   "কাওরান বাজার": "kawran bazar", "গ্রীন রোড": "green road",
+  // Bengali script → English (Chittagong)
+  "চট্টগ্রাম": "chittagong", "চট্‌গ্রাম": "chittagong", "চট্টগ্রামহ": "chittagong",
+  "আগ্রাবাদ": "agrabad", "নাসিরাবাদ": "nasirabad", "হালিশহর": "halishahar",
+  "পাহাড়তলী": "pahartali", "পতেঙ্গা": "patenga", "বায়েজিদ": "bayazid",
+  "ষোলশহর": "sholashahar", "ডবলমুরিং": "double mooring",
+  "জলসা": "jalsha", "চকবাজার": "chawkbazar",
+  "কোতোয়ালী": "kotwali", "বাকলিয়া": "bakalia",
+  "খুলশী": "khulshi", "ওয়াসা": "wasa",
+  // Bengali script → English (Sylhet)
+  "সিলেট": "sylhet", "সিলেটহ": "sylhet",
+  "আম্বরখানা": "ambarkhana", "জিন্দাবাজার": "zindabazar",
+  "শাহজালাল": "shahjalal", "সুবিদবাজার": "subid bazar",
+  "কুমারগাঁও": "kumargaon", "মজুমদারী": "mojumdari",
+  "টিলাগড়": "tilagarh", "শাহপরাণ": "shahparan",
+  // Bengali script → English (Rajshahi)
+  "রাজশাহী": "rajshahi", "রাজশাহি": "rajshahi",
+  "সাহেব বাজার": "saheb bazar", "বোয়ালিয়া": "boalia",
+  "রাজপাড়া": "rajpara", "মতিহার": "motihar",
+  "শাহমখদুম": "shah makhdum", "উপশহর": "upashahar",
   // Common Bengali words in addresses
   "রোড": "road", "সড়ক": "road", "লেন": "lane", "গলি": "lane",
   "বাড়ি": "house", "ফ্ল্যাট": "flat", "তলা": "floor",
@@ -842,4 +861,477 @@ export const DHAKA_CITY: CityDefinition = {
       ),
     },
   },
+};
+
+/* ── Chittagong City Definition ── */
+
+export const CHITTAGONG_CITY: CityDefinition = {
+  zones: {
+    "Agrabad": {
+      aliases: ["agrabad", "agrabadh"],
+      strong_keywords: ["agrabad commercial", "agrabad access road"],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {
+        "Agrabad Commercial Area": { aliases: ["agrabad commercial", "commercial area agrabad"] },
+        "Agrabad Access Road": { aliases: ["agrabad access road", "access road"] },
+      },
+    },
+    "Nasirabad": {
+      aliases: ["nasirabad", "nasirabadh"],
+      strong_keywords: ["nasirabad housing", "cda avenue"],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {
+        "CDA Avenue": { aliases: ["cda avenue", "cda"] },
+        "Nasirabad Housing": { aliases: ["nasirabad housing"] },
+      },
+    },
+    "Khulshi": {
+      aliases: ["khulshi", "khulsi"],
+      strong_keywords: ["khulshi hill", "radisson"],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Halishahar": {
+      aliases: ["halishahar", "halishahr", "halishohor"],
+      strong_keywords: ["halishahar housing"],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {
+        "Halishahar Housing Estate": { aliases: ["halishahar housing", "housing estate halishahar"] },
+      },
+    },
+    "Pahartali": {
+      aliases: ["pahartali", "pahartoli"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Patenga": {
+      aliases: ["patenga", "patanga"],
+      strong_keywords: ["patenga beach", "patenga sea beach"],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Bayazid": {
+      aliases: ["bayazid", "bayezid", "bayajid"],
+      strong_keywords: ["bayazid bostami"],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Sholashahar": {
+      aliases: ["sholashahar", "soloshohor", "16 no shahar"],
+      strong_keywords: ["sholashahar railway"],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Double Mooring": {
+      aliases: ["double mooring", "double muring"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Kotwali": {
+      aliases: ["kotwali", "kotowali"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Bakalia": {
+      aliases: ["bakalia", "bokolia"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Chandgaon": {
+      aliases: ["chandgaon", "chand gaon"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "GEC Circle": {
+      aliases: ["gec circle", "gec mor", "gec"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Muradpur": {
+      aliases: ["muradpur", "muradpoor"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Oxygen": {
+      aliases: ["oxygen", "oxygen mor"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Chawkbazar CTG": {
+      aliases: ["chawkbazar", "chawk bazar", "chowk bazar"],
+      strong_keywords: [],
+      weak_keywords: ["chittagong", "chattogram"],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Lalkhan Bazar": {
+      aliases: ["lalkhan bazar", "lal khan bazar"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Dampara": {
+      aliases: ["dampara", "dam para"],
+      strong_keywords: ["dampara stadium"],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Wasa Circle": {
+      aliases: ["wasa", "wasa circle", "wasa mor"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Anderkilla": {
+      aliases: ["anderkilla", "ander killa"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Karnaphuli": {
+      aliases: ["karnaphuli", "kornofuli"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "EPZ": {
+      aliases: ["epz", "export processing zone", "kepz", "chittagong epz"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Sitakunda": {
+      aliases: ["sitakunda", "sitakundo"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Anwara": {
+      aliases: ["anwara", "anowara"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+  },
+  ambiguous_tokens: {
+    "chawkbazar": {
+      possible_zones: ["Chawkbazar CTG"],
+      disambiguation_signals: {
+        "chittagong": "Chawkbazar CTG",
+        "chattogram": "Chawkbazar CTG",
+      },
+    },
+  },
+};
+
+/* ── Sylhet City Definition ── */
+
+export const SYLHET_CITY: CityDefinition = {
+  zones: {
+    "Ambarkhana": {
+      aliases: ["ambarkhana", "amberkhana", "amber khana"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Zindabazar": {
+      aliases: ["zindabazar", "jindabazar", "zinda bazar", "jinda bazar"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Subid Bazar": {
+      aliases: ["subid bazar", "subidbazar", "sobid bazar"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Kumargaon": {
+      aliases: ["kumargaon", "kumar gaon"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Tilagarh": {
+      aliases: ["tilagarh", "tila garh", "tilagar"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Shahparan": {
+      aliases: ["shahparan", "shah paran", "shahporon"],
+      strong_keywords: ["shah paran dargah"],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Modina Market": {
+      aliases: ["modina market", "madina market"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Upashahar": {
+      aliases: ["upashahar", "uposhohor", "upa shahar"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Pathantula": {
+      aliases: ["pathantula", "pathantoola"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Mirabazar": {
+      aliases: ["mirabazar", "mira bazar", "mirza bazar"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Chouhatta": {
+      aliases: ["chouhatta", "chowatta", "chow hatta"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Shibganj Sylhet": {
+      aliases: ["shibganj", "shibgonj"],
+      strong_keywords: [],
+      weak_keywords: ["sylhet"],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Rikabi Bazar": {
+      aliases: ["rikabi bazar", "rikabibazar"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Nayasarak": {
+      aliases: ["nayasarak", "naya sarak", "noya sarak"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Kazitula": {
+      aliases: ["kazitula", "kazi tula"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "South Surma": {
+      aliases: ["south surma", "dakhkhin surma"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Jalalabad": {
+      aliases: ["jalalabad", "jalalabadh"],
+      strong_keywords: ["jalalabad housing"],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {
+        "Jalalabad Housing": { aliases: ["jalalabad housing"] },
+      },
+    },
+    "Sylhet Sadar": {
+      aliases: ["sylhet sadar"],
+      strong_keywords: [],
+      weak_keywords: ["sylhet"],
+      negative_keywords: [],
+      areas: {},
+    },
+  },
+  ambiguous_tokens: {},
+};
+
+/* ── Rajshahi City Definition ── */
+
+export const RAJSHAHI_CITY: CityDefinition = {
+  zones: {
+    "Saheb Bazar": {
+      aliases: ["saheb bazar", "shaheb bazar", "saheb bazaar"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Boalia": {
+      aliases: ["boalia", "bowalia"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Rajpara": {
+      aliases: ["rajpara", "raj para"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Motihar": {
+      aliases: ["motihar", "motihaar", "motihor"],
+      strong_keywords: ["rajshahi university", "ru campus"],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {
+        "Rajshahi University": { aliases: ["rajshahi university", "ru campus", "ru"] },
+      },
+    },
+    "Shah Makhdum": {
+      aliases: ["shah makhdum", "shah mokhdum", "shahmokhdum"],
+      strong_keywords: ["shah makhdum dargah"],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Upashahar Rajshahi": {
+      aliases: ["upashahar", "uposhohor", "upa shahar"],
+      strong_keywords: [],
+      weak_keywords: ["rajshahi"],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Talaimari": {
+      aliases: ["talaimari", "talai mari"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Kazla": {
+      aliases: ["kazla", "kajla"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Laxmipur Rajshahi": {
+      aliases: ["laxmipur", "lokkhipur"],
+      strong_keywords: [],
+      weak_keywords: ["rajshahi"],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Padma Residential Area": {
+      aliases: ["padma residential", "padma r/a", "padma residential area"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Binodpur": {
+      aliases: ["binodpur", "binodpoor"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Katakhali": {
+      aliases: ["katakhali", "kata khali"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "New Market Rajshahi": {
+      aliases: ["new market rajshahi", "rajshahi new market"],
+      strong_keywords: [],
+      weak_keywords: ["new market"],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Rajshahi Court": {
+      aliases: ["rajshahi court", "court area"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+    "Hetemkhan": {
+      aliases: ["hetemkhan", "hetem khan"],
+      strong_keywords: [],
+      weak_keywords: [],
+      negative_keywords: [],
+      areas: {},
+    },
+  },
+  ambiguous_tokens: {
+    "upashahar": {
+      possible_zones: ["Upashahar Rajshahi"],
+      disambiguation_signals: {
+        "rajshahi": "Upashahar Rajshahi",
+      },
+    },
+    "new market": {
+      possible_zones: ["New Market Rajshahi"],
+      disambiguation_signals: {
+        "rajshahi": "New Market Rajshahi",
+      },
+    },
+  },
+};
+
+/* ── City Registry ── */
+
+export const CITY_DEFINITIONS: Record<string, CityDefinition> = {
+  "Dhaka": DHAKA_CITY,
+  "Chittagong": CHITTAGONG_CITY,
+  "Sylhet": SYLHET_CITY,
+  "Rajshahi": RAJSHAHI_CITY,
+};
+
+/** City detection keywords — used when no city is explicitly selected */
+export const CITY_DETECTION_KEYWORDS: Record<string, string[]> = {
+  "Chittagong": ["chittagong", "chattogram", "chottogram", "ctg", "চট্টগ্রাম"],
+  "Sylhet": ["sylhet", "silhet", "সিলেট"],
+  "Rajshahi": ["rajshahi", "rajsahi", "রাজশাহী"],
+  "Dhaka": ["dhaka", "dacca", "ঢাকা"],
 };

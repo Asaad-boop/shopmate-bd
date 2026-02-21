@@ -18,6 +18,8 @@ import {
   CONFIDENCE_CONFIG,
   HARD_RULES,
   DHAKA_CITY,
+  CITY_DEFINITIONS,
+  CITY_DETECTION_KEYWORDS,
   type HardRule,
   type ZoneDefinition,
   type CityDefinition,
@@ -89,6 +91,20 @@ function checkHardRules(normalized: string): { zone: string; reason: string } | 
     }
 
     return { zone: rule.force_zone, reason: rule.reason };
+  }
+  return null;
+}
+/* ── City Auto-Detection ── */
+
+function detectCityFromAddress(normalized: string): string | null {
+  // Check non-Dhaka cities first (Dhaka is default fallback)
+  for (const city of ["Chittagong", "Sylhet", "Rajshahi"]) {
+    const keywords = CITY_DETECTION_KEYWORDS[city] || [];
+    for (const kw of keywords) {
+      if (normalized.includes(kw)) {
+        return city;
+      }
+    }
   }
   return null;
 }
@@ -257,8 +273,15 @@ export function parseAddress(
   let needs_manual_review = false;
   let city = userSelectedCity;
 
-  // Get city definition (currently Dhaka only)
-  const cityDef = DHAKA_CITY; // TODO: extend for other cities
+  // Auto-detect city from address if not explicitly set
+  const detectedCity = detectCityFromAddress(address_normalized);
+  if (detectedCity && detectedCity !== city) {
+    city = detectedCity;
+    reasons.push(`City auto-detected: ${detectedCity}`);
+  }
+
+  // Get city definition
+  const cityDef = CITY_DEFINITIONS[city] || DHAKA_CITY;
 
   // B) Check hard rules FIRST
   const hardRule = checkHardRules(address_normalized);
