@@ -19,6 +19,7 @@ import {
   List,
   FileText,
   User,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -70,6 +71,7 @@ const navItems: NavItem[] = [
   { label: "HRM", icon: UserCog, path: "/hrm" },
   { label: "CRM", icon: Handshake, path: "/crm" },
   { label: "Settings", icon: Settings, path: "/settings" },
+  { label: "System Health", icon: Activity, path: "/system-health" },
 ];
 
 export function AppSidebar() {

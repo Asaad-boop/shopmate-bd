@@ -1144,6 +1144,30 @@ export type Database = {
           },
         ]
       }
+      storage_metrics: {
+        Row: {
+          id: string
+          last_updated: string
+          module_name: string
+          total_gb: number
+          used_gb: number
+        }
+        Insert: {
+          id?: string
+          last_updated?: string
+          module_name: string
+          total_gb?: number
+          used_gb?: number
+        }
+        Update: {
+          id?: string
+          last_updated?: string
+          module_name?: string
+          total_gb?: number
+          used_gb?: number
+        }
+        Relationships: []
+      }
       suppliers: {
         Row: {
           address: string | null
@@ -1201,6 +1225,39 @@ export type Database = {
           total_orders?: number | null
           wechat_id?: string | null
           whatsapp?: string | null
+        }
+        Relationships: []
+      }
+      system_issues: {
+        Row: {
+          description: string | null
+          id: string
+          module: string | null
+          reported_at: string
+          reported_by: string | null
+          severity: string
+          status: string
+          title: string
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          module?: string | null
+          reported_at?: string
+          reported_by?: string | null
+          severity?: string
+          status?: string
+          title: string
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          module?: string | null
+          reported_at?: string
+          reported_by?: string | null
+          severity?: string
+          status?: string
+          title?: string
         }
         Relationships: []
       }
