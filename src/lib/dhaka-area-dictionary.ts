@@ -1,6 +1,7 @@
 /**
  * Dhaka-specific area → zone dictionary for precise address mapping.
  * Maps common area/landmark names to their correct Pathao zone.
+ * Includes Bengali romanization variations and misspellings.
  * 
  * Format: { "normalized keyword": "Pathao zone name" }
  * All keys are lowercase. Matching is done against normalized address text.
@@ -8,202 +9,140 @@
 
 /** Area keywords that map to specific Pathao zone names */
 export const DHAKA_AREA_TO_ZONE: Record<string, string> = {
-  // Mirpur numbered zones
-  "mirpur 1": "Mirpur-1",
-  "mirpur1": "Mirpur-1",
-  "mirpur-1": "Mirpur-1",
-  "shah ali": "Mirpur-1",
-  "shah ali bag": "Mirpur-1",
-  "shah ali bagh": "Mirpur-1",
-  "shah ali garden": "Mirpur-1",
-  "mirpur 2": "Mirpur-2",
-  "mirpur2": "Mirpur-2",
-  "mirpur-2": "Mirpur-2",
-  "mirpur 6": "Mirpur-6",
-  "mirpur6": "Mirpur-6",
-  "mirpur-6": "Mirpur-6",
-  "mirpur 10": "Mirpur-10",
-  "mirpur10": "Mirpur-10",
-  "mirpur-10": "Mirpur-10",
-  "mirpur 11": "Mirpur-11",
-  "mirpur11": "Mirpur-11",
-  "mirpur-11": "Mirpur-11",
-  "mirpur 12": "Mirpur-12",
-  "mirpur12": "Mirpur-12",
-  "mirpur-12": "Mirpur-12",
-  "mirpur 13": "Mirpur-13",
-  "mirpur13": "Mirpur-13",
-  "mirpur-13": "Mirpur-13",
-  "mirpur 14": "Mirpur-14",
-  "mirpur14": "Mirpur-14",
-  "mirpur-14": "Mirpur-14",
-  "pallabi": "Mirpur-12",
-  "kafrul": "Mirpur-14",
-  "shewrapara": "Mirpur-6",
+  // ── Mirpur numbered zones ──
+  "mirpur 1": "Mirpur-1", "mirpur1": "Mirpur-1", "mirpur-1": "Mirpur-1",
+  "shah ali": "Mirpur-1", "shah ali bag": "Mirpur-1", "shah ali bagh": "Mirpur-1",
+  "shah ali garden": "Mirpur-1", "shahali": "Mirpur-1", "shahali bagh": "Mirpur-1",
+  "shahali garden": "Mirpur-1",
+  "mirpur 2": "Mirpur-2", "mirpur2": "Mirpur-2", "mirpur-2": "Mirpur-2",
+  "mirpur 6": "Mirpur-6", "mirpur6": "Mirpur-6", "mirpur-6": "Mirpur-6",
+  "mirpur 10": "Mirpur-10", "mirpur10": "Mirpur-10", "mirpur-10": "Mirpur-10",
+  "mazar road": "Mirpur-10", "mirpur ten": "Mirpur-10",
+  "mirpur 11": "Mirpur-11", "mirpur11": "Mirpur-11", "mirpur-11": "Mirpur-11",
+  "mirpur 12": "Mirpur-12", "mirpur12": "Mirpur-12", "mirpur-12": "Mirpur-12",
+  "mirpur 13": "Mirpur-13", "mirpur13": "Mirpur-13", "mirpur-13": "Mirpur-13",
+  "mirpur 14": "Mirpur-14", "mirpur14": "Mirpur-14", "mirpur-14": "Mirpur-14",
+  "pallabi": "Mirpur-12", "palabi": "Mirpur-12", "পল্লবী": "Mirpur-12",
+  "kafrul": "Mirpur-14", "kaafrul": "Mirpur-14", "কাফরুল": "Mirpur-14",
+  "shewrapara": "Mirpur-6", "shewra para": "Mirpur-6", "sewrapara": "Mirpur-6", "শেওড়াপাড়া": "Mirpur-6",
   "sher e bangla nagar": "Mirpur-6",
-  "agargaon": "Mirpur-6",
-  "mirpur dohs": "Mirpur DOHS",
+  "agargaon": "Mirpur-6", "আগারগাঁও": "Mirpur-6",
+  "mirpur dohs": "Mirpur DOHS", "মিরপুর ডিওএইচএস": "Mirpur DOHS",
 
-  // Dhanmondi numbered zones
-  "dhanmondi": "Dhanmondi",
-  "dhanmandi": "Dhanmondi",
-  "shankar": "Dhanmondi",
-  "jigatola": "Dhanmondi",
-  "science lab": "Dhanmondi",
-  "new market": "New Market",
-  "newmarket": "New Market",
-  "nilkhet": "New Market",
-  "elephant road": "New Market",
+  // ── Dhanmondi ──
+  "dhanmondi": "Dhanmondi", "dhanmandi": "Dhanmondi", "dhanmondy": "Dhanmondi",
+  "ধানমন্ডি": "Dhanmondi", "ধানমণ্ডি": "Dhanmondi",
+  "shankar": "Dhanmondi", "jigatola": "Dhanmondi", "science lab": "Dhanmondi",
+  "new market": "New Market", "newmarket": "New Market", "নিউমার্কেট": "New Market",
+  "nilkhet": "New Market", "elephant road": "New Market",
 
-  // Mohammadpur area
-  "mohammadpur": "Mohammadpur",
-  "adabor": "Adabor",
-  "ring road": "Mohammadpur",
-  "lalmatia": "Mohammadpur",
-  "tajmahal road": "Mohammadpur",
+  // ── Mohammadpur ──
+  "mohammadpur": "Mohammadpur", "mohammedpur": "Mohammadpur", "muhammadpur": "Mohammadpur",
+  "মোহাম্মদপুর": "Mohammadpur", "মহম্মদপুর": "Mohammadpur",
+  "adabor": "Adabor", "আদাবর": "Adabor",
+  "ring road": "Mohammadpur", "lalmatia": "Mohammadpur", "tajmahal road": "Mohammadpur",
 
-  // Gulshan area
-  "gulshan 1": "Gulshan-1",
-  "gulshan1": "Gulshan-1",
-  "gulshan-1": "Gulshan-1",
-  "gulshan 2": "Gulshan-2",
-  "gulshan2": "Gulshan-2",
-  "gulshan-2": "Gulshan-2",
-  "gulshan": "Gulshan-2",
-  "niketan": "Gulshan-1",
-  "police plaza": "Gulshan-1",
+  // ── Gulshan ──
+  "gulshan 1": "Gulshan-1", "gulshan1": "Gulshan-1", "gulshan-1": "Gulshan-1",
+  "gulshan 2": "Gulshan-2", "gulshan2": "Gulshan-2", "gulshan-2": "Gulshan-2",
+  "gulshan": "Gulshan-2", "গুলশান": "Gulshan-2",
+  "niketan": "Gulshan-1", "police plaza": "Gulshan-1",
 
-  // Banani / Baridhara / Bashundhara
-  "banani": "Banani",
+  // ── Banani / Baridhara / Bashundhara ──
+  "banani": "Banani", "bananii": "Banani", "বনানী": "Banani",
   "banani dohs": "Banani DOHS",
-  "baridhara": "Baridhara",
-  "baridhara dohs": "Baridhara DOHS",
-  "bashundhara": "Bashundhara R/A",
-  "bashundhara r a": "Bashundhara R/A",
-  "bashundhara city": "Bashundhara R/A",
+  "baridhara": "Baridhara", "baridhara dohs": "Baridhara DOHS",
+  "bashundhara": "Bashundhara R/A", "bashundhara r a": "Bashundhara R/A",
+  "bashundhara city": "Bashundhara R/A", "বসুন্ধরা": "Bashundhara R/A",
 
-  // Uttara sectors
-  "uttara sector 1": "Uttara Sector 1",
-  "uttara sector 2": "Uttara Sector 2",
-  "uttara sector 3": "Uttara Sector 3",
-  "uttara sector 4": "Uttara Sector 4",
-  "uttara sector 5": "Uttara Sector 5",
-  "uttara sector 6": "Uttara Sector 6",
-  "uttara sector 7": "Uttara Sector 7",
-  "uttara sector 8": "Uttara Sector 8",
-  "uttara sector 9": "Uttara Sector 9",
-  "uttara sector 10": "Uttara Sector 10",
-  "uttara sector 11": "Uttara Sector 11",
-  "uttara sector 12": "Uttara Sector 12",
-  "uttara sector 13": "Uttara Sector 13",
-  "uttara sector 14": "Uttara Sector 14",
-  "abdullahpur": "Abdullahpur Uttara",
-  "turag": "Turag",
-  "uttara": "Uttara Sector 3", // default if no sector specified
+  // ── Uttara sectors ──
+  "uttara sector 1": "Uttara Sector 1", "uttara sector 2": "Uttara Sector 2",
+  "uttara sector 3": "Uttara Sector 3", "uttara sector 4": "Uttara Sector 4",
+  "uttara sector 5": "Uttara Sector 5", "uttara sector 6": "Uttara Sector 6",
+  "uttara sector 7": "Uttara Sector 7", "uttara sector 8": "Uttara Sector 8",
+  "uttara sector 9": "Uttara Sector 9", "uttara sector 10": "Uttara Sector 10",
+  "uttara sector 11": "Uttara Sector 11", "uttara sector 12": "Uttara Sector 12",
+  "uttara sector 13": "Uttara Sector 13", "uttara sector 14": "Uttara Sector 14",
+  "abdullahpur": "Abdullahpur Uttara", "turag": "Turag",
+  "uttara": "Uttara Sector 3", "utara": "Uttara Sector 3", "উত্তরা": "Uttara Sector 3",
   "diabari": "Uttara Sector 14",
 
-  // Wari / Old Dhaka
-  "wari": "Wari",
-  "lalbagh": "Lalbagh",
-  "lal bagh": "Lalbagh",
-  "hazaribagh": "Hazaribagh",
-  "hazari bagh": "Hazaribagh",
+  // ── Wari / Old Dhaka ──
+  "wari": "Wari", "ওয়ারী": "Wari",
+  "lalbagh": "Lalbagh", "lalbag": "Lalbagh", "লালবাগ": "Lalbagh",
+  "hazaribagh": "Hazaribagh", "hazari bagh": "Hazaribagh",
   "kamrangirchar": "Kamrangirchar",
-  "chawkbazar": "Chawkbazar",
-  "chawk bazar": "Chawkbazar",
+  "chawkbazar": "Chawkbazar", "chawk bazar": "Chawkbazar",
 
-  // Tejgaon / Farmgate area
-  "tejgaon": "Tejgaon",
-  "farmgate": "Farmgate",
-  "farm gate": "Farmgate",
-  "karwan bazar": "Karwan Bazar",
-  "karwanbazar": "Karwan Bazar",
-  "kawranbazar": "Karwan Bazar",
-  "panthapath": "Panthapath",
-  "panth path": "Panthapath",
-  "green road": "Green Road",
-  "greenroad": "Green Road",
+  // ── Tejgaon / Farmgate ──
+  "tejgaon": "Tejgaon", "tegaon": "Tejgaon", "তেজগাঁও": "Tejgaon",
+  "farmgate": "Farmgate", "farm gate": "Farmgate", "ফার্মগেট": "Farmgate",
+  "karwan bazar": "Karwan Bazar", "karwanbazar": "Karwan Bazar", "kawranbazar": "Karwan Bazar",
+  "panthapath": "Panthapath", "panth path": "Panthapath",
+  "green road": "Green Road", "greenroad": "Green Road",
 
-  // Motijheel area
-  "motijheel": "Motijheel",
-  "motijhil": "Motijheel",
+  // ── Motijheel ──
+  "motijheel": "Motijheel", "motijeel": "Motijheel", "motijhil": "Motijheel", "মতিঝিল": "Motijheel",
   "dilkusha": "Motijheel",
-  "purana paltan": "Paltan",
-  "paltan": "Paltan",
+  "purana paltan": "Paltan", "paltan": "Paltan",
   "arambagh": "Arambagh",
 
-  // Badda / Rampura
-  "badda": "Badda",
-  "merul badda": "Badda",
-  "rampura": "Rampura",
-  "khilgaon": "Khilgaon",
-  "malibagh": "Malibagh",
-  "mugda": "Mugda",
-  "mughda": "Mugda",
-  "banasree": "Banasree",
-  "aftabnagar": "Aftabnagar",
-  "aftab nagar": "Aftabnagar",
+  // ── Badda / Rampura ──
+  "badda": "Badda", "bada": "Badda", "merul badda": "Badda", "বাড্ডা": "Badda",
+  "rampura": "Rampura", "ram pura": "Rampura", "রামপুরা": "Rampura",
+  "khilgaon": "Khilgaon", "khilgoan": "Khilgaon", "খিলগাঁও": "Khilgaon",
+  "malibagh": "Malibagh", "মালিবাগ": "Malibagh",
+  "mugda": "Mugda", "mughda": "Mugda", "মুগদা": "Mugda",
+  "banasree": "Banasree", "বনশ্রী": "Banasree",
+  "aftabnagar": "Aftabnagar", "aftab nagar": "Aftabnagar",
 
-  // Demra / Jatrabari
-  "demra": "Demra",
+  // ── Demra / Jatrabari ──
+  "demra": "Demra", "ডেমরা": "Demra",
   "shyampur": "Shyampur",
-  "jatrabari": "Jatrabari",
+  "jatrabari": "Jatrabari", "jatra bari": "Jatrabari", "যাত্রাবাড়ী": "Jatrabari",
   "kadamtali": "Kadamtali",
   "postogola": "Jatrabari",
 
-  // Shahbagh / Ramna
-  "shahbagh": "Shahbagh",
-  "shahbag": "Shahbagh",
+  // ── Shahbagh / Ramna ──
+  "shahbagh": "Shahbagh", "shahbag": "Shahbagh", "শাহবাগ": "Shahbagh",
   "ramna": "Ramna",
   "segunbagicha": "Segunbagicha",
   "kakrail": "Kakrail",
 
-  // Mohakhali
-  "mohakhali": "Mohakhali",
+  // ── Mohakhali / Khilkhet ──
+  "mohakhali": "Mohakhali", "মহাখালী": "Mohakhali",
   "mohakhali dohs": "Mohakhali DOHS",
   "banani dohs mohakhali": "Mohakhali DOHS",
-
-  // Khilkhet
-  "khilkhet": "Khilkhet",
+  "khilkhet": "Khilkhet", "খিলক্ষেত": "Khilkhet",
   "kuril": "Kuril",
-  "nikunja": "Nikunja",
-  "nikunjo": "Nikunja",
+  "nikunja": "Nikunja", "nikunjo": "Nikunja",
 
-  // Savar / Tongi
-  "savar": "Savar",
-  "tongi": "Tongi",
-  "keraniganj": "Keraniganj",
+  // ── Savar / Tongi / Outskirts ──
+  "savar": "Savar", "সাভার": "Savar",
+  "tongi": "Tongi", "টঙ্গী": "Tongi",
+  "keraniganj": "Keraniganj", "কেরানীগঞ্জ": "Keraniganj",
   "ashulia": "Ashulia",
   "hemayetpur": "Savar",
 
-  // Gazipur
-  "gazipur": "Gazipur Sadar",
-  "board bazar": "Gazipur Sadar",
-  "joydebpur": "Gazipur Sadar",
+  // ── Gazipur ──
+  "gazipur": "Gazipur Sadar", "gajipur": "Gazipur Sadar", "গাজীপুর": "Gazipur Sadar",
+  "board bazar": "Gazipur Sadar", "joydebpur": "Gazipur Sadar",
   "kaliakair": "Kaliakair",
 
-  // Narayanganj
-  "narayanganj": "Narayanganj Sadar",
+  // ── Narayanganj ──
+  "narayanganj": "Narayanganj Sadar", "নারায়ণগঞ্জ": "Narayanganj Sadar",
   "siddhirganj": "Siddhirganj",
   "fatullah": "Fatullah",
 
-  // Misc
+  // ── Misc ──
   "cantonment": "Cantonment",
-  "airport": "Airport",
-  "shahjalal": "Airport",
-  "purbachal": "Purbachal",
-  "jolshiri": "Purbachal",
+  "airport": "Airport", "shahjalal": "Airport",
+  "purbachal": "Purbachal", "jolshiri": "Purbachal",
 };
 
 /**
  * Extract specific numbered zone patterns from raw address text.
  * Returns the specific zone name if found, null otherwise.
- * 
- * Handles patterns like:
- * - "Mirpur-1", "Mirpur 1", "mirpur1"
- * - "Uttara Sector 3", "Sector 3 Uttara"
- * - "Gulshan-2", "Gulshan 2"
- * - "Dhanmondi 15", "Dhanmondi-15"
  */
 export function extractSpecificZone(rawAddress: string): string | null {
   if (!rawAddress) return null;
@@ -217,7 +156,7 @@ export function extractSpecificZone(rawAddress: string): string | null {
     }
   }
 
-  // 2. Extract "Mirpur-X" pattern (handles mirpur-1, mirpur 1, mirpur1)
+  // 2. Extract "Mirpur-X" pattern (handles mirpur-1, mirpur 1, mirpur1, mirpur1road)
   const mirpurMatch = addr.match(/mirpur[\s\-]*(\d{1,2})/i);
   if (mirpurMatch) {
     return `Mirpur-${mirpurMatch[1]}`;
@@ -255,14 +194,11 @@ export function calculateConfidence(
   areaScore: number,
   usedDictionary: boolean
 ): number {
-  // Dictionary matches are very reliable
   if (usedDictionary) {
     const base = 90;
     const cityBonus = cityScore >= 0.95 ? 10 : cityScore >= 0.70 ? 5 : 0;
     return Math.min(100, base + cityBonus);
   }
-
-  // Weighted: city 30%, zone 50%, area 20%
   const raw = (cityScore * 30 + zoneScore * 50 + areaScore * 20);
   return Math.round(raw);
 }

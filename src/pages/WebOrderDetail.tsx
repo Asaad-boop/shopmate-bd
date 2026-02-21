@@ -44,6 +44,7 @@ import { PathaoTrackingCard } from "@/components/pathao/PathaoTrackingCard";
 import { AddressFixDrawer } from "@/components/orders/AddressFixDrawer";
 import { mapAddressToPathao, type MappingResult, findBestMatch, DISTRICT_SYNONYMS, THANA_SYNONYMS } from "@/lib/address-mapper";
 import { extractSpecificZone, calculateConfidence, getConfidenceLevel } from "@/lib/dhaka-area-dictionary";
+import { resolveDistrict } from "@/lib/address-variations";
 import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/use-pathao";
 import { useCompanySettings } from "@/hooks/use-company-settings";
 import { useInvoiceSettings } from "@/hooks/use-invoice-settings";
@@ -346,13 +347,26 @@ export default function WebOrderDetail() {
     }
   }, [detectedDistrict, detectedThana, districtEmpty, thanaEmpty, order, addressParseApplied]);
 
-  // Auto-match detected district → Pathao city (supports Bengali + English via fuzzy match)
+  // Auto-match detected district → Pathao city (with romanization variation support)
   useEffect(() => {
     if (!pathaoCities?.length) return;
     const district = detectedDistrict || deliveryForm.city;
     if (!district || district === "-" || pathaoCityId) return;
     const candidates = pathaoCities.map(c => ({ id: c.city_id, name: c.city_name }));
-    // Try district name first, then full address for cross-script matching
+    
+    // Priority 1: Use variation dictionary to resolve misspellings/romanization
+    const resolved = resolveDistrict(district) || resolveDistrict(order?.delivery_address || deliveryForm.address);
+    if (resolved) {
+      const exactMatch = candidates.find(c => c.name.toLowerCase() === resolved.toLowerCase());
+      if (exactMatch) {
+        isAutoMappingCity.current = true;
+        setPathaoCityId(exactMatch.id);
+        setDeliveryForm(f => ({ ...f, city: exactMatch.name }));
+        return;
+      }
+    }
+    
+    // Priority 2: Fuzzy match with synonyms
     let match = findBestMatch(district, candidates, DISTRICT_SYNONYMS);
     if (!match.best || match.score < 0.70) {
       const address = order?.delivery_address || deliveryForm.address;
@@ -462,21 +476,39 @@ export default function WebOrderDetail() {
     setTimeout(() => setIsReparsing(false), 500);
   };
 
-  // Save correction when user manually changes zone/area
+  // Save correction when user manually changes zone/area (with frequency tracking)
   const saveCorrection = async (field: "city" | "zone" | "area", newValue: string) => {
     const rawAddress = order?.delivery_address || deliveryForm.address;
     if (!rawAddress) return;
     try {
-      await supabase.from("address_corrections").insert({
-        raw_address: rawAddress,
-        raw_area_text: deliveryForm.address,
-        detected_city: field === "city" ? selectedCityName : undefined,
-        corrected_city: field === "city" ? newValue : undefined,
-        detected_zone: field === "zone" ? selectedZoneName : undefined,
-        corrected_zone: field === "zone" ? newValue : undefined,
-        detected_area: field === "area" ? selectedAreaName : undefined,
-        corrected_area: field === "area" ? newValue : undefined,
-      });
+      // Check if this exact correction already exists → increment frequency
+      const { data: existing } = await supabase
+        .from("address_corrections")
+        .select("id, frequency")
+        .eq("raw_address", rawAddress)
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase.from("address_corrections").update({
+          [`corrected_${field}`]: newValue,
+          [`detected_${field}`]: field === "city" ? selectedCityName : field === "zone" ? selectedZoneName : selectedAreaName,
+          frequency: (existing.frequency || 1) + 1,
+        }).eq("id", existing.id);
+      } else {
+        await supabase.from("address_corrections").insert({
+          raw_address: rawAddress,
+          raw_area_text: deliveryForm.address,
+          detected_city: field === "city" ? selectedCityName : undefined,
+          corrected_city: field === "city" ? newValue : undefined,
+          detected_zone: field === "zone" ? selectedZoneName : undefined,
+          corrected_zone: field === "zone" ? newValue : undefined,
+          detected_area: field === "area" ? selectedAreaName : undefined,
+          corrected_area: field === "area" ? newValue : undefined,
+          frequency: 1,
+        });
+      }
+      toast({ title: "✓ Correction saved!", description: `'${rawAddress.slice(0, 30)}…' → ${newValue}` });
     } catch (e) {
       console.error("Failed to save address correction:", e);
     }
