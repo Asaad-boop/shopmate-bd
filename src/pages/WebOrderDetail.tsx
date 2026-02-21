@@ -43,6 +43,7 @@ import { useBDCourierSingle, getRiskLevel, getSuccessColor } from "@/hooks/use-b
 import { PathaoTrackingCard } from "@/components/pathao/PathaoTrackingCard";
 import { AddressFixDrawer } from "@/components/orders/AddressFixDrawer";
 import { mapAddressToPathao, type MappingResult, findBestMatch, DISTRICT_SYNONYMS, THANA_SYNONYMS } from "@/lib/address-mapper";
+import { extractSpecificZone, calculateConfidence, getConfidenceLevel } from "@/lib/dhaka-area-dictionary";
 import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/use-pathao";
 import { useCompanySettings } from "@/hooks/use-company-settings";
 import { useInvoiceSettings } from "@/hooks/use-invoice-settings";
@@ -177,6 +178,10 @@ export default function WebOrderDetail() {
   const [citySearch, setCitySearch] = useState("");
   const [zoneSearch, setZoneSearch] = useState("");
   const isAutoMappingCity = useRef(false);
+  const [addressConfidence, setAddressConfidence] = useState<number | null>(null);
+  const [dictionaryZoneHint, setDictionaryZoneHint] = useState<string | null>(null);
+  const [isReparsing, setIsReparsing] = useState(false);
+  const [manuallyChanged, setManuallyChanged] = useState<{ city?: boolean; zone?: boolean; area?: boolean }>({});
 
   const { data: pathaoCities, isLoading: citiesLoading } = usePathaoCities();
   const { data: pathaoZones, isLoading: zonesLoading } = usePathaoZones(pathaoCityId);
@@ -360,35 +365,54 @@ export default function WebOrderDetail() {
     }
   }, [pathaoCities, detectedDistrict, deliveryForm.city, order?.delivery_address]);
 
-  // Auto-match detected thana → Pathao zone (supports Bengali + English via fuzzy match)
+  // Auto-match detected thana → Pathao zone (with Dhaka dictionary priority)
   useEffect(() => {
     if (!pathaoZones?.length || pathaoZoneId) return;
-    const thana = detectedThana || deliveryForm.zone;
+    const address = order?.delivery_address || deliveryForm.address;
     const candidates = pathaoZones.map(z => ({ id: z.zone_id, name: z.zone_name }));
+
+    // Priority 1: Dictionary-based extraction (highest accuracy for Dhaka)
+    const dictionaryHint = address ? extractSpecificZone(address) : null;
+    if (dictionaryHint) {
+      setDictionaryZoneHint(dictionaryHint);
+      const dictMatch = findBestMatch(dictionaryHint, candidates);
+      if (dictMatch.best && dictMatch.score >= 0.70) {
+        setPathaoZoneId(dictMatch.best.id);
+        setDeliveryForm(f => ({ ...f, zone: dictMatch.best!.name }));
+        setAddressConfidence(prev => prev ?? calculateConfidence(1, dictMatch.score, 0, true));
+        return;
+      }
+    }
+
+    // Priority 2: Try thana name from AI parser
+    const thana = detectedThana || deliveryForm.zone;
     let thanaMatch: ReturnType<typeof findBestMatch> = { best: null, score: 0 };
-    let addressMatch: ReturnType<typeof findBestMatch> = { best: null, score: 0 };
-    // Try thana name first
     if (thana && thana !== "-") {
       thanaMatch = findBestMatch(thana, candidates, THANA_SYNONYMS);
     }
-    // Always try full address too — may find more specific match (e.g. "Uttara Sector 3" vs "Abdullahpur Uttara")
-    const address = order?.delivery_address || deliveryForm.address;
+
+    // Priority 3: Try full address fuzzy match
+    let addressMatch: ReturnType<typeof findBestMatch> = { best: null, score: 0 };
     if (address) {
       addressMatch = findBestMatch(address, candidates, THANA_SYNONYMS);
     }
-    // Prefer address match if it found a longer/more specific candidate name (more words matched)
+
+    // Choose best match: prefer higher score, then more specific (more words)
     let match = thanaMatch;
     if (addressMatch.best && addressMatch.score >= 0.65) {
-      const thanaWords = thanaMatch.best?.name.split(/\s+/).length || 0;
-      const addrWords = addressMatch.best.name.split(/\s+/).length || 0;
-      // Prefer address match if it's more specific (more words) or if thana didn't match well
-      if (addrWords > thanaWords || !thanaMatch.best || thanaMatch.score < 0.65) {
+      if (!thanaMatch.best || thanaMatch.score < 0.65 || addressMatch.score > thanaMatch.score) {
         match = addressMatch;
+      } else if (addressMatch.score === thanaMatch.score) {
+        const thanaWords = thanaMatch.best?.name.split(/\s+/).length || 0;
+        const addrWords = addressMatch.best.name.split(/\s+/).length || 0;
+        if (addrWords > thanaWords) match = addressMatch;
       }
     }
+
     if (match.best && match.score >= 0.65) {
       setPathaoZoneId(match.best.id);
       setDeliveryForm(f => ({ ...f, zone: match.best!.name }));
+      setAddressConfidence(prev => prev ?? calculateConfidence(1, match.score, 0, false));
     }
   }, [pathaoZones, detectedThana, deliveryForm.zone, order?.delivery_address]);
 
@@ -420,6 +444,43 @@ export default function WebOrderDetail() {
   const filteredZones = pathaoZones?.filter(z => z.zone_name.toLowerCase().includes(zoneSearch.toLowerCase())) || [];
   const selectedCityName = pathaoCities?.find(c => c.city_id === pathaoCityId)?.city_name || "";
   const selectedZoneName = pathaoZones?.find(z => z.zone_id === pathaoZoneId)?.zone_name || "";
+  const selectedAreaName = pathaoAreas?.find(a => a.area_id === pathaoAreaId)?.area_name || "";
+  const confidenceInfo = addressConfidence !== null ? getConfidenceLevel(addressConfidence) : null;
+
+  // Re-parse address handler
+  const handleReparse = async () => {
+    setIsReparsing(true);
+    setPathaoCityId(null);
+    setPathaoZoneId(null);
+    setPathaoAreaId(null);
+    setAddressConfidence(null);
+    setDictionaryZoneHint(null);
+    setDetectedDistrict(null);
+    setDetectedThana(null);
+    setAddressParseApplied(false);
+    // Trigger re-parse by resetting, the useAddressParser will re-fire
+    setTimeout(() => setIsReparsing(false), 500);
+  };
+
+  // Save correction when user manually changes zone/area
+  const saveCorrection = async (field: "city" | "zone" | "area", newValue: string) => {
+    const rawAddress = order?.delivery_address || deliveryForm.address;
+    if (!rawAddress) return;
+    try {
+      await supabase.from("address_corrections").insert({
+        raw_address: rawAddress,
+        raw_area_text: deliveryForm.address,
+        detected_city: field === "city" ? selectedCityName : undefined,
+        corrected_city: field === "city" ? newValue : undefined,
+        detected_zone: field === "zone" ? selectedZoneName : undefined,
+        corrected_zone: field === "zone" ? newValue : undefined,
+        detected_area: field === "area" ? selectedAreaName : undefined,
+        corrected_area: field === "area" ? newValue : undefined,
+      });
+    } catch (e) {
+      console.error("Failed to save address correction:", e);
+    }
+  };
 
   const subtotal = orderItems.reduce((s, i) => s + (i.unit_price * i.quantity), 0);
   const totalDiscount = orderItems.reduce((s, i) => s + (i.discount || 0), 0) + (order?.discount || 0);
@@ -642,6 +703,18 @@ export default function WebOrderDetail() {
         delivery_district: deliveryForm.city, delivery_thana: deliveryForm.zone,
         delivery_address: deliveryForm.address, notes: deliveryForm.note,
         updated_at: new Date().toISOString(),
+        parsed_address_confidence: addressConfidence,
+        needs_address_review: addressConfidence !== null && addressConfidence < 60,
+        address_parse_log: {
+          detected_district: detectedDistrict,
+          detected_thana: detectedThana,
+          dictionary_hint: dictionaryZoneHint,
+          selected_city: selectedCityName,
+          selected_zone: selectedZoneName,
+          selected_area: selectedAreaName,
+          confidence: addressConfidence,
+          manually_changed: manuallyChanged,
+        },
       };
       if (deliveryForm.advanceEnabled && deliveryForm.advanceAmount > 0) {
         updates.payment_method = deliveryForm.advanceVia || "cash";
@@ -1008,33 +1081,58 @@ export default function WebOrderDetail() {
                 </div>
                 {/* Pathao Location Mapping */}
                 <div>
-                  <Label className="text-[10px] text-muted-foreground uppercase flex items-center gap-1 mb-2">
-                    <MapPin className="w-3 h-3" /> Pathao Location
-                    {pathaoCityId && pathaoZoneId && (
-                      <Badge className="ml-1 text-[8px] bg-emerald-50 text-emerald-600 border-emerald-200 px-1.5 py-0">✓ Mapped</Badge>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
+                      <MapPin className="w-3 h-3" /> Pathao Location
+                      {pathaoCityId && pathaoZoneId && (
+                        <Badge className="ml-1 text-[8px] bg-emerald-50 text-emerald-600 border-emerald-200 px-1.5 py-0">✓ Mapped</Badge>
+                      )}
+                    </Label>
+                    <Button variant="ghost" size="sm" onClick={handleReparse} disabled={isReparsing}
+                      className="h-5 px-2 text-[9px] gap-1 text-muted-foreground hover:text-[#6c63ff]">
+                      {isReparsing ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <RefreshCw className="w-2.5 h-2.5" />}
+                      Re-parse
+                    </Button>
+                  </div>
+                  {/* Confidence + AI badges */}
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    {confidenceInfo && (
+                      <Badge variant="outline" className={cn("text-[9px] gap-1 px-1.5 py-0 border", confidenceInfo.color)}>
+                        {confidenceInfo.icon} {addressConfidence}% — {confidenceInfo.label}
+                      </Badge>
                     )}
-                  </Label>
-                  {/* AI Detected badges */}
-                  {(detectedDistrict || detectedThana) && (
-                    <div className="flex items-center gap-2 mb-2 flex-wrap">
-                      <span className="text-[9px] text-muted-foreground">AI:</span>
-                      {detectedDistrict && (
-                        <Badge variant="outline" className="text-[9px] bg-emerald-50 text-emerald-700 border-emerald-200 gap-1 px-1.5 py-0">
-                          <CheckCircle2 className="w-2.5 h-2.5" /> {selectedCityName || detectedDistrict}
-                        </Badge>
-                      )}
-                      {detectedThana && (
-                        <Badge variant="outline" className="text-[9px] bg-emerald-50 text-emerald-700 border-emerald-200 gap-1 px-1.5 py-0">
-                          <CheckCircle2 className="w-2.5 h-2.5" /> {selectedZoneName || detectedThana}
-                        </Badge>
-                      )}
-                    </div>
-                  )}
+                    {dictionaryZoneHint && (
+                      <Badge variant="outline" className="text-[9px] bg-blue-50 text-blue-700 border-blue-200 gap-1 px-1.5 py-0">
+                        📖 Dict: {dictionaryZoneHint}
+                      </Badge>
+                    )}
+                    {(detectedDistrict || detectedThana) && (
+                      <>
+                        <span className="text-[9px] text-muted-foreground">AI:</span>
+                        {detectedDistrict && (
+                          <Badge variant="outline" className="text-[9px] bg-emerald-50 text-emerald-700 border-emerald-200 gap-1 px-1.5 py-0">
+                            <CheckCircle2 className="w-2.5 h-2.5" /> {selectedCityName || detectedDistrict}
+                          </Badge>
+                        )}
+                        {detectedThana && (
+                          <Badge variant="outline" className="text-[9px] bg-emerald-50 text-emerald-700 border-emerald-200 gap-1 px-1.5 py-0">
+                            <CheckCircle2 className="w-2.5 h-2.5" /> {selectedZoneName || detectedThana}
+                          </Badge>
+                        )}
+                      </>
+                    )}
+                  </div>
                   <div className="grid grid-cols-3 gap-2">
                     {/* City (District) */}
                     <div>
                       <Label className="text-[10px] text-muted-foreground">City *</Label>
-                      <Select value={pathaoCityId ? String(pathaoCityId) : ""} onValueChange={(v) => setPathaoCityId(Number(v))}>
+                      <Select value={pathaoCityId ? String(pathaoCityId) : ""} onValueChange={(v) => {
+                        const newId = Number(v);
+                        setPathaoCityId(newId);
+                        setManuallyChanged(p => ({ ...p, city: true }));
+                        const cityName = pathaoCities?.find(c => c.city_id === newId)?.city_name || "";
+                        if (selectedCityName && cityName !== selectedCityName) saveCorrection("city", cityName);
+                      }}>
                         <SelectTrigger className={cn("h-8 text-xs", pathaoCityId && "border-emerald-300 bg-emerald-50/30")}>
                           <SelectValue placeholder={citiesLoading ? "Loading..." : "Select City"} />
                         </SelectTrigger>
@@ -1055,7 +1153,13 @@ export default function WebOrderDetail() {
                     {/* Zone (Thana) */}
                     <div>
                       <Label className="text-[10px] text-muted-foreground">Zone *</Label>
-                      <Select value={pathaoZoneId ? String(pathaoZoneId) : ""} onValueChange={(v) => setPathaoZoneId(Number(v))} disabled={!pathaoCityId}>
+                      <Select value={pathaoZoneId ? String(pathaoZoneId) : ""} onValueChange={(v) => {
+                        const newId = Number(v);
+                        setPathaoZoneId(newId);
+                        setManuallyChanged(p => ({ ...p, zone: true }));
+                        const zoneName = pathaoZones?.find(z => z.zone_id === newId)?.zone_name || "";
+                        if (selectedZoneName && zoneName !== selectedZoneName) saveCorrection("zone", zoneName);
+                      }} disabled={!pathaoCityId}>
                         <SelectTrigger className={cn("h-8 text-xs", pathaoZoneId && "border-emerald-300 bg-emerald-50/30")}>
                           <SelectValue placeholder={zonesLoading ? "Loading..." : "Select Zone"} />
                         </SelectTrigger>
@@ -1076,7 +1180,13 @@ export default function WebOrderDetail() {
                     {/* Area */}
                     <div>
                       <Label className="text-[10px] text-muted-foreground">Area</Label>
-                      <Select value={pathaoAreaId ? String(pathaoAreaId) : ""} onValueChange={(v) => setPathaoAreaId(Number(v))} disabled={!pathaoZoneId}>
+                      <Select value={pathaoAreaId ? String(pathaoAreaId) : ""} onValueChange={(v) => {
+                        const newId = Number(v);
+                        setPathaoAreaId(newId);
+                        setManuallyChanged(p => ({ ...p, area: true }));
+                        const areaName = pathaoAreas?.find(a => a.area_id === newId)?.area_name || "";
+                        if (selectedAreaName && areaName !== selectedAreaName) saveCorrection("area", areaName);
+                      }} disabled={!pathaoZoneId}>
                         <SelectTrigger className="h-8 text-xs">
                           <SelectValue placeholder="Area" />
                         </SelectTrigger>

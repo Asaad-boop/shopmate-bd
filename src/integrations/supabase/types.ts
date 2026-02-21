@@ -95,6 +95,45 @@ export type Database = {
         }
         Relationships: []
       }
+      address_corrections: {
+        Row: {
+          corrected_area: string | null
+          corrected_city: string | null
+          corrected_zone: string | null
+          created_at: string
+          detected_area: string | null
+          detected_city: string | null
+          detected_zone: string | null
+          id: string
+          raw_address: string
+          raw_area_text: string | null
+        }
+        Insert: {
+          corrected_area?: string | null
+          corrected_city?: string | null
+          corrected_zone?: string | null
+          created_at?: string
+          detected_area?: string | null
+          detected_city?: string | null
+          detected_zone?: string | null
+          id?: string
+          raw_address: string
+          raw_area_text?: string | null
+        }
+        Update: {
+          corrected_area?: string | null
+          corrected_city?: string | null
+          corrected_zone?: string | null
+          created_at?: string
+          detected_area?: string | null
+          detected_city?: string | null
+          detected_zone?: string | null
+          id?: string
+          raw_address?: string
+          raw_area_text?: string | null
+        }
+        Relationships: []
+      }
       attendance: {
         Row: {
           check_in: string | null
@@ -618,6 +657,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          address_parse_log: Json | null
           assigned_to: string | null
           channel: string
           cod_amount: number | null
@@ -634,9 +674,11 @@ export type Database = {
           discount: number | null
           gross_profit: number | null
           id: string
+          needs_address_review: boolean
           notes: string | null
           order_date: string | null
           order_number: string
+          parsed_address_confidence: number | null
           pathao_consignment_id: string | null
           pathao_tracking_code: string | null
           payment_method: string | null
@@ -651,6 +693,7 @@ export type Database = {
           web_order_status: string | null
         }
         Insert: {
+          address_parse_log?: Json | null
           assigned_to?: string | null
           channel: string
           cod_amount?: number | null
@@ -667,9 +710,11 @@ export type Database = {
           discount?: number | null
           gross_profit?: number | null
           id?: string
+          needs_address_review?: boolean
           notes?: string | null
           order_date?: string | null
           order_number: string
+          parsed_address_confidence?: number | null
           pathao_consignment_id?: string | null
           pathao_tracking_code?: string | null
           payment_method?: string | null
@@ -684,6 +729,7 @@ export type Database = {
           web_order_status?: string | null
         }
         Update: {
+          address_parse_log?: Json | null
           assigned_to?: string | null
           channel?: string
           cod_amount?: number | null
@@ -700,9 +746,11 @@ export type Database = {
           discount?: number | null
           gross_profit?: number | null
           id?: string
+          needs_address_review?: boolean
           notes?: string | null
           order_date?: string | null
           order_number?: string
+          parsed_address_confidence?: number | null
           pathao_consignment_id?: string | null
           pathao_tracking_code?: string | null
           payment_method?: string | null
