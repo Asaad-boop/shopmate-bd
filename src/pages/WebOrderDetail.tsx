@@ -46,6 +46,7 @@ import { mapAddressToPathao, type MappingResult, findBestMatch, DISTRICT_SYNONYM
 import { extractSpecificZone, calculateConfidence, getConfidenceLevel } from "@/lib/dhaka-area-dictionary";
 import { resolveDistrict } from "@/lib/address-variations";
 import { parseAddress, getParseConfidenceLevel, type ParseAddressResult, type ZoneSuggestion } from "@/lib/pathao-address-parser";
+import { AddressMapperPanel } from "@/components/orders/AddressMapperPanel";
 import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/use-pathao";
 import { useCompanySettings } from "@/hooks/use-company-settings";
 import { useInvoiceSettings } from "@/hooks/use-invoice-settings";
@@ -185,6 +186,8 @@ export default function WebOrderDetail() {
   const [isReparsing, setIsReparsing] = useState(false);
   const [manuallyChanged, setManuallyChanged] = useState<{ city?: boolean; zone?: boolean; area?: boolean }>({});
   const [parseResult, setParseResult] = useState<ParseAddressResult | null>(null);
+  const [mappingMode, setMappingMode] = useState<"auto" | "manual">("auto");
+  const autoMapDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: pathaoCities, isLoading: citiesLoading } = usePathaoCities();
   const { data: pathaoZones, isLoading: zonesLoading } = usePathaoZones(pathaoCityId);
@@ -382,36 +385,38 @@ export default function WebOrderDetail() {
   }, [pathaoCities, detectedDistrict, deliveryForm.city, order?.delivery_address]);
 
   // Auto-match detected thana → Pathao zone using new scoring parser
-  useEffect(() => {
-    if (!pathaoZones?.length || pathaoZoneId) return;
-    const address = order?.delivery_address || deliveryForm.address;
-    if (!address) return;
+  const runAutoMap = useCallback((address: string) => {
+    if (!pathaoZones?.length) return;
     const candidates = pathaoZones.map(z => ({ id: z.zone_id, name: z.zone_name }));
 
-    // Run the new scoring-based parser
+    // Run the scoring-based parser
     const parsed = parseAddress(address);
     setParseResult(parsed);
     setAddressConfidence(Math.round(parsed.confidence * 100));
 
+    // In manual mode, only update suggestions panel — NOT dropdowns
+    if (mappingMode === "manual") return;
+
     if (parsed.zone) {
       setDictionaryZoneHint(parsed.zone);
-      // Find exact match in Pathao zones
-      const exactMatch = candidates.find(c => c.name.toLowerCase() === parsed.zone.toLowerCase());
-      if (exactMatch) {
-        setPathaoZoneId(exactMatch.id);
-        setDeliveryForm(f => ({ ...f, zone: exactMatch.name }));
-        return;
-      }
-      // Fuzzy match the parsed zone against Pathao zone names
-      const fuzzyMatch = findBestMatch(parsed.zone, candidates, THANA_SYNONYMS);
-      if (fuzzyMatch.best && fuzzyMatch.score >= 0.65) {
-        setPathaoZoneId(fuzzyMatch.best.id);
-        setDeliveryForm(f => ({ ...f, zone: fuzzyMatch.best!.name }));
-        return;
+      const conf = parsed.confidence;
+
+      // High confidence (>=0.85): auto-select zone + area
+      // Medium (>=0.70): auto-select zone, area if matched
+      // Low (<0.70): don't force-select
+      if (conf >= 0.70) {
+        const exactMatch = candidates.find(c => c.name.toLowerCase() === parsed.zone.toLowerCase());
+        const fuzzyMatch = !exactMatch ? findBestMatch(parsed.zone, candidates, THANA_SYNONYMS) : null;
+        const matchedZone = exactMatch || (fuzzyMatch?.best && fuzzyMatch.score >= 0.65 ? fuzzyMatch.best : null);
+        if (matchedZone) {
+          setPathaoZoneId(matchedZone.id);
+          setDeliveryForm(f => ({ ...f, zone: matchedZone.name }));
+          return;
+        }
       }
     }
 
-    // Fallback: try thana from AI parser
+    // Fallback: try thana from AI parser (only in auto mode with decent confidence)
     const thana = detectedThana || deliveryForm.zone;
     if (thana && thana !== "-") {
       const thanaMatch = findBestMatch(thana, candidates, THANA_SYNONYMS);
@@ -420,7 +425,25 @@ export default function WebOrderDetail() {
         setDeliveryForm(f => ({ ...f, zone: thanaMatch.best!.name }));
       }
     }
-  }, [pathaoZones, detectedThana, deliveryForm.zone, order?.delivery_address]);
+  }, [pathaoZones, mappingMode, detectedThana, deliveryForm.zone]);
+
+  // Trigger auto-map on initial load
+  useEffect(() => {
+    if (!pathaoZones?.length || pathaoZoneId) return;
+    const address = order?.delivery_address || deliveryForm.address;
+    if (!address) return;
+    runAutoMap(address);
+  }, [pathaoZones, order?.delivery_address]);
+
+  // Debounced auto-map on address input change (400ms)
+  useEffect(() => {
+    if (!deliveryForm.address || !pathaoZones?.length) return;
+    if (autoMapDebounceRef.current) clearTimeout(autoMapDebounceRef.current);
+    autoMapDebounceRef.current = setTimeout(() => {
+      runAutoMap(deliveryForm.address);
+    }, 400);
+    return () => { if (autoMapDebounceRef.current) clearTimeout(autoMapDebounceRef.current); };
+  }, [deliveryForm.address, runAutoMap]);
 
   // Auto-match address → Pathao area (fuzzy match against area names)
   useEffect(() => {
@@ -453,9 +476,11 @@ export default function WebOrderDetail() {
   const selectedAreaName = pathaoAreas?.find(a => a.area_id === pathaoAreaId)?.area_name || "";
   const confidenceInfo = addressConfidence !== null ? getParseConfidenceLevel(addressConfidence / 100) : null;
 
-  // Re-parse address handler using new scoring parser
+  // Re-parse / Re-auto-map handler
   const handleReparse = async () => {
     setIsReparsing(true);
+    setMappingMode("auto");
+    setManuallyChanged({});
     setPathaoCityId(null);
     setPathaoZoneId(null);
     setPathaoAreaId(null);
@@ -478,6 +503,7 @@ export default function WebOrderDetail() {
       setPathaoZoneId(match.id);
       setDeliveryForm(f => ({ ...f, zone: match.name }));
       setDictionaryZoneHint(suggestion.zone);
+      setMappingMode("auto"); // applying suggestion resets to auto
       toast({ title: `✓ Applied: ${match.name}`, description: suggestion.reasons[0] || "" });
     }
   };
@@ -1127,62 +1153,20 @@ export default function WebOrderDetail() {
                       )}
                     </Label>
                     <Button variant="ghost" size="sm" onClick={handleReparse} disabled={isReparsing}
-                      className="h-5 px-2 text-[9px] gap-1 text-muted-foreground hover:text-[#6c63ff]">
+                      className="h-5 px-2 text-[9px] gap-1 text-muted-foreground hover:text-foreground">
                       {isReparsing ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <RefreshCw className="w-2.5 h-2.5" />}
                       Re-parse
                     </Button>
                   </div>
-                  {/* Confidence + Parser badges */}
-                  <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    {confidenceInfo && (
-                      <Badge variant="outline" className={cn("text-[9px] gap-1 px-1.5 py-0 border", confidenceInfo.color)}>
-                        {confidenceInfo.icon} {addressConfidence}% — {confidenceInfo.label}
-                      </Badge>
-                    )}
-                    {dictionaryZoneHint && (
-                      <Badge variant="outline" className="text-[9px] bg-blue-50 text-blue-700 border-blue-200 gap-1 px-1.5 py-0">
-                        📖 {dictionaryZoneHint}
-                      </Badge>
-                    )}
-                    {parseResult?.area && (
-                      <Badge variant="outline" className="text-[9px] bg-violet-50 text-violet-700 border-violet-200 gap-1 px-1.5 py-0">
-                        📍 {parseResult.area}
-                      </Badge>
-                    )}
-                    {(detectedDistrict || detectedThana) && (
-                      <>
-                        <span className="text-[9px] text-muted-foreground">AI:</span>
-                        {detectedDistrict && (
-                          <Badge variant="outline" className="text-[9px] bg-emerald-50 text-emerald-700 border-emerald-200 gap-1 px-1.5 py-0">
-                            <CheckCircle2 className="w-2.5 h-2.5" /> {selectedCityName || detectedDistrict}
-                          </Badge>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  {/* Parser suggestions (when manual review needed) */}
-                  {parseResult?.needs_manual_review && parseResult.top_suggestions.length > 0 && (
-                    <div className="mb-2 p-2 rounded-lg bg-amber-50/50 border border-amber-200/60">
-                      <p className="text-[9px] font-medium text-amber-700 mb-1.5">⚡ Suggestions (click to apply):</p>
-                      <div className="flex flex-wrap gap-1">
-                        {parseResult.top_suggestions.map((s, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => applySuggestion(s)}
-                            className="px-2 py-0.5 rounded-full text-[9px] font-medium bg-white border border-amber-200 hover:border-amber-400 hover:bg-amber-50 transition-all text-amber-800"
-                          >
-                            {s.zone}{s.area ? ` → ${s.area}` : ""} ({s.score}pts)
-                          </button>
-                        ))}
-                      </div>
-                      {parseResult.reasons.length > 0 && (
-                        <p className="text-[8px] text-amber-600/80 mt-1 line-clamp-2">
-                          {parseResult.reasons.slice(0, 2).join(" • ")}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  <div className="grid grid-cols-3 gap-2">
+
+                  {/* Dropdowns with confidence-based border */}
+                  <div className={cn(
+                    "grid grid-cols-3 gap-2 rounded-lg p-2 border transition-all",
+                    !parseResult && "border-border",
+                    parseResult && parseResult.confidence >= 0.85 && "border-emerald-300 bg-emerald-50/20",
+                    parseResult && parseResult.confidence >= 0.70 && parseResult.confidence < 0.85 && "border-amber-300 bg-amber-50/20",
+                    parseResult && parseResult.confidence < 0.70 && "border-red-300 bg-red-50/20",
+                  )}>
                     {/* City (District) */}
                     <div>
                       <Label className="text-[10px] text-muted-foreground">City *</Label>
@@ -1190,6 +1174,7 @@ export default function WebOrderDetail() {
                         const newId = Number(v);
                         setPathaoCityId(newId);
                         setManuallyChanged(p => ({ ...p, city: true }));
+                        setMappingMode("manual");
                         const cityName = pathaoCities?.find(c => c.city_id === newId)?.city_name || "";
                         if (selectedCityName && cityName !== selectedCityName) saveCorrection("city", cityName);
                       }}>
@@ -1217,6 +1202,7 @@ export default function WebOrderDetail() {
                         const newId = Number(v);
                         setPathaoZoneId(newId);
                         setManuallyChanged(p => ({ ...p, zone: true }));
+                        setMappingMode("manual");
                         const zoneName = pathaoZones?.find(z => z.zone_id === newId)?.zone_name || "";
                         if (selectedZoneName && zoneName !== selectedZoneName) saveCorrection("zone", zoneName);
                       }} disabled={!pathaoCityId}>
@@ -1244,6 +1230,7 @@ export default function WebOrderDetail() {
                         const newId = Number(v);
                         setPathaoAreaId(newId);
                         setManuallyChanged(p => ({ ...p, area: true }));
+                        setMappingMode("manual");
                         const areaName = pathaoAreas?.find(a => a.area_id === newId)?.area_name || "";
                         if (selectedAreaName && areaName !== selectedAreaName) saveCorrection("area", areaName);
                       }} disabled={!pathaoZoneId}>
@@ -1257,6 +1244,16 @@ export default function WebOrderDetail() {
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+
+                  {/* Inline helper panel (NO POPUP) */}
+                  <div className="mt-2">
+                    <AddressMapperPanel
+                      parseResult={parseResult}
+                      mappingMode={mappingMode}
+                      onApplySuggestion={applySuggestion}
+                      onReAutoMap={handleReparse}
+                    />
                   </div>
                 </div>
                 {/* Customer fields */}

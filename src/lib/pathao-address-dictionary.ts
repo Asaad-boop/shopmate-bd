@@ -82,14 +82,14 @@ export const ABBREVIATION_MAP: Record<string, string> = {
 /* ── Scoring Weights ── */
 
 export const SCORING_WEIGHTS = {
-  zone_alias_match: 15,
-  strong_keyword_match: 10,
-  weak_keyword_match: 4,
-  ambiguous_token_match: 3,
-  negative_keyword_penalty: -8,
+  zone_alias_match: 12,
+  strong_keyword_match: 12,
+  weak_keyword_match: 6,
+  ambiguous_token_match: 2,
+  negative_keyword_penalty: -25,
   multi_signal_bonus: 3,
   multi_signal_max: 9,
-  area_alias_match: 5,
+  area_alias_match: 20,
 };
 
 /* ── Confidence Config ── */
@@ -97,8 +97,8 @@ export const SCORING_WEIGHTS = {
 export const CONFIDENCE_CONFIG = {
   base: 0.55,
   diff_divisor: 30,
-  manual_review_if_below: 0.65,
-  close_score_diff_threshold: 4,
+  manual_review_if_below: 0.80,
+  close_score_diff_threshold: 6,
 };
 
 /* ── Hard Rules ── */
@@ -111,12 +111,22 @@ export interface HardRule {
 }
 
 export const HARD_RULES: HardRule[] = [
-  // Bashundhara City = shopping mall near Panthapath, NOT Bashundhara R/A
+  // A) Bashundhara City = shopping mall near Panthapath, NOT Bashundhara R/A
   {
     patterns: ["bashundhara city"],
-    negative_patterns: ["residential", "r/a", "block", "apartment"],
+    negative_patterns: ["residential", "block", "apartment"],
     force_zone: "Panthapath",
     reason: "Bashundhara City is a shopping complex near Panthapath, not Bashundhara R/A",
+  },
+  {
+    patterns: ["city shopping complex"],
+    force_zone: "Panthapath",
+    reason: "City Shopping Complex refers to Bashundhara City near Panthapath",
+  },
+  {
+    patterns: ["bashundhara city shopping complex"],
+    force_zone: "Panthapath",
+    reason: "Bashundhara City Shopping Complex is near Panthapath",
   },
   {
     patterns: ["bashundhara", "shopping"],
@@ -128,6 +138,43 @@ export const HARD_RULES: HardRule[] = [
     negative_patterns: ["residential"],
     force_zone: "Panthapath",
     reason: "Bashundhara complex is near Panthapath",
+  },
+  // B) Bashundhara R/A signals
+  {
+    patterns: ["bashundhara", "residential"],
+    force_zone: "Bashundhara R/A",
+    reason: "Bashundhara Residential Area detected",
+  },
+  {
+    patterns: ["bashundhara", "kuril"],
+    force_zone: "Bashundhara R/A",
+    reason: "Kuril near Bashundhara R/A",
+  },
+  {
+    patterns: ["bashundhara", "j block"],
+    force_zone: "Bashundhara R/A",
+    reason: "J Block is in Bashundhara R/A",
+  },
+  {
+    patterns: ["bashundhara", "k block"],
+    force_zone: "Bashundhara R/A",
+    reason: "K Block is in Bashundhara R/A",
+  },
+  {
+    patterns: ["bashundhara", "i block"],
+    force_zone: "Bashundhara R/A",
+    reason: "I Block is in Bashundhara R/A",
+  },
+  // C) Kawran Bazar → Panthapath
+  {
+    patterns: ["kawran bazar"],
+    force_zone: "Panthapath",
+    reason: "Kawran Bazar is in Panthapath zone",
+  },
+  {
+    patterns: ["karwan bazar"],
+    force_zone: "Panthapath",
+    reason: "Karwan Bazar is in Panthapath zone",
   },
   // Shah Ali → Mirpur-1 (NOT Mirpur-6)
   {
