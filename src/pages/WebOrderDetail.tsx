@@ -1192,7 +1192,7 @@ export default function WebOrderDetail() {
 
         {/* ═══ FLOATING BOTTOM CONFIRM BAR ═══ */}
         <div className="shrink-0 px-4 pb-3 pt-2 z-30">
-          <div className="h-[58px] bg-[#12122a]/95 backdrop-blur-2xl rounded-2xl border border-white/[0.08] flex items-center px-6 shadow-[0_8px_40px_rgba(0,0,0,0.45),0_0_0_1px_rgba(255,255,255,0.05)_inset] animate-fade-in transition-all duration-500 ease-out hover:shadow-[0_8px_50px_rgba(108,99,255,0.25),0_0_0_1px_rgba(108,99,255,0.15)_inset] hover:border-[#6c63ff]/25"
+          <div className="h-[58px] bg-[#12122a]/95 backdrop-blur-2xl rounded-2xl border border-[#6c63ff]/15 flex items-center px-6 shadow-[0_8px_40px_rgba(0,0,0,0.45),0_0_20px_rgba(108,99,255,0.12)] animate-fade-in"
             style={{ animationDelay: "0.15s", animationFillMode: "both" }}>
           {/* Left: Order info */}
           <div className="flex items-center gap-3 flex-1 min-w-0">
