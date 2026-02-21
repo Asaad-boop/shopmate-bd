@@ -1,16 +1,1 @@
 project_id = "ywutobfdoqktfkakbcch"
-
-[functions.shopify-webhook]
-verify_jwt = false
-
-[functions.bd-courier-check]
-verify_jwt = false
-
-[functions.pathao-proxy]
-verify_jwt = false
-
-[functions.backfill-shopify-names]
-verify_jwt = false
-
-[functions.parse-address]
-verify_jwt = false
