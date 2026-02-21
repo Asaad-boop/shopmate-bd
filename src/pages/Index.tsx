@@ -9,11 +9,28 @@ import {
   DollarSign,
   Clock,
   AlertTriangle,
+  Bug,
 } from "lucide-react";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
 import { RecentOrdersTable } from "@/components/dashboard/RecentOrdersTable";
+import { useNavigate } from "react-router-dom";
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+
+  const { data: openIssues, isLoading: l6 } = useQuery({
+    queryKey: ["dashboard-open-issues"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("system_issues")
+        .select("severity")
+        .in("status", ["open", "in_progress"])
+        .in("severity", ["critical", "high"]);
+      if (error) throw error;
+      return data.length;
+    },
+  });
+
   const { data: todayOrders, isLoading: l1 } = useQuery({
     queryKey: ["dashboard-today-orders"],
     queryFn: async () => {
@@ -89,7 +106,7 @@ export default function Dashboard() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
         <KpiCard
           title="Today's Orders"
           value={formatNumber(todayOrders?.count)}
@@ -132,6 +149,15 @@ export default function Dashboard() {
           icon={<AlertTriangle className="w-5 h-5" />}
           loading={l4}
         />
+        <div onClick={() => navigate("/system-health")} className="cursor-pointer">
+          <KpiCard
+            title="Open Bugs"
+            value={formatNumber(openIssues)}
+            subtitle="Critical & High severity"
+            icon={<Bug className="w-5 h-5" />}
+            loading={l6}
+          />
+        </div>
       </div>
 
       {/* Charts */}
