@@ -368,6 +368,19 @@ export default function WebOrderDetail() {
     }
   }, [pathaoZones, detectedThana, deliveryForm.zone]);
 
+  // Auto-match address → Pathao area (fuzzy match against area names)
+  useEffect(() => {
+    if (!pathaoAreas?.length || pathaoAreaId) return;
+    const address = order?.delivery_address || deliveryForm.address;
+    if (!address) return;
+    const candidates = pathaoAreas.map(a => ({ id: a.area_id, name: a.area_name }));
+    const match = findBestMatch(address, candidates);
+    if (match.best && match.score >= 0.55) {
+      setPathaoAreaId(match.best.id);
+      setDeliveryForm(f => ({ ...f, area: match.best!.name }));
+    }
+  }, [pathaoAreas, order?.delivery_address, deliveryForm.address]);
+
   // Reset zone when city changes
   useEffect(() => { setPathaoZoneId(null); setPathaoAreaId(null); }, [pathaoCityId]);
 
