@@ -4,7 +4,7 @@
  */
 
 /* ── Synonyms dictionary ── */
-const DISTRICT_SYNONYMS: Record<string, string[]> = {
+export const DISTRICT_SYNONYMS: Record<string, string[]> = {
   dhaka: ["ঢাকা", "dhaka", "ঢাকা জেলা", "dkh"],
   chattogram: ["চট্টগ্রাম", "chittagong", "chattogram", "ctg", "চট্টগ্রাম জেলা"],
   gazipur: ["গাজীপুর", "gazipur", "গাজিপুর"],
@@ -72,7 +72,7 @@ const DISTRICT_SYNONYMS: Record<string, string[]> = {
 };
 
 // Thana synonyms (common ones)
-const THANA_SYNONYMS: Record<string, string[]> = {
+export const THANA_SYNONYMS: Record<string, string[]> = {
   mirpur: ["মিরপুর", "mirpur"],
   uttara: ["উত্তরা", "uttara"],
   dhanmondi: ["ধানমন্ডি", "dhanmondi", "dhanmandi"],
