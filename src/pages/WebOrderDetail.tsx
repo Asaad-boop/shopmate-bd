@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,30 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import { formatBDT, formatDateTime } from "@/lib/format";
-import { cn } from "@/lib/utils";
-import {
-  ArrowLeft, Phone, MessageCircle, Send, Clock, MapPin,
-  Package, CheckCircle2, RefreshCw, Copy, ExternalLink,
-  Plus, Minus, X, Search, ShieldCheck, Truck, Loader2, AlertTriangle,
-  Printer, Save, MoreHorizontal, History, User, ChevronRight,
-} from "lucide-react";
-import { useAddressParser } from "@/hooks/use-address-parser";
 import {
   AlertDialog as AlertDialogRoot,
   AlertDialogAction as ADAction,
@@ -44,43 +27,58 @@ import {
   AlertDialogTrigger as ADTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
 } from "@/components/ui/sheet";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useToast } from "@/hooks/use-toast";
+import { formatBDT, formatDateTime, formatDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import {
+  ArrowLeft, Phone, MessageCircle, Send, Clock, MapPin,
+  Package, CheckCircle2, RefreshCw, Copy, Plus, Minus, X, Search,
+  Truck, Loader2, AlertTriangle, Printer, Save, MoreHorizontal,
+  History, User, ChevronRight, Zap, Activity, CreditCard, ExternalLink,
+  PhoneOff, Pause, Wallet, XCircle, CircleCheck,
+} from "lucide-react";
+import { useAddressParser } from "@/hooks/use-address-parser";
 import { useBDCourierSingle, getRiskLevel, getSuccessColor } from "@/hooks/use-bd-courier";
 import { PathaoTrackingCard } from "@/components/pathao/PathaoTrackingCard";
 import { AddressFixDrawer } from "@/components/orders/AddressFixDrawer";
 import { mapAddressToPathao, type MappingResult } from "@/lib/address-mapper";
-
-/* ─── Light Glass card utility ─── */
-const glass = "bg-white/70 backdrop-blur-xl border border-white/60 rounded-2xl shadow-[0_12px_40px_rgba(15,23,42,0.10)]";
-const glassLight = "bg-white/50 backdrop-blur-lg border border-slate-200/60 rounded-xl shadow-sm";
-const glassHeader = "bg-white/60 backdrop-blur-xl border-b border-slate-200/60";
+import { useCompanySettings } from "@/hooks/use-company-settings";
+import { useInvoiceSettings } from "@/hooks/use-invoice-settings";
+import { printInvoice } from "@/components/orders/PrintInvoice";
 
 /* ─── STATUS CONFIG ─── */
 const STATUS_BUTTONS = [
-  { key: "processing", label: "Processing", emoji: "🟡", color: "bg-amber-50 border-l-4 border-l-amber-400 border-y border-r border-amber-200/60 text-amber-800", active: "bg-amber-100 border-l-4 border-l-amber-500 border-y border-r border-amber-300 text-amber-900 font-bold" },
-  { key: "confirm", label: "Confirm", emoji: "🟢", color: "bg-emerald-50 border-l-4 border-l-emerald-400 border-y border-r border-emerald-200/60 text-emerald-800", active: "bg-emerald-100 border-l-4 border-l-emerald-500 border-y border-r border-emerald-300 text-emerald-900 font-bold" },
-  { key: "good_but_no_response", label: "Good No Resp", emoji: "🔵", color: "bg-sky-50 border-l-4 border-l-sky-400 border-y border-r border-sky-200/60 text-sky-800", active: "bg-sky-100 border-l-4 border-l-sky-500 border-y border-r border-sky-300 text-sky-900 font-bold" },
-  { key: "no_response", label: "No Response", emoji: "🔴", color: "bg-rose-50 border-l-4 border-l-rose-400 border-y border-r border-rose-200/60 text-rose-800", active: "bg-rose-100 border-l-4 border-l-rose-500 border-y border-r border-rose-300 text-rose-900 font-bold" },
-  { key: "on_hold", label: "On Hold", emoji: "⏸️", color: "bg-indigo-50 border-l-4 border-l-indigo-400 border-y border-r border-indigo-200/60 text-indigo-800", active: "bg-indigo-100 border-l-4 border-l-indigo-500 border-y border-r border-indigo-300 text-indigo-900 font-bold" },
-  { key: "advance_payment", label: "Advance", emoji: "🟠", color: "bg-orange-50 border-l-4 border-l-orange-400 border-y border-r border-orange-200/60 text-orange-800", active: "bg-orange-100 border-l-4 border-l-orange-500 border-y border-r border-orange-300 text-orange-900 font-bold" },
+  { key: "processing", label: "Processing", icon: Clock, dotColor: "bg-amber-500" },
+  { key: "confirm", label: "Confirm", icon: CircleCheck, dotColor: "bg-emerald-500" },
+  { key: "good_but_no_response", label: "Good No Response", icon: CheckCircle2, dotColor: "bg-sky-500" },
+  { key: "no_response", label: "No Response", icon: PhoneOff, dotColor: "bg-rose-500" },
+  { key: "on_hold", label: "On Hold", icon: Pause, dotColor: "bg-indigo-500" },
+  { key: "advance_payment", label: "Advance Payment", icon: Wallet, dotColor: "bg-orange-500" },
 ] as const;
 
+const STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  processing: { label: "Processing", color: "bg-amber-100 text-amber-800" },
+  confirm: { label: "Confirmed", color: "bg-emerald-100 text-emerald-800" },
+  good_but_no_response: { label: "Good No Resp", color: "bg-sky-100 text-sky-800" },
+  no_response: { label: "No Response", color: "bg-rose-100 text-rose-800" },
+  on_hold: { label: "On Hold", color: "bg-indigo-100 text-indigo-800" },
+  advance_payment: { label: "Advance", color: "bg-orange-100 text-orange-800" },
+  cancel: { label: "Cancelled", color: "bg-red-100 text-red-800" },
+};
+
 const CALL_OPTIONS = [
-  { key: "answered", label: "Answered", emoji: "✅", active: "bg-emerald-100 text-emerald-800 ring-emerald-400", idle: "text-emerald-700 ring-emerald-200 hover:bg-emerald-50" },
-  { key: "no_answer", label: "No Answer", emoji: "📵", active: "bg-orange-100 text-orange-800 ring-orange-400", idle: "text-orange-700 ring-orange-200 hover:bg-orange-50" },
-  { key: "busy", label: "Busy", emoji: "🔴", active: "bg-rose-100 text-rose-800 ring-rose-400", idle: "text-rose-700 ring-rose-200 hover:bg-rose-50" },
-  { key: "voicemail", label: "Voicemail", emoji: "📩", active: "bg-slate-200 text-slate-800 ring-slate-400", idle: "text-slate-600 ring-slate-200 hover:bg-slate-50" },
+  { key: "answered", label: "Answered", emoji: "✅", color: "bg-emerald-50 border-emerald-200 text-emerald-700", active: "bg-emerald-100 border-emerald-400 text-emerald-900 ring-2 ring-emerald-300" },
+  { key: "no_answer", label: "No Answer", emoji: "📵", color: "bg-orange-50 border-orange-200 text-orange-700", active: "bg-orange-100 border-orange-400 text-orange-900 ring-2 ring-orange-300" },
+  { key: "busy", label: "Busy", emoji: "🔴", color: "bg-rose-50 border-rose-200 text-rose-700", active: "bg-rose-100 border-rose-400 text-rose-900 ring-2 ring-rose-300" },
+  { key: "voicemail", label: "Voicemail", emoji: "📩", color: "bg-slate-50 border-slate-200 text-slate-600", active: "bg-slate-200 border-slate-400 text-slate-900 ring-2 ring-slate-300" },
 ];
 
 const QUICK_NOTES = ["Call before delivery", "Fragile", "Gift wrap", "Deliver after 6 PM"];
@@ -89,7 +87,6 @@ const CANCEL_REASONS = [
   "Customer requested cancellation", "Duplicate order", "Out of stock",
   "Fraudulent order", "Price dispute", "Wrong product ordered", "Other",
 ];
-
 const HOLD_REASONS = [
   "Waiting for customer confirmation", "Payment verification pending",
   "Address clarification needed", "Customer unreachable",
@@ -111,21 +108,9 @@ const noteTypeDot = (type: string) => {
     case "call_log": return "bg-sky-400";
     case "status_change": return "bg-amber-400";
     case "activity": return "bg-emerald-400";
-    default: return "bg-slate-300";
+    default: return "bg-muted-foreground/40";
   }
 };
-
-const segmentColors: Record<string, { bg: string; text: string }> = {
-  vip: { bg: "bg-amber-100", text: "text-amber-700" },
-  regular: { bg: "bg-sky-100", text: "text-sky-700" },
-  new: { bg: "bg-emerald-100", text: "text-emerald-700" },
-};
-
-const avatarColors = [
-  "from-sky-400 to-indigo-500", "from-emerald-400 to-teal-500",
-  "from-orange-400 to-rose-500", "from-purple-400 to-pink-500",
-  "from-cyan-400 to-sky-500",
-];
 
 const normalizePhone = (phone: string) => {
   let p = phone.replace(/\s+/g, "");
@@ -140,21 +125,24 @@ export default function WebOrderDetail() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { settings: company } = useCompanySettings();
+  const { invoiceSettings } = useInvoiceSettings();
+
   const [newNote, setNewNote] = useState("");
   const [callResult, setCallResult] = useState("");
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmSending, setConfirmSending] = useState(false);
-  
-  // Address fix drawer
+
+  // Address fix
   const [addressFixOpen, setAddressFixOpen] = useState(false);
   const [addressMappingResult, setAddressMappingResult] = useState<MappingResult | null>(null);
-
   const [detectedDistrict, setDetectedDistrict] = useState<string | null>(null);
   const [detectedThana, setDetectedThana] = useState<string | null>(null);
   const [addressParseApplied, setAddressParseApplied] = useState(false);
   const [reasonModal, setReasonModal] = useState<{ open: boolean; type: "cancel" | "on_hold" }>({ open: false, type: "cancel" });
   const [reasonValue, setReasonValue] = useState("");
   const [reasonNote, setReasonNote] = useState("");
+  const [addressFixSending, setAddressFixSending] = useState(false);
 
   /* ── Queries ── */
   const { data: order, isLoading } = useQuery({
@@ -198,7 +186,6 @@ export default function WebOrderDetail() {
     enabled: !!id,
   });
 
-  // Pathao defaults
   const { data: pathaoDefaults } = useQuery({
     queryKey: ["pathao-defaults"],
     queryFn: async () => {
@@ -213,13 +200,33 @@ export default function WebOrderDetail() {
     staleTime: 60 * 1000,
   });
 
+  // Previous orders for returning customer check
   const customer = order?.customers as any;
   const customerPhone = customer?.phone || "";
+
+  const { data: prevOrders } = useQuery({
+    queryKey: ["customer-prev-orders-web", customerPhone],
+    queryFn: async () => {
+      if (!customerPhone) return [];
+      const { data: cust } = await supabase
+        .from("customers").select("id").eq("phone", customerPhone).maybeSingle();
+      if (!cust) return [];
+      const { data, error } = await supabase
+        .from("orders")
+        .select("id, order_number, status, total_amount, created_at, channel, order_items(quantity, products(name))")
+        .eq("customer_id", cust.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!customerPhone,
+  });
 
   const { data: bdReport, isLoading: bdLoading, refetch: refetchBD } = useBDCourierSingle(customerPhone, !!customer);
   const riskInfo = getRiskLevel(bdReport?.success_rate);
 
-  // Address auto-parsing (for display only — no mapping at web order stage)
+  // Address auto-parsing
   const addressText = order?.delivery_address || customer?.address || "";
   const isEmptyValue = (v: string | null | undefined) => !v || v === "-" || v.trim() === "";
   const existingDistrict = order?.delivery_district || customer?.district || "";
@@ -245,7 +252,7 @@ export default function WebOrderDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["web-order", id] });
-      toast({ title: "✅ Address auto-filled", description: "District/Thana detected from address" });
+      toast({ title: "✅ Address auto-filled" });
     },
   });
 
@@ -292,7 +299,7 @@ export default function WebOrderDetail() {
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
-  /* ── Send to Pathao (direct, no modal) ── */
+  /* ── Send to Pathao ── */
   const sendToPathao = async (cityId: number, cityName: string, zoneId: number, zoneName: string) => {
     if (!order || !customer) return;
     const storeId = pathaoDefaults?.pathao_default_store;
@@ -332,9 +339,7 @@ export default function WebOrderDetail() {
 
     const { data: result, error: sendErr } = await supabase.functions.invoke("pathao-proxy", { body: { action: "create_order", order: orderPayload } });
     if (sendErr) throw sendErr;
-    if (result?._ok === false) {
-      throw new Error(result?.message || JSON.stringify(result?.errors) || "Pathao API error");
-    }
+    if (result?._ok === false) throw new Error(result?.message || JSON.stringify(result?.errors) || "Pathao API error");
 
     const consignment = result?.data?.[0] || result?.[0];
     const consignmentId = consignment?.consignment_id || "";
@@ -369,7 +374,6 @@ export default function WebOrderDetail() {
     if (!order || !customer) return;
     setConfirmSending(true);
     try {
-      // 1. Confirm order (update status + deduct stock)
       await supabase
         .from("orders")
         .update({ web_order_status: "confirm", status: "pending", updated_at: new Date().toISOString() })
@@ -396,80 +400,48 @@ export default function WebOrderDetail() {
         }
       }
 
-      // 2. Auto-map address
       const fullAddress = order.delivery_address || customer?.address || "";
-
-      // Fetch Pathao cities
       const { data: citiesData, error: citiesErr } = await supabase.functions.invoke("pathao-proxy", { body: { action: "cities" } });
       if (citiesErr) throw citiesErr;
       const cities = citiesData?.data?.data || [];
-
-      // Run mapping on full address
       const mappingResult = mapAddressToPathao(fullAddress, cities, []);
 
       if (mappingResult.success && mappingResult.cityId) {
-        // Fetch zones for matched city
         const { data: zonesData } = await supabase.functions.invoke("pathao-proxy", { body: { action: "zones", city_id: mappingResult.cityId } });
         const zones = zonesData?.data?.data || [];
-
-        // Re-run mapping with zones
         const fullMapping = mapAddressToPathao(fullAddress, cities, zones);
 
-        // Log mapping
         await supabase.from("web_order_notes").insert({
           order_id: id, note_type: "activity",
-          content: `Auto-mapped address: district=${fullMapping.cityName} (${Math.round(fullMapping.cityScore * 100)}%), thana=${fullMapping.zoneName} (${Math.round(fullMapping.zoneScore * 100)}%)`,
+          content: `Auto-mapped: district=${fullMapping.cityName} (${Math.round(fullMapping.cityScore * 100)}%), thana=${fullMapping.zoneName} (${Math.round(fullMapping.zoneScore * 100)}%)`,
           created_by: "System",
         });
 
         if (fullMapping.success && fullMapping.cityId && fullMapping.zoneId) {
-          // Mapping success → send to Pathao
           await supabase.from("web_order_notes").insert({
             order_id: id, note_type: "activity",
             content: "Order confirmed and moved to Order List (Pending)", created_by: "Staff",
           });
-
           try {
             await sendToPathao(fullMapping.cityId, fullMapping.cityName, fullMapping.zoneId, fullMapping.zoneName);
           } catch (pathaoErr: any) {
             console.error("Pathao send error:", pathaoErr);
             toast({ title: "Order confirmed but Pathao send failed", description: pathaoErr.message, variant: "destructive" });
             await supabase.from("orders").update({ courier_status: "PATHAO_FAILED", updated_at: new Date().toISOString() }).eq("id", id!);
-            await supabase.from("web_order_notes").insert({
-              order_id: id, note_type: "activity",
-              content: `Pathao failed: ${pathaoErr.message}`, created_by: "Staff",
-            });
+            await supabase.from("web_order_notes").insert({ order_id: id, note_type: "activity", content: `Pathao failed: ${pathaoErr.message}`, created_by: "Staff" });
           }
         } else {
-          // Zone mapping failed → ADDRESS_FIX_REQUIRED
           setAddressMappingResult(fullMapping);
           await supabase.from("orders").update({ courier_status: "ADDRESS_FIX_REQUIRED", updated_at: new Date().toISOString() }).eq("id", id!);
-          await supabase.from("web_order_notes").insert({
-            order_id: id, note_type: "activity",
-            content: `Confirm blocked: mapping missing — Zone score ${Math.round(fullMapping.zoneScore * 100)}% below threshold`,
-            created_by: "System",
-          });
-          await supabase.from("web_order_notes").insert({
-            order_id: id, note_type: "activity",
-            content: "Order confirmed and moved to Order List (Pending)", created_by: "Staff",
-          });
-          toast({ title: "📍 Address fix required", description: "City/Zone mapping needs manual selection" });
+          await supabase.from("web_order_notes").insert({ order_id: id, note_type: "activity", content: "Order confirmed and moved to Order List (Pending)", created_by: "Staff" });
+          toast({ title: "📍 Address fix required" });
           setAddressFixOpen(true);
         }
       } else {
-        // District mapping failed → ADDRESS_FIX_REQUIRED
         setAddressMappingResult(mappingResult);
         await supabase.from("orders").update({ courier_status: "ADDRESS_FIX_REQUIRED", updated_at: new Date().toISOString() }).eq("id", id!);
-        await supabase.from("web_order_notes").insert({
-          order_id: id, note_type: "activity",
-          content: `Confirm blocked: mapping missing — City score ${Math.round(mappingResult.cityScore * 100)}% below threshold`,
-          created_by: "System",
-        });
-        await supabase.from("web_order_notes").insert({
-          order_id: id, note_type: "activity",
-          content: "Order confirmed and moved to Order List (Pending)", created_by: "Staff",
-        });
-        toast({ title: "📍 Address fix required", description: "District mapping needs manual selection" });
+        await supabase.from("web_order_notes").insert({ order_id: id, note_type: "activity", content: "Order confirmed and moved to Order List (Pending)", created_by: "Staff" });
+        toast({ title: "📍 Address fix required" });
         setAddressFixOpen(true);
       }
     } catch (err: any) {
@@ -485,8 +457,6 @@ export default function WebOrderDetail() {
     }
   };
 
-  /* ── Address fix accept handler ── */
-  const [addressFixSending, setAddressFixSending] = useState(false);
   const handleAddressFixAccept = async (cityId: number, cityName: string, zoneId: number, zoneName: string) => {
     setAddressFixSending(true);
     try {
@@ -533,605 +503,421 @@ export default function WebOrderDetail() {
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
+  const handlePrintInvoice = useCallback(() => {
+    if (!order) return;
+    const orderWithItems = { ...order, order_items: items || [] };
+    printInvoice(orderWithItems, company, invoiceSettings);
+  }, [order, items, company, invoiceSettings]);
+
   /* ── Loading ── */
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 p-6">
-        <div className="max-w-[1600px] mx-auto space-y-5">
-          <Skeleton className="h-16 w-full rounded-2xl bg-slate-100" />
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-            <div className="lg:col-span-8 space-y-5">
-              <Skeleton className="h-80 rounded-2xl bg-slate-100" />
-              <Skeleton className="h-48 rounded-2xl bg-slate-100" />
-            </div>
-            <div className="lg:col-span-4 space-y-5">
-              <Skeleton className="h-60 rounded-2xl bg-slate-100" />
-              <Skeleton className="h-48 rounded-2xl bg-slate-100" />
-            </div>
+      <div className="space-y-6 animate-fade-in">
+        <Skeleton className="h-14 w-full" />
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
+          <div className="space-y-5">
+            <Skeleton className="h-48 w-full" />
+            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-40 w-full" />
+          </div>
+          <div className="space-y-5">
+            <Skeleton className="h-72 w-full" />
+            <Skeleton className="h-48 w-full" />
           </div>
         </div>
       </div>
     );
   }
 
-  if (!order) return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 flex items-center justify-center">
-      <p className="text-slate-400 text-lg">Order not found</p>
-    </div>
-  );
+  if (!order) return <div className="text-center py-12 text-muted-foreground">Order not found</div>;
 
   const currentStatus = order.web_order_status || "processing";
-  const statusConfig = STATUS_BUTTONS.find((s) => s.key === currentStatus);
+  const statusCfg = STATUS_LABELS[currentStatus] || { label: currentStatus, color: "bg-muted text-muted-foreground" };
   const callLogs = notes?.filter((n) => n.note_type === "call_log") || [];
-  const segment = customer?.segment || "regular";
-  const segColor = segmentColors[segment] || segmentColors.regular;
-  const avatarGrad = avatarColors[(customer?.full_name?.charCodeAt(0) || 0) % avatarColors.length];
-  const initial = (customer?.full_name || "?")[0].toUpperCase();
+  const isReturning = (prevOrders?.length || 0) > 1;
   const subtotal = order.subtotal || 0;
   const discount = order.discount || 0;
   const deliveryCharge = order.delivery_charge || 0;
   const grandTotal = order.total_amount || 0;
 
-  // Mapping confidence display
-  const mappingScoreColor = (score: number) => {
-    if (score >= 0.85) return "bg-emerald-100 text-emerald-700 border-emerald-200";
-    if (score >= 0.65) return "bg-amber-100 text-amber-700 border-amber-200";
-    return "bg-red-100 text-red-700 border-red-200";
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 relative overflow-hidden">
-      {/* Decorative pastel gradients */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-40 -left-40 w-[500px] h-[500px] bg-sky-200/40 rounded-full blur-[120px]" />
-        <div className="absolute top-1/3 -right-40 w-[400px] h-[400px] bg-purple-200/35 rounded-full blur-[100px]" />
-        <div className="absolute bottom-0 left-1/3 w-[600px] h-[300px] bg-emerald-200/35 rounded-full blur-[120px]" />
-      </div>
-
-      {/* ═══ STICKY HEADER ═══ */}
-      <header className={cn("sticky top-0 z-50 px-4 lg:px-6 py-3", glassHeader)}>
-        <div className="max-w-[1600px] mx-auto flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/web-orders")}
-            className="rounded-xl h-9 w-9 text-slate-500 hover:text-slate-900 hover:bg-slate-100/80">
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-
-          <h1 className="text-base font-bold tracking-tight text-slate-900">{order.order_number}</h1>
-
-          {statusConfig && (
-            <span className={cn(
-              "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold",
-              statusConfig.active
-            )}>
-              {statusConfig.emoji} {currentStatus.replace(/_/g, " ").toUpperCase()}
-            </span>
-          )}
-
-          {/* Courier status badge */}
-          {order.courier_status === "ADDRESS_FIX_REQUIRED" && (
-            <Badge
-              variant="outline"
-              className="text-[10px] bg-orange-50 text-orange-700 border-orange-200 gap-1 cursor-pointer"
-              onClick={() => setAddressFixOpen(true)}
-            >
-              <MapPin className="w-3 h-3" /> Fix Address
-            </Badge>
-          )}
-
-          <span className="text-[11px] text-slate-400 hidden sm:block">
-            Updated {timeAgo(order.updated_at || order.created_at || "")}
-          </span>
-
-          <div className="ml-auto flex items-center gap-2">
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="sm" className="rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100/80 gap-1.5 text-xs h-8">
-                  <History className="w-3.5 h-3.5" /> Courier
-                </Button>
-              </SheetTrigger>
-              <SheetContent className="bg-white/90 backdrop-blur-xl border-slate-200/60 text-slate-900">
-                <SheetHeader><SheetTitle className="text-slate-900">Courier History</SheetTitle></SheetHeader>
-                <div className="mt-6 space-y-3">
-                  {order.pathao_consignment_id ? (
-                    <div className={cn(glassLight, "p-4")}>
-                      <p className="text-xs text-slate-500 mb-1">Consignment ID</p>
-                      <div className="flex items-center gap-2">
-                        <p className="font-mono text-sm text-slate-900">{order.pathao_consignment_id}</p>
-                        <button onClick={() => { navigator.clipboard.writeText(order.pathao_consignment_id!); toast({ title: "Copied!" }); }}
-                          className="text-slate-400 hover:text-slate-600"><Copy className="w-3 h-3" /></button>
-                      </div>
-                      {order.pathao_tracking_code && (
-                        <div className="mt-2">
-                          <p className="text-xs text-slate-500 mb-1">Tracking Code</p>
-                          <p className="font-mono text-sm text-slate-900">{order.pathao_tracking_code}</p>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-slate-400 text-center py-8">No courier history yet</p>
+    <TooltipProvider delayDuration={200}>
+      <div className="space-y-6 animate-fade-in">
+        {/* ═══ STICKY HEADER ═══ */}
+        <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl -mx-6 px-6 py-4 border-b border-border/50">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" onClick={() => navigate("/web-orders")} className="shrink-0">
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <h1 className="text-xl font-bold tracking-tight">#{order.order_number}</h1>
+                  <Badge className={cn("text-xs", statusCfg.color)}>{statusCfg.label}</Badge>
+                  {order.courier_status === "ADDRESS_FIX_REQUIRED" && (
+                    <Badge variant="outline" className="text-[10px] bg-orange-50 text-orange-700 border-orange-200 gap-1 cursor-pointer" onClick={() => setAddressFixOpen(true)}>
+                      <MapPin className="w-3 h-3" /> Fix Address
+                    </Badge>
                   )}
                 </div>
-              </SheetContent>
-            </Sheet>
-            <Button variant="ghost" size="icon" className="rounded-xl h-8 w-8 text-slate-500 hover:text-slate-900 hover:bg-slate-100/80">
-              <Printer className="w-3.5 h-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="rounded-xl h-8 w-8 text-slate-500 hover:text-slate-900 hover:bg-slate-100/80">
-              <Save className="w-3.5 h-3.5" />
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-xl h-8 w-8 text-slate-500 hover:text-slate-900 hover:bg-slate-100/80">
-                  <MoreHorizontal className="w-3.5 h-3.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="bg-white/90 backdrop-blur-xl border-slate-200/60 text-slate-700 rounded-xl shadow-lg">
-                <DropdownMenuItem className="text-xs focus:bg-slate-50">Duplicate Order</DropdownMenuItem>
-                <DropdownMenuItem className="text-xs focus:bg-slate-50">Export PDF</DropdownMenuItem>
-                <DropdownMenuItem className="text-xs text-rose-600 focus:bg-rose-50">Delete Order</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                <p className="text-xs text-muted-foreground mt-0.5">Created {formatDateTime(order.created_at)} · Updated {timeAgo(order.updated_at || order.created_at || "")}</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs h-9 rounded-xl" onClick={handlePrintInvoice}>
+                <Printer className="w-3.5 h-3.5" /> Print
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl">
+                    <MoreHorizontal className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem className="text-xs">Duplicate Order</DropdownMenuItem>
+                  <DropdownMenuItem className="text-xs">Export PDF</DropdownMenuItem>
+                  <DropdownMenuItem className="text-xs text-destructive">Delete Order</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
-      </header>
 
-      {/* ═══ MAIN LAYOUT ═══ */}
-      <div className="max-w-[1600px] mx-auto px-4 lg:px-6 py-5 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* ═══ TWO COLUMN LAYOUT ═══ */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
 
-          {/* ════════ A) MAIN COLUMN (8/12) ════════ */}
-          <div className="lg:col-span-8 space-y-5">
+          {/* ════ LEFT COLUMN ════ */}
+          <div className="space-y-5">
 
-            {/* 1) ORDERED PRODUCTS */}
-            <section className={cn(glass, "p-5")}>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                  <Package className="w-4 h-4 text-slate-400" />
-                  Ordered Products ({items?.length || 0})
-                </h2>
-                <Button size="sm" className="rounded-xl h-8 text-xs gap-1.5 bg-sky-600 hover:bg-sky-700 text-white border-0">
-                  <Plus className="w-3 h-3" /> Add Product
-                </Button>
-              </div>
+            {/* 1) CUSTOMER CARD */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <User className="w-4 h-4 text-muted-foreground" /> Customer
+                  </CardTitle>
+                  <Badge variant="outline" className={cn("text-xs", isReturning ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-emerald-50 text-emerald-700 border-emerald-200")}>
+                    {isReturning ? `🔄 Returning (${prevOrders?.length} orders)` : "🆕 New Customer"}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Phone row */}
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-bold font-mono tracking-wider">{customerPhone}</span>
+                  <div className="flex gap-1 ml-auto">
+                    <Tooltip><TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-sky-600 hover:bg-sky-50" onClick={() => window.open(`tel:${customerPhone}`, "_self")}>
+                        <Phone className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger><TooltipContent className="text-xs">Call</TooltipContent></Tooltip>
+                    <Tooltip><TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-600 hover:bg-emerald-50"
+                        onClick={() => window.open(`https://wa.me/88${customerPhone.replace(/^0/, "")}`, "_blank")}>
+                        <MessageCircle className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger><TooltipContent className="text-xs">WhatsApp</TooltipContent></Tooltip>
+                    <Tooltip><TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:bg-muted"
+                        onClick={() => { navigator.clipboard.writeText(customerPhone); toast({ title: "Copied!" }); }}>
+                        <Copy className="w-3.5 h-3.5" />
+                      </Button>
+                    </TooltipTrigger><TooltipContent className="text-xs">Copy</TooltipContent></Tooltip>
+                  </div>
+                </div>
+                <div>
+                  <p className="font-medium text-sm">{customer?.full_name || "Unknown"}</p>
+                  {(order.delivery_address || customer?.address) && (
+                    <p className="text-xs text-muted-foreground flex items-start gap-1 mt-1">
+                      <MapPin className="w-3 h-3 mt-0.5 shrink-0" />
+                      {order.delivery_address || customer?.address}
+                    </p>
+                  )}
+                </div>
 
-              <div className="space-y-2">
-                {items?.map((item) => {
-                  const product = item.products as any;
-                  const pName = product?.name || (item as any).product_name_fallback || "Product";
-                  const pInitial = pName[0].toUpperCase();
-                  return (
-                    <div key={item.id} className="flex items-center gap-4 p-3 rounded-xl bg-white/60 border border-slate-200/60 hover:bg-white/90 transition-all duration-200 group">
-                      <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200/60 flex items-center justify-center overflow-hidden shrink-0">
-                        {product?.image_url ? (
-                          <img src={product.image_url} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-sm font-bold text-slate-400">{pInitial}</span>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm text-slate-900 truncate">{pName}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] text-sky-600 font-mono">{product?.sku || "-"}</span>
-                          {product?.stock_quantity != null && (
-                            <span className={cn("text-[10px]", product.stock_quantity < 10 ? "text-rose-500" : "text-slate-400")}>
-                              Stock: {product.stock_quantity}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors border border-slate-200/60">
-                          <Minus className="w-3 h-3 text-slate-500" />
-                        </button>
-                        <span className="w-8 text-center font-bold text-sm tabular-nums text-slate-900">{item.quantity}</span>
-                        <button className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors border border-slate-200/60">
-                          <Plus className="w-3 h-3 text-slate-500" />
-                        </button>
-                      </div>
-                      <div className="text-right shrink-0 w-20">
-                        <p className="text-[11px] text-slate-400">{formatBDT(item.unit_price)} ea</p>
-                        <p className="text-sm font-semibold tabular-nums text-slate-900">{formatBDT(item.total_price)}</p>
-                      </div>
-                      <button className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-colors opacity-0 group-hover:opacity-100">
-                        <X className="w-3.5 h-3.5" />
-                      </button>
+                {/* BD Courier success */}
+                {bdReport && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border">
+                    <div className="relative w-11 h-11 shrink-0">
+                      <svg className="w-11 h-11 -rotate-90" viewBox="0 0 48 48">
+                        <circle cx="24" cy="24" r="18" fill="none" stroke="hsl(var(--muted))" strokeWidth="4" />
+                        <circle cx="24" cy="24" r="18" fill="none"
+                          stroke={getSuccessColor(bdReport.success_rate)} strokeWidth="4"
+                          strokeDasharray={`${bdReport.success_rate * 1.131} 113.1`} strokeLinecap="round" />
+                      </svg>
+                      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold">{Math.round(bdReport.success_rate)}%</span>
                     </div>
-                  );
-                })}
-                {(!items || items.length === 0) && (
-                  <div className="text-center py-10">
-                    <Package className="w-8 h-8 mx-auto text-slate-200 mb-2" />
-                    <p className="text-sm text-slate-400">No products added yet</p>
+                    <div>
+                      <Badge className={cn("text-[10px]", riskInfo.bg, riskInfo.color)}>{riskInfo.label}</Badge>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{bdReport.total_orders} total · {bdReport.successful_orders} success</p>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 ml-auto" onClick={() => refetchBD()}>
+                      <RefreshCw className={cn("w-3 h-3", bdLoading && "animate-spin")} />
+                    </Button>
                   </div>
                 )}
-              </div>
 
-              {items && items.length > 0 && (
-                <div className="mt-4 pt-3 border-t border-slate-200/60 flex items-center justify-between text-sm">
-                  <span className="text-slate-500">Subtotal</span>
-                  <span className="font-semibold tabular-nums text-slate-900">{formatBDT(subtotal)}</span>
+                {/* Previous orders */}
+                {isReturning && prevOrders && prevOrders.length > 0 && (
+                  <div className="border-t border-border pt-3 space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Previous Orders</p>
+                    {prevOrders.slice(0, 4).map((o) => {
+                      const oItems = (o as any).order_items || [];
+                      const firstName = oItems[0]?.products?.name || "Product";
+                      return (
+                        <div key={o.id} className="flex items-center justify-between text-xs p-2 rounded-lg bg-muted/50">
+                          <div className="flex-1 min-w-0">
+                            <span className="font-medium">#{o.order_number}</span>
+                            <span className="text-muted-foreground ml-2 truncate">{firstName} · {formatBDT(o.total_amount)}</span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0 ml-2">
+                            <Badge className={cn("text-[10px] px-1.5 py-0",
+                              o.status === "delivered" ? "bg-emerald-100 text-emerald-800" :
+                              o.status === "cancelled" ? "bg-red-100 text-red-800" : "bg-muted text-muted-foreground"
+                            )}>{o.status}</Badge>
+                            <span className="text-[10px] text-muted-foreground">{formatDate(o.created_at)}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* 2) ORDER ITEMS */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Package className="w-4 h-4 text-muted-foreground" /> Order Items ({items?.length || 0})
+                  </CardTitle>
                 </div>
-              )}
-            </section>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {items?.map((item) => {
+                    const product = item.products as any;
+                    const pName = product?.name || (item as any).product_name_fallback || "Product";
+                    return (
+                      <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border hover:bg-muted/50 transition-all group">
+                        <div className="w-11 h-11 rounded-lg overflow-hidden border border-border shrink-0">
+                          {product?.image_url ? (
+                            <img src={product.image_url} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full bg-primary/5 flex items-center justify-center text-xs font-bold text-primary">{pName[0]}</div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{pName}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] text-primary font-mono">{product?.sku || "-"}</span>
+                            {product?.stock_quantity != null && (
+                              <span className={cn("text-[10px]", product.stock_quantity < 10 ? "text-destructive" : "text-muted-foreground")}>
+                                Stock: {product.stock_quantity}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="w-8 text-center font-bold text-sm tabular-nums">×{item.quantity}</span>
+                        </div>
+                        <div className="text-right shrink-0 w-20">
+                          <p className="text-[11px] text-muted-foreground">{formatBDT(item.unit_price)} ea</p>
+                          <p className="text-sm font-semibold tabular-nums">{formatBDT(item.total_price)}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {(!items || items.length === 0) && (
+                    <div className="text-center py-6 text-muted-foreground text-sm">
+                      <Package className="w-6 h-6 mx-auto mb-2 opacity-30" />No items
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
-            {/* 2) DELIVERY & NOTES */}
-            <section className={cn(glass, "p-5")}>
-              <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2 mb-4">
-                <Truck className="w-4 h-4 text-slate-400" />
-                Delivery & Notes
-              </h2>
+            {/* 3) DELIVERY & NOTES */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-muted-foreground" /> Delivery & Notes
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Note input */}
+                <div className="space-y-2">
+                  <Textarea
+                    value={newNote}
+                    onChange={(e) => setNewNote(e.target.value)}
+                    placeholder="Add a note about this order..."
+                    rows={2}
+                    className="text-sm resize-none"
+                  />
+                  <div className="flex flex-wrap gap-1.5">
+                    {QUICK_NOTES.map((chip) => (
+                      <button key={chip} onClick={() => setNewNote((prev) => prev ? `${prev}, ${chip}` : chip)}
+                        className="px-2.5 py-1 rounded-lg text-[10px] font-medium bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border border-border transition-all">
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+                  {newNote.trim() && (
+                    <Button onClick={() => noteMutation.mutate()} disabled={noteMutation.isPending} size="sm" className="gap-1.5 text-xs">
+                      <Send className="w-3 h-3" /> Save Note
+                    </Button>
+                  )}
+                </div>
+                {notes?.filter((n) => n.note_type === "note").slice(0, 3).map((note) => (
+                  <div key={note.id} className="p-2.5 rounded-lg bg-muted/50 border border-border">
+                    <p className="text-xs">{note.content}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">{note.created_by} · {timeAgo(note.created_at)}</p>
+                  </div>
+                ))}
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-                <div>
-                  <label className="text-[11px] text-slate-500 font-medium mb-1.5 block">Source</label>
-                  <div className="h-9 rounded-xl bg-white/80 border border-slate-200/60 flex items-center px-3 text-sm capitalize text-slate-900">
-                    {order.channel || "Manual"}
+                <Separator />
+
+                {/* Address */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <label className="text-[11px] text-muted-foreground font-medium">District</label>
+                      {districtAutoFilled && <span className="flex items-center gap-0.5 text-[10px] text-emerald-600 font-medium"><CheckCircle2 className="w-3 h-3" /> Auto</span>}
+                      {showParsingIndicator && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
+                    </div>
+                    <Input value={detectedDistrict || (districtEmpty ? "" : existingDistrict)} readOnly
+                      className={cn("h-9 text-sm", districtAutoFilled && "border-emerald-300 ring-1 ring-emerald-200")} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <label className="text-[11px] text-muted-foreground font-medium">Thana</label>
+                      {thanaAutoFilled && <span className="flex items-center gap-0.5 text-[10px] text-emerald-600 font-medium"><CheckCircle2 className="w-3 h-3" /> Auto</span>}
+                    </div>
+                    <Input value={detectedThana || (thanaEmpty ? "" : existingThana)} readOnly
+                      className={cn("h-9 text-sm", thanaAutoFilled && "border-emerald-300 ring-1 ring-emerald-200")} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-[11px] text-muted-foreground font-medium mb-1 block">Full Address</label>
+                    <Textarea value={order.delivery_address || customer?.address || ""} readOnly rows={2} className="text-sm resize-none" />
                   </div>
                 </div>
-                <div>
-                  <label className="text-[11px] text-slate-500 font-medium mb-1.5 block">Delivery Method</label>
-                  <div className="h-9 rounded-xl bg-white/80 border border-slate-200/60 flex items-center px-3 text-sm text-slate-900">
-                    {order.pathao_consignment_id ? "Pathao" : "Custom"}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-[11px] text-slate-500 font-medium mb-1.5 block">Consignment ID</label>
-                  <div className="h-9 rounded-xl bg-white/80 border border-slate-200/60 flex items-center px-3 text-sm font-mono text-slate-900">
-                    {order.pathao_consignment_id || "—"}
-                    {order.pathao_consignment_id && (
-                      <button onClick={() => { navigator.clipboard.writeText(order.pathao_consignment_id!); toast({ title: "Copied!" }); }}
-                        className="ml-auto text-slate-400 hover:text-slate-600"><Copy className="w-3 h-3" /></button>
-                    )}
-                  </div>
-                </div>
-              </div>
+              </CardContent>
+            </Card>
 
-              {/* Note */}
-              <div className="space-y-2">
-                <label className="text-[11px] text-slate-500 font-medium block">Note</label>
-                <Textarea
-                  value={newNote}
-                  onChange={(e) => setNewNote(e.target.value)}
-                  placeholder="Add delivery instructions..."
-                  rows={3}
-                  className="bg-white/80 border-slate-200/60 text-slate-900 placeholder:text-slate-300 rounded-xl resize-none focus:ring-2 focus:ring-sky-400/40 focus:border-sky-300"
-                />
-                <div className="flex flex-wrap gap-1.5">
-                  {QUICK_NOTES.map((chip) => (
-                    <button
-                      key={chip}
-                      onClick={() => setNewNote((prev) => prev ? `${prev}, ${chip}` : chip)}
-                      className="px-2.5 py-1 rounded-lg text-[10px] font-medium bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200/60 transition-all"
-                    >
-                      {chip}
+            {/* 4) CALL LOG */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-muted-foreground" /> Call Log
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {CALL_OPTIONS.map((opt) => (
+                    <button key={opt.key} onClick={() => setCallResult(opt.key)}
+                      className={cn("flex flex-col items-center gap-1 px-3 py-3 rounded-xl text-xs font-semibold border transition-all",
+                        callResult === opt.key ? opt.active : opt.color)}>
+                      <span className="text-lg">{opt.emoji}</span>
+                      <span>{opt.label}</span>
                     </button>
                   ))}
                 </div>
-                {newNote.trim() && (
-                  <Button
-                    onClick={() => noteMutation.mutate()}
-                    disabled={noteMutation.isPending}
-                    className="rounded-xl h-8 text-xs bg-sky-600 hover:bg-sky-700 text-white border-0 gap-1.5"
-                    size="sm"
-                  >
-                    <Send className="w-3 h-3" /> Save Note
+                {callResult && (
+                  <Button onClick={() => callLogMutation.mutate()} disabled={callLogMutation.isPending}
+                    className="w-full text-xs gap-1.5" size="sm">
+                    <Send className="w-3 h-3" /> Log Call
                   </Button>
                 )}
-              </div>
-
-              {notes?.filter((n) => n.note_type === "note").slice(0, 3).map((note) => (
-                <div key={note.id} className="mt-2 p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/40">
-                  <p className="text-xs text-slate-600">{note.content}</p>
-                  <p className="text-[10px] text-slate-400 mt-1">{note.created_by} • {timeAgo(note.created_at)}</p>
-                </div>
-              ))}
-            </section>
-
-            {/* 3) ADDRESS with confidence chips */}
-            <section className={cn(glass, "p-5")}>
-              <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2 mb-4">
-                <MapPin className="w-4 h-4 text-slate-400" />
-                Address
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <label className="text-[11px] text-slate-500 font-medium">District</label>
-                    {districtAutoFilled && (
-                      <span className="flex items-center gap-0.5 text-[10px] text-emerald-600 font-medium">
-                        <CheckCircle2 className="w-3 h-3" /> Auto
-                      </span>
-                    )}
-                    {showParsingIndicator && <Loader2 className="w-3 h-3 animate-spin text-slate-400" />}
+                {callLogs.length > 0 && (
+                  <div className="space-y-1.5">
+                    {callLogs.slice(0, 5).map((log) => (
+                      <div key={log.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 text-xs border border-border">
+                        <span>📞</span>
+                        <span className="capitalize font-medium">{log.call_result?.replace("_", " ")}</span>
+                        <span className="text-muted-foreground">·</span>
+                        <span className="text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" />{timeAgo(log.created_at)}</span>
+                      </div>
+                    ))}
                   </div>
-                  <Input
-                    value={detectedDistrict || (districtEmpty ? "" : existingDistrict)}
-                    readOnly
-                    className={cn("rounded-xl h-9 text-sm bg-white/80 border-slate-200/60 text-slate-900", districtAutoFilled && "border-emerald-300 ring-1 ring-emerald-200")}
-                  />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <label className="text-[11px] text-slate-500 font-medium">Thana</label>
-                    {thanaAutoFilled && (
-                      <span className="flex items-center gap-0.5 text-[10px] text-emerald-600 font-medium">
-                        <CheckCircle2 className="w-3 h-3" /> Auto
-                      </span>
-                    )}
-                  </div>
-                  <Input
-                    value={detectedThana || (thanaEmpty ? "" : existingThana)}
-                    readOnly
-                    className={cn("rounded-xl h-9 text-sm bg-white/80 border-slate-200/60 text-slate-900", thanaAutoFilled && "border-emerald-300 ring-1 ring-emerald-200")}
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="text-[11px] text-slate-500 font-medium mb-1.5 block">Full Address</label>
-                  <Textarea
-                    value={order.delivery_address || customer?.address || ""}
-                    readOnly rows={2}
-                    className="rounded-xl text-sm bg-white/80 border-slate-200/60 text-slate-900 resize-none"
-                  />
-                </div>
-              </div>
-            </section>
-
-            {/* 4) CALL LOG */}
-            <section className={cn(glass, "p-5")}>
-              <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2 mb-4">
-                <Phone className="w-4 h-4 text-slate-400" />
-                Call Log
-              </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
-                {CALL_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.key}
-                    onClick={() => setCallResult(opt.key)}
-                    className={cn(
-                      "flex flex-col items-center gap-1 px-3 py-3 rounded-xl text-xs font-semibold ring-1 ring-inset transition-all duration-200",
-                      callResult === opt.key ? opt.active : opt.idle,
-                    )}
-                  >
-                    <span className="text-lg">{opt.emoji}</span>
-                    <span>{opt.label}</span>
-                  </button>
-                ))}
-              </div>
-              {callResult && (
-                <Button onClick={() => callLogMutation.mutate()} disabled={callLogMutation.isPending}
-                  className="w-full rounded-xl h-9 bg-sky-600 hover:bg-sky-700 text-white border-0 text-xs gap-1.5 mb-3">
-                  <Send className="w-3 h-3" /> Log Call
-                </Button>
-              )}
-              {callLogs.length > 0 && (
-                <div className="space-y-1.5 mt-2">
-                  {callLogs.slice(0, 5).map((log) => (
-                    <div key={log.id} className="flex items-center gap-3 p-2 rounded-lg bg-slate-50/80 text-xs border border-slate-200/40">
-                      <span>📞</span>
-                      <span className="capitalize font-medium text-slate-700">{log.call_result?.replace("_", " ")}</span>
-                      <span className="text-slate-300">•</span>
-                      <span className="text-slate-400 flex items-center gap-1"><Clock className="w-3 h-3" />{timeAgo(log.created_at)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
+                )}
+              </CardContent>
+            </Card>
 
             {/* 5) ACTIVITY LOG */}
-            <section className={cn(glass, "p-5")}>
-              <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2 mb-4">
-                <Clock className="w-4 h-4 text-slate-400" />
-                Activity Log
-              </h2>
-              {notes && notes.length > 0 ? (
-                <div className="relative space-y-4 pl-6">
-                  <div className="absolute left-[9px] top-2 bottom-2 w-px bg-slate-200" />
-                  {notes.map((note) => (
-                    <div key={note.id} className="relative flex gap-3">
-                      <div className={cn("absolute left-[-15px] top-1.5 w-2.5 h-2.5 rounded-full ring-2 ring-white", noteTypeDot(note.note_type))} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-slate-700">{note.content}</p>
-                        <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-400">
-                          <span>{note.created_by || "System"}</span>
-                          <span>•</span>
-                          <span>{timeAgo(note.created_at)}</span>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-muted-foreground" /> Activity Log
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {notes && notes.length > 0 ? (
+                  <div className="relative space-y-4 pl-6">
+                    <div className="absolute left-[9px] top-2 bottom-2 w-px bg-border" />
+                    {notes.map((note) => (
+                      <div key={note.id} className="relative flex gap-3">
+                        <div className={cn("absolute left-[-15px] top-1.5 w-2.5 h-2.5 rounded-full ring-2 ring-background", noteTypeDot(note.note_type))} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs">{note.content}</p>
+                          <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
+                            <span>{note.created_by || "System"}</span>
+                            <span>·</span>
+                            <span>{timeAgo(note.created_at)}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Clock className="w-6 h-6 mx-auto text-slate-200 mb-2" />
-                  <p className="text-xs text-slate-400">No activity yet</p>
-                </div>
-              )}
-            </section>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Clock className="w-6 h-6 mx-auto text-muted-foreground/30 mb-2" />
+                    <p className="text-xs text-muted-foreground">No activity yet</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
-          {/* ════════ B) SIDEBAR (4/12) ════════ */}
-          <div className="lg:col-span-4 space-y-5 lg:sticky lg:top-[72px] lg:self-start">
+          {/* ════ RIGHT COLUMN (Sticky) ════ */}
+          <div className="space-y-5 lg:sticky lg:top-24 lg:self-start">
 
-            {/* 1) CUSTOMER CARD */}
-            <section className={cn(glass, "p-5")}>
-              <div className="flex items-center gap-3 mb-4">
-                <div className={cn("w-11 h-11 rounded-xl bg-gradient-to-br flex items-center justify-center text-white font-bold text-lg shadow-md", avatarGrad)}>
-                  {initial}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="font-bold text-sm text-slate-900 truncate">{customer?.full_name || "Unknown"}</p>
-                    <span className={cn("px-1.5 py-0.5 rounded text-[9px] font-bold uppercase", segColor.bg, segColor.text)}>
-                      {segment}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 font-mono mt-0.5">{customerPhone}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 mb-4">
-                {customerPhone && (
-                  <>
-                    <a href={`tel:${customerPhone}`}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200/60 hover:bg-sky-100 transition-colors">
-                      <Phone className="w-3 h-3" /> Call
-                    </a>
-                    <a href={`sms:${customerPhone}`}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold bg-slate-50 text-slate-700 border border-slate-200/60 hover:bg-slate-100 transition-colors">
-                      <MessageCircle className="w-3 h-3" /> SMS
-                    </a>
-                    <a href={`https://wa.me/88${customerPhone.replace(/^0/, "")}`} target="_blank" rel="noreferrer"
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60 hover:bg-emerald-100 transition-colors">
-                      <Send className="w-3 h-3" /> WA
-                    </a>
-                  </>
-                )}
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                <div className="p-2 rounded-xl bg-slate-50/80 border border-slate-200/40 text-center">
-                  <p className="text-[10px] text-slate-400 uppercase">Orders</p>
-                  <p className="font-bold text-sm mt-0.5 text-slate-900">{customer?.total_orders ?? 0}</p>
-                </div>
-                <div className="p-2 rounded-xl bg-slate-50/80 border border-slate-200/40 text-center">
-                  <p className="text-[10px] text-slate-400 uppercase">Spent</p>
-                  <p className="font-bold text-sm mt-0.5 text-slate-900">{formatBDT(customer?.total_spent)}</p>
-                </div>
-                <div className="p-2 rounded-xl bg-slate-50/80 border border-slate-200/40 text-center">
-                  <p className="text-[10px] text-slate-400 uppercase">Success</p>
-                  <p className="font-bold text-sm mt-0.5" style={{ color: bdReport ? getSuccessColor(bdReport.success_rate) : undefined }}>
-                    {bdReport ? `${Math.round(bdReport.success_rate)}%` : "--"}
-                  </p>
-                </div>
-              </div>
-
-              {bdReport && (
-                <div className="mt-3 p-3 rounded-xl bg-slate-50/80 border border-slate-200/40">
-                  <div className="flex items-center gap-3">
-                    <div className="relative w-12 h-12 shrink-0">
-                      <svg className="w-12 h-12 -rotate-90" viewBox="0 0 48 48">
-                        <circle cx="24" cy="24" r="18" fill="none" stroke="hsl(214 32% 91%)" strokeWidth="4" />
-                        <circle cx="24" cy="24" r="18" fill="none"
-                          stroke={getSuccessColor(bdReport.success_rate)}
-                          strokeWidth="4"
-                          strokeDasharray={`${bdReport.success_rate * 1.131} 113.1`}
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-[11px] font-bold" style={{ color: getSuccessColor(bdReport.success_rate) }}>
-                          {Math.round(bdReport.success_rate)}%
-                        </span>
-                      </div>
-                    </div>
-                    <div>
-                      <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold", riskInfo.bg || "bg-slate-100", riskInfo.color || "text-slate-600")}>
-                        {riskInfo.label}
-                      </span>
-                      <p className="text-[10px] text-slate-400 mt-1">{bdReport.total_orders} total • {bdReport.successful_orders} success</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </section>
-
-            {/* 2) PAYMENT CARD */}
-            <section className={cn(glass, "p-5")}>
-              <h2 className="text-sm font-semibold text-slate-900 mb-4">Payment</h2>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500">Method</span>
-                  <span className="capitalize font-medium text-slate-900">{order.payment_method || "COD"}</span>
-                </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500">Status</span>
-                  <span className={cn("px-2 py-0.5 rounded-lg text-[10px] font-semibold",
-                    order.payment_status === "paid" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
-                  )}>
-                    {order.payment_status || "pending"}
-                  </span>
-                </div>
-                <Separator className="bg-slate-200/60" />
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500">Discount</span>
-                  {discount > 0 ? (
-                    <span className="text-rose-600">-{formatBDT(discount)}</span>
-                  ) : (
-                    <span className="text-slate-400">৳0</span>
-                  )}
-                </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500">Delivery</span>
-                  <span className="tabular-nums text-slate-900">{formatBDT(deliveryCharge)}</span>
-                </div>
-                {order.cod_amount ? (
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-500">COD Amount</span>
-                    <span className="tabular-nums text-slate-900">{formatBDT(order.cod_amount)}</span>
-                  </div>
-                ) : null}
-              </div>
-            </section>
-
-            {/* 3) ORDER SUMMARY */}
-            <section className={cn(glass, "p-5")}>
-              <h2 className="text-sm font-semibold text-slate-900 mb-4">Order Summary</h2>
-              <div className="space-y-2 text-xs">
-                <div className="flex justify-between"><span className="text-slate-500">Subtotal</span><span className="tabular-nums text-slate-900">{formatBDT(subtotal)}</span></div>
-                {discount > 0 && (
-                  <div className="flex justify-between"><span className="text-slate-500">Discount</span><span className="text-rose-600 tabular-nums">-{formatBDT(discount)}</span></div>
-                )}
-                <div className="flex justify-between"><span className="text-slate-500">Delivery</span><span className="tabular-nums text-slate-900">{formatBDT(deliveryCharge)}</span></div>
-                <Separator className="bg-slate-200/60 my-2" />
-                <div className="flex justify-between items-baseline">
-                  <span className="text-sm font-semibold text-slate-900">Grand Total</span>
-                  <span className="text-2xl font-bold bg-gradient-to-r from-sky-600 to-emerald-500 bg-clip-text text-transparent tabular-nums">
-                    {formatBDT(grandTotal)}
-                  </span>
-                </div>
-              </div>
-              <div className="mt-3 p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/40 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[10px]">
-                <div className="flex justify-between"><span className="text-slate-400">Items</span><span className="text-slate-600">{items?.length || 0}</span></div>
-                <div className="flex justify-between"><span className="text-slate-400">Qty</span><span className="text-slate-600">{items?.reduce((s, i) => s + i.quantity, 0) || 0}</span></div>
-                <div className="flex justify-between"><span className="text-slate-400">Source</span><span className="text-slate-600 capitalize">{order.channel}</span></div>
-                <div className="flex justify-between"><span className="text-slate-400">Method</span><span className="text-slate-600">{order.payment_method || "COD"}</span></div>
-              </div>
-            </section>
-
-            {/* 4) STATUS ACTIONS */}
-            <section className={cn(glass, "p-5")}>
-              <h2 className="text-sm font-semibold text-slate-900 mb-3">Status Actions</h2>
-              <div className="space-y-1.5">
+            {/* 1) STATUS ACTIONS */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-muted-foreground" /> Status Actions
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1.5">
                 {STATUS_BUTTONS.map((s) => {
+                  const Icon = s.icon;
                   const isActive = currentStatus === s.key;
+
                   if (s.key === "confirm") {
                     return (
                       <AlertDialogRoot key={s.key} open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
                         <ADTrigger asChild>
-                          <button
-                            disabled={isActive || statusMutation.isPending || confirmSending}
-                            className={cn(
-                              "w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200",
-                              isActive ? s.active : s.color,
-                              (isActive || statusMutation.isPending || confirmSending) && "opacity-50 cursor-not-allowed"
-                            )}
-                          >
-                            <span>{s.emoji}</span> {s.label}
-                            {confirmSending && <Loader2 className="w-3.5 h-3.5 ml-auto animate-spin" />}
-                            {isActive && !confirmSending && <CheckCircle2 className="w-3.5 h-3.5 ml-auto" />}
+                          <button disabled={isActive || statusMutation.isPending || confirmSending}
+                            className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left",
+                              isActive ? "bg-foreground text-background" : "hover:bg-muted/80",
+                              (isActive || statusMutation.isPending || confirmSending) && "opacity-50 cursor-not-allowed")}>
+                            <div className={cn("w-2.5 h-2.5 rounded-full shrink-0", s.dotColor)} />
+                            <Icon className="w-4 h-4 shrink-0" />
+                            <span className="flex-1">{s.label}</span>
+                            {confirmSending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                            {isActive && !confirmSending && <CheckCircle2 className="w-3.5 h-3.5" />}
                           </button>
                         </ADTrigger>
-                        <ADContent className="rounded-2xl bg-white/90 backdrop-blur-xl border-slate-200/60 text-slate-900 shadow-xl">
+                        <ADContent>
                           <ADHeader>
-                            <ADTitle className="text-slate-900">Confirm this order?</ADTitle>
-                            <ADDesc className="text-slate-500">
-                              This will confirm the order, deduct stock, and automatically map the address for Pathao courier.
-                            </ADDesc>
+                            <ADTitle>Confirm this order?</ADTitle>
+                            <ADDesc>This will confirm the order, deduct stock, and automatically map the address for Pathao courier.</ADDesc>
                           </ADHeader>
                           <ADFooter>
-                            <ADCancel className="rounded-xl bg-white/70 border-slate-200 text-slate-900 hover:bg-white">Cancel</ADCancel>
+                            <ADCancel>Cancel</ADCancel>
                             <ADAction onClick={handleConfirmWithMapping} disabled={confirmSending}
-                              className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white">
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white">
                               {confirmSending ? <><Loader2 className="w-4 h-4 animate-spin mr-1" /> Confirming...</> : "✅ Confirm Order"}
                             </ADAction>
                           </ADFooter>
@@ -1139,70 +925,96 @@ export default function WebOrderDetail() {
                       </AlertDialogRoot>
                     );
                   }
+
                   if (s.key === "on_hold") {
                     return (
-                      <button
-                        key={s.key}
+                      <button key={s.key}
                         onClick={() => { setReasonModal({ open: true, type: "on_hold" }); setReasonValue(""); setReasonNote(""); }}
                         disabled={isActive || statusMutation.isPending}
-                        className={cn(
-                          "w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200",
-                          isActive ? s.active : s.color,
-                          (isActive || statusMutation.isPending) && "opacity-50 cursor-not-allowed"
-                        )}
-                      >
-                        <span>{s.emoji}</span> {s.label}
-                        {isActive && <CheckCircle2 className="w-3.5 h-3.5 ml-auto" />}
+                        className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left",
+                          isActive ? "bg-foreground text-background" : "hover:bg-muted/80",
+                          (isActive || statusMutation.isPending) && "opacity-50 cursor-not-allowed")}>
+                        <div className={cn("w-2.5 h-2.5 rounded-full shrink-0", s.dotColor)} />
+                        <Icon className="w-4 h-4 shrink-0" />
+                        <span className="flex-1">{s.label}</span>
+                        {isActive && <CheckCircle2 className="w-3.5 h-3.5" />}
                       </button>
                     );
                   }
+
                   return (
-                    <button
-                      key={s.key}
+                    <button key={s.key}
                       onClick={() => statusMutation.mutate({ newStatus: s.key })}
                       disabled={isActive || statusMutation.isPending}
-                      className={cn(
-                        "w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200",
-                        isActive ? s.active : s.color,
-                        (isActive || statusMutation.isPending) && "opacity-50 cursor-not-allowed"
-                      )}
-                    >
-                      <span>{s.emoji}</span> {s.label}
-                      {isActive && <CheckCircle2 className="w-3.5 h-3.5 ml-auto" />}
+                      className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left",
+                        isActive ? "bg-foreground text-background" : "hover:bg-muted/80",
+                        (isActive || statusMutation.isPending) && "opacity-50 cursor-not-allowed")}>
+                      <div className={cn("w-2.5 h-2.5 rounded-full shrink-0", s.dotColor)} />
+                      <Icon className="w-4 h-4 shrink-0" />
+                      <span className="flex-1">{s.label}</span>
+                      {isActive && <CheckCircle2 className="w-3.5 h-3.5" />}
                     </button>
                   );
                 })}
+
                 {/* Cancel */}
                 <button
                   onClick={() => { setReasonModal({ open: true, type: "cancel" }); setReasonValue(""); setReasonNote(""); }}
                   disabled={currentStatus === "cancel" || statusMutation.isPending}
-                  className={cn(
-                    "w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 mt-2",
-                    currentStatus === "cancel"
-                      ? "bg-rose-100 border-l-4 border-l-rose-500 border-y border-r border-rose-300 text-rose-900 opacity-50 cursor-not-allowed"
-                      : "bg-rose-50 border-l-4 border-l-rose-400 border-y border-r border-rose-200/60 text-rose-700 hover:bg-rose-100"
-                  )}
-                >
-                  ❌ Cancel
-                  {currentStatus === "cancel" && <CheckCircle2 className="w-3.5 h-3.5 ml-auto" />}
+                  className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left mt-2",
+                    currentStatus === "cancel" ? "bg-foreground text-background opacity-50 cursor-not-allowed" : "hover:bg-destructive/10 text-destructive")}>
+                  <div className="w-2.5 h-2.5 rounded-full shrink-0 bg-red-500" />
+                  <XCircle className="w-4 h-4 shrink-0" />
+                  <span className="flex-1">Cancel</span>
+                  {currentStatus === "cancel" && <CheckCircle2 className="w-3.5 h-3.5" />}
                 </button>
-              </div>
-            </section>
+              </CardContent>
+            </Card>
 
-            {/* Pathao status section — only shown after confirm */}
+            {/* 2) PAYMENT & SUMMARY */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-muted-foreground" /> Payment Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex justify-between"><span className="text-muted-foreground">Method</span><span className="capitalize font-medium">{order.payment_method || "COD"}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Status</span>
+                  <Badge className={cn("text-[10px]", order.payment_status === "paid" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700")}>{order.payment_status || "pending"}</Badge>
+                </div>
+                <Separator />
+                <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="tabular-nums">{formatBDT(subtotal)}</span></div>
+                {discount > 0 && <div className="flex justify-between text-destructive"><span>Discount</span><span className="tabular-nums">-{formatBDT(discount)}</span></div>}
+                <div className="flex justify-between"><span className="text-muted-foreground">Delivery</span><span className="tabular-nums">{formatBDT(deliveryCharge)}</span></div>
+                {order.cod_amount ? <div className="flex justify-between"><span className="text-muted-foreground">COD Amount</span><span className="tabular-nums">{formatBDT(order.cod_amount)}</span></div> : null}
+                <Separator />
+                <div className="flex justify-between items-baseline">
+                  <span className="font-semibold">Grand Total</span>
+                  <span className="text-xl font-bold text-primary tabular-nums">{formatBDT(grandTotal)}</span>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-2.5 grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Items</span><span>{items?.length || 0}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Qty</span><span>{items?.reduce((s, i) => s + i.quantity, 0) || 0}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Source</span><span className="capitalize">{order.channel}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Order #</span><span>{order.order_number}</span></div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Address Fix button */}
             {currentStatus === "confirm" && order.courier_status === "ADDRESS_FIX_REQUIRED" && (
-              <section className="bg-orange-50/80 backdrop-blur-xl border border-orange-200/60 rounded-2xl p-4 shadow-sm">
-                <Button
-                  onClick={() => setAddressFixOpen(true)}
-                  className="w-full rounded-xl h-10 bg-orange-600 hover:bg-orange-700 text-white font-semibold text-xs gap-2"
-                >
-                  <MapPin className="w-4 h-4" />
-                  Fix Address & Send to Pathao
-                </Button>
-                <p className="text-[10px] text-orange-600 text-center mt-2">Address mapping failed — manual selection needed</p>
-              </section>
+              <Card className="border-orange-200 bg-orange-50/50">
+                <CardContent className="p-4">
+                  <Button onClick={() => setAddressFixOpen(true)} className="w-full bg-orange-600 hover:bg-orange-700 text-white gap-2">
+                    <MapPin className="w-4 h-4" /> Fix Address & Send to Pathao
+                  </Button>
+                  <p className="text-[10px] text-orange-600 text-center mt-2">Address mapping failed — manual selection needed</p>
+                </CardContent>
+              </Card>
             )}
 
+            {/* Pathao tracking */}
             {order.pathao_consignment_id && (
               <PathaoTrackingCard
                 consignmentId={order.pathao_consignment_id}
@@ -1211,83 +1023,64 @@ export default function WebOrderDetail() {
             )}
           </div>
         </div>
+
+        {/* ═══ REASON MODAL ═══ */}
+        <Dialog open={reasonModal.open} onOpenChange={(open) => setReasonModal((prev) => ({ ...prev, open }))}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                {reasonModal.type === "cancel" ? "❌ Cancel Order" : "⏸️ Put On Hold"}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div>
+                <label className="text-xs text-muted-foreground font-medium mb-1.5 block">
+                  Reason <span className="text-destructive">*</span>
+                </label>
+                <Select value={reasonValue} onValueChange={setReasonValue}>
+                  <SelectTrigger className="h-10"><SelectValue placeholder="Select a reason..." /></SelectTrigger>
+                  <SelectContent>
+                    {(reasonModal.type === "cancel" ? CANCEL_REASONS : HOLD_REASONS).map((r) => (
+                      <SelectItem key={r} value={r}>{r}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground font-medium mb-1.5 block">Additional Note (optional)</label>
+                <Textarea value={reasonNote} onChange={(e) => setReasonNote(e.target.value)}
+                  placeholder="Add more details..." rows={3} className="resize-none" />
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => setReasonModal({ open: false, type: "cancel" })}>Go Back</Button>
+              <Button disabled={!reasonValue || statusMutation.isPending}
+                variant={reasonModal.type === "cancel" ? "destructive" : "default"}
+                onClick={() => {
+                  statusMutation.mutate(
+                    { newStatus: reasonModal.type, reason: reasonValue, note: reasonNote },
+                    { onSuccess: () => { setReasonModal({ open: false, type: "cancel" }); setReasonValue(""); setReasonNote(""); } }
+                  );
+                }}>
+                {statusMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> :
+                  reasonModal.type === "cancel" ? "❌ Confirm Cancel" : "⏸️ Confirm Hold"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Address Fix Drawer */}
+        <AddressFixDrawer
+          open={addressFixOpen}
+          onOpenChange={setAddressFixOpen}
+          orderId={id || ""}
+          orderNumber={order.order_number}
+          fullAddress={order.delivery_address || customer?.address || ""}
+          mappingResult={addressMappingResult}
+          onAccept={handleAddressFixAccept}
+          loading={addressFixSending}
+        />
       </div>
-
-      {/* Reason Modal for Cancel / On Hold */}
-      <Dialog open={reasonModal.open} onOpenChange={(open) => setReasonModal((prev) => ({ ...prev, open }))}>
-        <DialogContent className="rounded-2xl bg-white/90 backdrop-blur-xl border-slate-200/60 text-slate-900 max-w-md shadow-xl">
-          <DialogHeader>
-            <DialogTitle className="text-slate-900 flex items-center gap-2">
-              {reasonModal.type === "cancel" ? "❌ Cancel Order" : "⏸️ Put On Hold"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <label className="text-[11px] text-slate-500 font-medium mb-1.5 block">
-                Reason <span className="text-rose-500">*</span>
-              </label>
-              <Select value={reasonValue} onValueChange={setReasonValue}>
-                <SelectTrigger className="rounded-xl bg-white/80 border-slate-200/60 text-slate-900 h-10 focus:ring-sky-400/40">
-                  <SelectValue placeholder="Select a reason..." />
-                </SelectTrigger>
-                <SelectContent className="bg-white/95 backdrop-blur-xl border-slate-200/60 text-slate-900 rounded-xl shadow-lg">
-                  {(reasonModal.type === "cancel" ? CANCEL_REASONS : HOLD_REASONS).map((r) => (
-                    <SelectItem key={r} value={r} className="text-slate-700 focus:bg-slate-50 focus:text-slate-900 rounded-lg">
-                      {r}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-[11px] text-slate-500 font-medium mb-1.5 block">Additional Note (optional)</label>
-              <Textarea
-                value={reasonNote}
-                onChange={(e) => setReasonNote(e.target.value)}
-                placeholder="Add more details..."
-                rows={3}
-                className="bg-white/80 border-slate-200/60 text-slate-900 placeholder:text-slate-300 rounded-xl resize-none focus:ring-2 focus:ring-sky-400/40 focus:border-sky-300"
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="ghost" onClick={() => setReasonModal({ open: false, type: "cancel" })}
-              className="rounded-xl bg-white/70 border border-slate-200 text-slate-900 hover:bg-white">
-              Go Back
-            </Button>
-            <Button
-              disabled={!reasonValue || statusMutation.isPending}
-              onClick={() => {
-                statusMutation.mutate(
-                  { newStatus: reasonModal.type, reason: reasonValue, note: reasonNote },
-                  { onSuccess: () => { setReasonModal({ open: false, type: "cancel" }); setReasonValue(""); setReasonNote(""); } }
-                );
-              }}
-              className={cn(
-                "rounded-xl font-semibold",
-                reasonModal.type === "cancel"
-                  ? "bg-rose-600 hover:bg-rose-700 text-white"
-                  : "bg-indigo-600 hover:bg-indigo-700 text-white"
-              )}
-            >
-              {statusMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> :
-                reasonModal.type === "cancel" ? "❌ Confirm Cancel" : "⏸️ Confirm Hold"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Address Fix Drawer */}
-      <AddressFixDrawer
-        open={addressFixOpen}
-        onOpenChange={setAddressFixOpen}
-        orderId={id || ""}
-        orderNumber={order.order_number}
-        fullAddress={order.delivery_address || customer?.address || ""}
-        mappingResult={addressMappingResult}
-        onAccept={handleAddressFixAccept}
-        loading={addressFixSending}
-      />
-    </div>
+    </TooltipProvider>
   );
 }
