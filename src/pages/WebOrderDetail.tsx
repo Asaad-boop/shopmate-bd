@@ -45,6 +45,7 @@ import { AddressFixDrawer } from "@/components/orders/AddressFixDrawer";
 import { mapAddressToPathao, type MappingResult, findBestMatch, DISTRICT_SYNONYMS, THANA_SYNONYMS } from "@/lib/address-mapper";
 import { extractSpecificZone, calculateConfidence, getConfidenceLevel } from "@/lib/dhaka-area-dictionary";
 import { resolveDistrict } from "@/lib/address-variations";
+import { parseAddress, getParseConfidenceLevel, type ParseAddressResult, type ZoneSuggestion } from "@/lib/pathao-address-parser";
 import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/use-pathao";
 import { useCompanySettings } from "@/hooks/use-company-settings";
 import { useInvoiceSettings } from "@/hooks/use-invoice-settings";
@@ -183,6 +184,7 @@ export default function WebOrderDetail() {
   const [dictionaryZoneHint, setDictionaryZoneHint] = useState<string | null>(null);
   const [isReparsing, setIsReparsing] = useState(false);
   const [manuallyChanged, setManuallyChanged] = useState<{ city?: boolean; zone?: boolean; area?: boolean }>({});
+  const [parseResult, setParseResult] = useState<ParseAddressResult | null>(null);
 
   const { data: pathaoCities, isLoading: citiesLoading } = usePathaoCities();
   const { data: pathaoZones, isLoading: zonesLoading } = usePathaoZones(pathaoCityId);
@@ -379,54 +381,44 @@ export default function WebOrderDetail() {
     }
   }, [pathaoCities, detectedDistrict, deliveryForm.city, order?.delivery_address]);
 
-  // Auto-match detected thana → Pathao zone (with Dhaka dictionary priority)
+  // Auto-match detected thana → Pathao zone using new scoring parser
   useEffect(() => {
     if (!pathaoZones?.length || pathaoZoneId) return;
     const address = order?.delivery_address || deliveryForm.address;
+    if (!address) return;
     const candidates = pathaoZones.map(z => ({ id: z.zone_id, name: z.zone_name }));
 
-    // Priority 1: Dictionary-based extraction (highest accuracy for Dhaka)
-    const dictionaryHint = address ? extractSpecificZone(address) : null;
-    if (dictionaryHint) {
-      setDictionaryZoneHint(dictionaryHint);
-      const dictMatch = findBestMatch(dictionaryHint, candidates);
-      if (dictMatch.best && dictMatch.score >= 0.70) {
-        setPathaoZoneId(dictMatch.best.id);
-        setDeliveryForm(f => ({ ...f, zone: dictMatch.best!.name }));
-        setAddressConfidence(prev => prev ?? calculateConfidence(1, dictMatch.score, 0, true));
+    // Run the new scoring-based parser
+    const parsed = parseAddress(address);
+    setParseResult(parsed);
+    setAddressConfidence(Math.round(parsed.confidence * 100));
+
+    if (parsed.zone) {
+      setDictionaryZoneHint(parsed.zone);
+      // Find exact match in Pathao zones
+      const exactMatch = candidates.find(c => c.name.toLowerCase() === parsed.zone.toLowerCase());
+      if (exactMatch) {
+        setPathaoZoneId(exactMatch.id);
+        setDeliveryForm(f => ({ ...f, zone: exactMatch.name }));
+        return;
+      }
+      // Fuzzy match the parsed zone against Pathao zone names
+      const fuzzyMatch = findBestMatch(parsed.zone, candidates, THANA_SYNONYMS);
+      if (fuzzyMatch.best && fuzzyMatch.score >= 0.65) {
+        setPathaoZoneId(fuzzyMatch.best.id);
+        setDeliveryForm(f => ({ ...f, zone: fuzzyMatch.best!.name }));
         return;
       }
     }
 
-    // Priority 2: Try thana name from AI parser
+    // Fallback: try thana from AI parser
     const thana = detectedThana || deliveryForm.zone;
-    let thanaMatch: ReturnType<typeof findBestMatch> = { best: null, score: 0 };
     if (thana && thana !== "-") {
-      thanaMatch = findBestMatch(thana, candidates, THANA_SYNONYMS);
-    }
-
-    // Priority 3: Try full address fuzzy match
-    let addressMatch: ReturnType<typeof findBestMatch> = { best: null, score: 0 };
-    if (address) {
-      addressMatch = findBestMatch(address, candidates, THANA_SYNONYMS);
-    }
-
-    // Choose best match: prefer higher score, then more specific (more words)
-    let match = thanaMatch;
-    if (addressMatch.best && addressMatch.score >= 0.65) {
-      if (!thanaMatch.best || thanaMatch.score < 0.65 || addressMatch.score > thanaMatch.score) {
-        match = addressMatch;
-      } else if (addressMatch.score === thanaMatch.score) {
-        const thanaWords = thanaMatch.best?.name.split(/\s+/).length || 0;
-        const addrWords = addressMatch.best.name.split(/\s+/).length || 0;
-        if (addrWords > thanaWords) match = addressMatch;
+      const thanaMatch = findBestMatch(thana, candidates, THANA_SYNONYMS);
+      if (thanaMatch.best && thanaMatch.score >= 0.65) {
+        setPathaoZoneId(thanaMatch.best.id);
+        setDeliveryForm(f => ({ ...f, zone: thanaMatch.best!.name }));
       }
-    }
-
-    if (match.best && match.score >= 0.65) {
-      setPathaoZoneId(match.best.id);
-      setDeliveryForm(f => ({ ...f, zone: match.best!.name }));
-      setAddressConfidence(prev => prev ?? calculateConfidence(1, match.score, 0, false));
     }
   }, [pathaoZones, detectedThana, deliveryForm.zone, order?.delivery_address]);
 
@@ -459,9 +451,9 @@ export default function WebOrderDetail() {
   const selectedCityName = pathaoCities?.find(c => c.city_id === pathaoCityId)?.city_name || "";
   const selectedZoneName = pathaoZones?.find(z => z.zone_id === pathaoZoneId)?.zone_name || "";
   const selectedAreaName = pathaoAreas?.find(a => a.area_id === pathaoAreaId)?.area_name || "";
-  const confidenceInfo = addressConfidence !== null ? getConfidenceLevel(addressConfidence) : null;
+  const confidenceInfo = addressConfidence !== null ? getParseConfidenceLevel(addressConfidence / 100) : null;
 
-  // Re-parse address handler
+  // Re-parse address handler using new scoring parser
   const handleReparse = async () => {
     setIsReparsing(true);
     setPathaoCityId(null);
@@ -472,8 +464,22 @@ export default function WebOrderDetail() {
     setDetectedDistrict(null);
     setDetectedThana(null);
     setAddressParseApplied(false);
-    // Trigger re-parse by resetting, the useAddressParser will re-fire
+    setParseResult(null);
     setTimeout(() => setIsReparsing(false), 500);
+  };
+
+  // Apply a suggestion from the parser
+  const applySuggestion = (suggestion: ZoneSuggestion) => {
+    if (!pathaoZones?.length) return;
+    const candidates = pathaoZones.map(z => ({ id: z.zone_id, name: z.zone_name }));
+    const match = candidates.find(c => c.name.toLowerCase() === suggestion.zone.toLowerCase())
+      || findBestMatch(suggestion.zone, candidates, THANA_SYNONYMS).best;
+    if (match) {
+      setPathaoZoneId(match.id);
+      setDeliveryForm(f => ({ ...f, zone: match.name }));
+      setDictionaryZoneHint(suggestion.zone);
+      toast({ title: `✓ Applied: ${match.name}`, description: suggestion.reasons[0] || "" });
+    }
   };
 
   // Save correction when user manually changes zone/area (with frequency tracking)
@@ -1126,7 +1132,7 @@ export default function WebOrderDetail() {
                       Re-parse
                     </Button>
                   </div>
-                  {/* Confidence + AI badges */}
+                  {/* Confidence + Parser badges */}
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
                     {confidenceInfo && (
                       <Badge variant="outline" className={cn("text-[9px] gap-1 px-1.5 py-0 border", confidenceInfo.color)}>
@@ -1135,7 +1141,12 @@ export default function WebOrderDetail() {
                     )}
                     {dictionaryZoneHint && (
                       <Badge variant="outline" className="text-[9px] bg-blue-50 text-blue-700 border-blue-200 gap-1 px-1.5 py-0">
-                        📖 Dict: {dictionaryZoneHint}
+                        📖 {dictionaryZoneHint}
+                      </Badge>
+                    )}
+                    {parseResult?.area && (
+                      <Badge variant="outline" className="text-[9px] bg-violet-50 text-violet-700 border-violet-200 gap-1 px-1.5 py-0">
+                        📍 {parseResult.area}
                       </Badge>
                     )}
                     {(detectedDistrict || detectedThana) && (
@@ -1146,14 +1157,31 @@ export default function WebOrderDetail() {
                             <CheckCircle2 className="w-2.5 h-2.5" /> {selectedCityName || detectedDistrict}
                           </Badge>
                         )}
-                        {detectedThana && (
-                          <Badge variant="outline" className="text-[9px] bg-emerald-50 text-emerald-700 border-emerald-200 gap-1 px-1.5 py-0">
-                            <CheckCircle2 className="w-2.5 h-2.5" /> {selectedZoneName || detectedThana}
-                          </Badge>
-                        )}
                       </>
                     )}
                   </div>
+                  {/* Parser suggestions (when manual review needed) */}
+                  {parseResult?.needs_manual_review && parseResult.top_suggestions.length > 0 && (
+                    <div className="mb-2 p-2 rounded-lg bg-amber-50/50 border border-amber-200/60">
+                      <p className="text-[9px] font-medium text-amber-700 mb-1.5">⚡ Suggestions (click to apply):</p>
+                      <div className="flex flex-wrap gap-1">
+                        {parseResult.top_suggestions.map((s, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => applySuggestion(s)}
+                            className="px-2 py-0.5 rounded-full text-[9px] font-medium bg-white border border-amber-200 hover:border-amber-400 hover:bg-amber-50 transition-all text-amber-800"
+                          >
+                            {s.zone}{s.area ? ` → ${s.area}` : ""} ({s.score}pts)
+                          </button>
+                        ))}
+                      </div>
+                      {parseResult.reasons.length > 0 && (
+                        <p className="text-[8px] text-amber-600/80 mt-1 line-clamp-2">
+                          {parseResult.reasons.slice(0, 2).join(" • ")}
+                        </p>
+                      )}
+                    </div>
+                  )}
                   <div className="grid grid-cols-3 gap-2">
                     {/* City (District) */}
                     <div>
