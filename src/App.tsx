@@ -14,6 +14,7 @@ import WebOrdersPage from "./pages/WebOrders";
 import WebOrderDetail from "./pages/WebOrderDetail";
 import SettingsPage from "./pages/Settings";
 import InventoryPage from "./pages/Inventory";
+import SystemHealth from "./pages/SystemHealth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/products/new" element={<NewProduct />} />
             <Route path="/inventory" element={<InventoryPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/system-health" element={<SystemHealth />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
