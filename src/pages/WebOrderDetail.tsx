@@ -27,24 +27,19 @@ import {
   AlertDialogTrigger as ADTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
-} from "@/components/ui/sheet";
-import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { formatBDT, formatDateTime, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
-  ArrowLeft, Phone, MessageCircle, Send, Clock, MapPin,
-  Package, CheckCircle2, RefreshCw, Copy, Plus, Minus, X, Search,
-  Truck, Loader2, AlertTriangle, Printer, Save, MoreHorizontal,
-  History, User, ChevronRight, Zap, Activity, CreditCard, ExternalLink,
-  PhoneOff, Pause, Wallet, XCircle, CircleCheck,
+  ArrowLeft, Phone, Send, Clock, MapPin,
+  Package, CheckCircle2, RefreshCw, Loader2, Printer, Save, MoreHorizontal,
+  Activity, CreditCard,
+  PhoneOff, Pause, Wallet, XCircle, CircleCheck, Zap, Info, Globe, Truck, Calendar,
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { useAddressParser } from "@/hooks/use-address-parser";
 import { useBDCourierSingle, getRiskLevel, getSuccessColor } from "@/hooks/use-bd-courier";
 import { PathaoTrackingCard } from "@/components/pathao/PathaoTrackingCard";
@@ -54,15 +49,30 @@ import { useCompanySettings } from "@/hooks/use-company-settings";
 import { useInvoiceSettings } from "@/hooks/use-invoice-settings";
 import { printInvoice } from "@/components/orders/PrintInvoice";
 
+// Shared components
+import { CustomerCard } from "@/components/order-detail/CustomerCard";
+import { CourierHistoryCard } from "@/components/order-detail/CourierHistoryCard";
+import { OrderItemsCard } from "@/components/order-detail/OrderItemsCard";
+import { DeliveryPaymentCard } from "@/components/order-detail/DeliveryPaymentCard";
+
 /* ─── STATUS CONFIG ─── */
 const STATUS_BUTTONS = [
-  { key: "processing", label: "Processing", icon: Clock, dotColor: "bg-amber-500" },
-  { key: "confirm", label: "Confirm", icon: CircleCheck, dotColor: "bg-emerald-500" },
-  { key: "good_but_no_response", label: "Good No Response", icon: CheckCircle2, dotColor: "bg-sky-500" },
-  { key: "no_response", label: "No Response", icon: PhoneOff, dotColor: "bg-rose-500" },
-  { key: "on_hold", label: "On Hold", icon: Pause, dotColor: "bg-indigo-500" },
-  { key: "advance_payment", label: "Advance Payment", icon: Wallet, dotColor: "bg-orange-500" },
+  { key: "processing", label: "Processing", icon: Clock, theme: "amber" },
+  { key: "confirm", label: "Good", icon: CircleCheck, theme: "emerald" },
+  { key: "good_but_no_response", label: "Good But No Response", icon: CheckCircle2, theme: "slate" },
+  { key: "no_response", label: "No Response", icon: PhoneOff, theme: "slate" },
+  { key: "on_hold", label: "On Hold", icon: Pause, theme: "yellow" },
+  { key: "advance_payment", label: "Advance Payment", icon: Wallet, theme: "blue" },
 ] as const;
+
+const themeMap: Record<string, { bg: string; border: string; ring: string; dot: string }> = {
+  amber: { bg: "bg-amber-50", border: "border-amber-300", ring: "ring-amber-200", dot: "bg-amber-500" },
+  emerald: { bg: "bg-emerald-50", border: "border-emerald-300", ring: "ring-emerald-200", dot: "bg-emerald-500" },
+  slate: { bg: "bg-slate-100", border: "border-slate-300", ring: "ring-slate-200", dot: "bg-slate-500" },
+  yellow: { bg: "bg-yellow-50", border: "border-yellow-300", ring: "ring-yellow-200", dot: "bg-yellow-500" },
+  blue: { bg: "bg-blue-50", border: "border-blue-300", ring: "ring-blue-200", dot: "bg-blue-500" },
+  red: { bg: "bg-red-50", border: "border-red-300", ring: "ring-red-200", dot: "bg-red-500" },
+};
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   processing: { label: "Processing", color: "bg-amber-100 text-amber-800" },
@@ -132,6 +142,14 @@ export default function WebOrderDetail() {
   const [callResult, setCallResult] = useState("");
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmSending, setConfirmSending] = useState(false);
+  const [orderItems, setOrderItems] = useState<any[]>([]);
+
+  // Delivery form state
+  const [deliveryForm, setDeliveryForm] = useState({
+    city: "", zone: "", area: "", fullName: "", phone: "",
+    address: "", note: "", advanceEnabled: false, advanceVia: "",
+    advanceAmount: 0, advanceTxnId: "",
+  });
 
   // Address fix
   const [addressFixOpen, setAddressFixOpen] = useState(false);
@@ -200,31 +218,35 @@ export default function WebOrderDetail() {
     staleTime: 60 * 1000,
   });
 
-  // Previous orders for returning customer check
+  // Populate local state from fetched data
+  useEffect(() => {
+    if (items) setOrderItems(items);
+  }, [items]);
+
+  useEffect(() => {
+    if (!order) return;
+    const c = order.customers as any;
+    setDeliveryForm({
+      city: order.delivery_district || c?.district || "",
+      zone: order.delivery_thana || c?.thana || "",
+      area: "",
+      fullName: c?.full_name || "",
+      phone: c?.phone || "",
+      address: order.delivery_address || c?.address || "",
+      note: order.notes || "",
+      advanceEnabled: !!order.cod_amount && order.cod_amount < (order.total_amount || 0),
+      advanceVia: order.payment_method || "",
+      advanceAmount: order.cod_amount ? (order.total_amount || 0) - order.cod_amount : 0,
+      advanceTxnId: "",
+    });
+  }, [order]);
+
   const customer = order?.customers as any;
   const customerPhone = customer?.phone || "";
 
-  const { data: prevOrders } = useQuery({
-    queryKey: ["customer-prev-orders-web", customerPhone],
-    queryFn: async () => {
-      if (!customerPhone) return [];
-      const { data: cust } = await supabase
-        .from("customers").select("id").eq("phone", customerPhone).maybeSingle();
-      if (!cust) return [];
-      const { data, error } = await supabase
-        .from("orders")
-        .select("id, order_number, status, total_amount, created_at, channel, order_items(quantity, products(name))")
-        .eq("customer_id", cust.id)
-        .order("created_at", { ascending: false })
-        .limit(5);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!customerPhone,
-  });
-
   const { data: bdReport, isLoading: bdLoading, refetch: refetchBD } = useBDCourierSingle(customerPhone, !!customer);
   const riskInfo = getRiskLevel(bdReport?.success_rate);
+  const successRate = bdReport?.success_rate ?? 0;
 
   // Address auto-parsing
   const addressText = order?.delivery_address || customer?.address || "";
@@ -269,10 +291,6 @@ export default function WebOrderDetail() {
     }
   }, [detectedDistrict, detectedThana, districtEmpty, thanaEmpty, order, addressParseApplied]);
 
-  const districtAutoFilled = !!(detectedDistrict && (districtEmpty || existingDistrict === detectedDistrict));
-  const thanaAutoFilled = !!(detectedThana && (thanaEmpty || existingThana === detectedThana));
-  const showParsingIndicator = addressParseStatus === "parsing";
-
   /* ── Status mutation ── */
   const statusMutation = useMutation({
     mutationFn: async ({ newStatus, reason, note }: { newStatus: string; reason?: string; note?: string }) => {
@@ -311,12 +329,12 @@ export default function WebOrderDetail() {
       return;
     }
 
-    const orderItems = items || [];
-    const totalWeight = orderItems.reduce((sum: number, i: any) => sum + ((i.products as any)?.weight_kg || 0) * i.quantity, 0);
+    const orderItemsList = items || [];
+    const totalWeight = orderItemsList.reduce((sum: number, i: any) => sum + ((i.products as any)?.weight_kg || 0) * i.quantity, 0);
     const weight = totalWeight > 0 ? Math.round(totalWeight * 10) / 10 : Number(defaultWeight);
     const isCOD = order.payment_method?.toLowerCase() === "cod" || order.payment_status !== "paid";
-    const totalItems = orderItems.reduce((sum: number, i: any) => sum + i.quantity, 0) || 1;
-    const desc = orderItems.map((i: any) => (i.products as any)?.name).filter(Boolean).join(", ") || "";
+    const totalItems = orderItemsList.reduce((sum: number, i: any) => sum + i.quantity, 0) || 1;
+    const desc = orderItemsList.map((i: any) => (i.products as any)?.name).filter(Boolean).join(", ") || "";
 
     const orderPayload = {
       orders: [{
@@ -379,13 +397,13 @@ export default function WebOrderDetail() {
         .update({ web_order_status: "confirm", status: "pending", updated_at: new Date().toISOString() })
         .eq("id", id!);
 
-      const { data: orderItems } = await supabase
+      const { data: confirmItems } = await supabase
         .from("order_items")
         .select("product_id, quantity, products(id, name, stock_quantity)")
         .eq("order_id", id!);
 
-      if (orderItems) {
-        for (const item of orderItems) {
+      if (confirmItems) {
+        for (const item of confirmItems) {
           const product = item.products as any;
           if (!product?.id) continue;
           await supabase.from("products").update({
@@ -399,6 +417,13 @@ export default function WebOrderDetail() {
           });
         }
       }
+
+      await supabase.from("web_order_notes").insert({
+        order_id: id, note_type: "status_change",
+        content: "Status changed from processing to confirm",
+        old_status: order.web_order_status || "processing",
+        new_status: "confirm", created_by: "Staff",
+      });
 
       const fullAddress = order.delivery_address || customer?.address || "";
       const { data: citiesData, error: citiesErr } = await supabase.functions.invoke("pathao-proxy", { body: { action: "cities" } });
@@ -503,26 +528,92 @@ export default function WebOrderDetail() {
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
+  /* ── Save mutation ── */
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const updates: any = {
+        delivery_district: deliveryForm.city,
+        delivery_thana: deliveryForm.zone,
+        delivery_address: deliveryForm.address,
+        notes: deliveryForm.note,
+        updated_at: new Date().toISOString(),
+      };
+      if (deliveryForm.advanceEnabled && deliveryForm.advanceAmount > 0) {
+        updates.payment_method = deliveryForm.advanceVia || "cash";
+        const subtotal = orderItems.reduce((s, i) => s + (i.unit_price * i.quantity), 0);
+        const totalDisc = orderItems.reduce((s, i) => s + (i.discount || 0), 0);
+        const grand = subtotal - totalDisc + (order?.delivery_charge || 0);
+        updates.cod_amount = grand - deliveryForm.advanceAmount;
+      }
+
+      const { error } = await supabase.from("orders").update(updates).eq("id", id!);
+      if (error) throw error;
+
+      // Update order items
+      await supabase.from("order_items").delete().eq("order_id", id!);
+      if (orderItems.length > 0) {
+        const inserts = orderItems.map(i => ({
+          order_id: id,
+          product_id: i.product_id,
+          quantity: i.quantity,
+          unit_price: i.unit_price,
+          discount: i.discount || 0,
+          total_price: i.total_price,
+          product_name_fallback: i.product_name_fallback || (i.products as any)?.name || null,
+        }));
+        const { error: itemsErr } = await supabase.from("order_items").insert(inserts);
+        if (itemsErr) throw itemsErr;
+      }
+
+      // Recalculate totals
+      const subtotal = orderItems.reduce((s, i) => s + (i.unit_price * i.quantity), 0);
+      const totalDisc = orderItems.reduce((s, i) => s + (i.discount || 0), 0) + (order?.discount || 0);
+      const grand = subtotal - totalDisc + (order?.delivery_charge || 0);
+      await supabase.from("orders").update({ subtotal, total_amount: grand }).eq("id", id!);
+    },
+    onSuccess: () => {
+      toast({ title: "✅ Order saved successfully" });
+      queryClient.invalidateQueries({ queryKey: ["web-order", id] });
+      queryClient.invalidateQueries({ queryKey: ["web-order-items", id] });
+      queryClient.invalidateQueries({ queryKey: ["web-order-notes", id] });
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
   const handlePrintInvoice = useCallback(() => {
     if (!order) return;
     const orderWithItems = { ...order, order_items: items || [] };
     printInvoice(orderWithItems, company, invoiceSettings);
   }, [order, items, company, invoiceSettings]);
 
+  const handleStatusAction = (key: string) => {
+    if (key === "cancel" || key === "on_hold") {
+      setReasonModal({ open: true, type: key as "cancel" | "on_hold" });
+      setReasonValue("");
+      setReasonNote("");
+    } else if (key === "confirm") {
+      setShowConfirmDialog(true);
+    } else {
+      statusMutation.mutate({ newStatus: key });
+    }
+  };
+
   /* ── Loading ── */
   if (isLoading) {
     return (
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-6 animate-fade-in" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
         <Skeleton className="h-14 w-full" />
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
           <div className="space-y-5">
-            <Skeleton className="h-48 w-full" />
-            <Skeleton className="h-64 w-full" />
-            <Skeleton className="h-40 w-full" />
+            <Skeleton className="h-48 w-full rounded-xl" />
+            <Skeleton className="h-32 w-full rounded-xl" />
+            <Skeleton className="h-64 w-full rounded-xl" />
+            <Skeleton className="h-80 w-full rounded-xl" />
           </div>
           <div className="space-y-5">
-            <Skeleton className="h-72 w-full" />
-            <Skeleton className="h-48 w-full" />
+            <Skeleton className="h-72 w-full rounded-xl" />
+            <Skeleton className="h-48 w-full rounded-xl" />
+            <Skeleton className="h-48 w-full rounded-xl" />
           </div>
         </div>
       </div>
@@ -534,20 +625,17 @@ export default function WebOrderDetail() {
   const currentStatus = order.web_order_status || "processing";
   const statusCfg = STATUS_LABELS[currentStatus] || { label: currentStatus, color: "bg-muted text-muted-foreground" };
   const callLogs = notes?.filter((n) => n.note_type === "call_log") || [];
-  const isReturning = (prevOrders?.length || 0) > 1;
-  const subtotal = order.subtotal || 0;
-  const discount = order.discount || 0;
-  const deliveryCharge = order.delivery_charge || 0;
-  const grandTotal = order.total_amount || 0;
+  const srColor = successRate >= 80 ? "text-emerald-600" : successRate >= 50 ? "text-amber-600" : "text-red-600";
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-6 animate-fade-in" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+
         {/* ═══ STICKY HEADER ═══ */}
         <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl -mx-6 px-6 py-4 border-b border-border/50">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => navigate("/web-orders")} className="shrink-0">
+              <Button variant="ghost" size="icon" onClick={() => navigate("/web-orders")} className="shrink-0 rounded-xl">
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <div>
@@ -560,256 +648,52 @@ export default function WebOrderDetail() {
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">Created {formatDateTime(order.created_at)} · Updated {timeAgo(order.updated_at || order.created_at || "")}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{formatDateTime(order.created_at)}</p>
               </div>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="gap-1.5 text-xs h-9 rounded-xl" onClick={handlePrintInvoice}>
-                <Printer className="w-3.5 h-3.5" /> Print
+                <Printer className="w-3.5 h-3.5" /> Print Invoice
               </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl">
-                    <MoreHorizontal className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem className="text-xs">Duplicate Order</DropdownMenuItem>
-                  <DropdownMenuItem className="text-xs">Export PDF</DropdownMenuItem>
-                  <DropdownMenuItem className="text-xs text-destructive">Delete Order</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button
+                size="sm"
+                className="gap-1.5 text-xs h-9 rounded-xl bg-[#6c63ff] hover:bg-[#5a52d5] text-white"
+                onClick={() => saveMutation.mutate()}
+                disabled={saveMutation.isPending}
+              >
+                <Save className="w-3.5 h-3.5" /> Save Changes
+              </Button>
             </div>
           </div>
         </div>
 
         {/* ═══ TWO COLUMN LAYOUT ═══ */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
 
           {/* ════ LEFT COLUMN ════ */}
           <div className="space-y-5">
+            {/* Customer Card (shared component) */}
+            <CustomerCard order={order} customer={customer} />
 
-            {/* 1) CUSTOMER CARD */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <User className="w-4 h-4 text-muted-foreground" /> Customer
-                  </CardTitle>
-                  <Badge variant="outline" className={cn("text-xs", isReturning ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-emerald-50 text-emerald-700 border-emerald-200")}>
-                    {isReturning ? `🔄 Returning (${prevOrders?.length} orders)` : "🆕 New Customer"}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Phone row */}
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-bold font-mono tracking-wider">{customerPhone}</span>
-                  <div className="flex gap-1 ml-auto">
-                    <Tooltip><TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-sky-600 hover:bg-sky-50" onClick={() => window.open(`tel:${customerPhone}`, "_self")}>
-                        <Phone className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger><TooltipContent className="text-xs">Call</TooltipContent></Tooltip>
-                    <Tooltip><TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-600 hover:bg-emerald-50"
-                        onClick={() => window.open(`https://wa.me/88${customerPhone.replace(/^0/, "")}`, "_blank")}>
-                        <MessageCircle className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger><TooltipContent className="text-xs">WhatsApp</TooltipContent></Tooltip>
-                    <Tooltip><TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:bg-muted"
-                        onClick={() => { navigator.clipboard.writeText(customerPhone); toast({ title: "Copied!" }); }}>
-                        <Copy className="w-3.5 h-3.5" />
-                      </Button>
-                    </TooltipTrigger><TooltipContent className="text-xs">Copy</TooltipContent></Tooltip>
-                  </div>
-                </div>
-                <div>
-                  <p className="font-medium text-sm">{customer?.full_name || "Unknown"}</p>
-                  {(order.delivery_address || customer?.address) && (
-                    <p className="text-xs text-muted-foreground flex items-start gap-1 mt-1">
-                      <MapPin className="w-3 h-3 mt-0.5 shrink-0" />
-                      {order.delivery_address || customer?.address}
-                    </p>
-                  )}
-                </div>
+            {/* Courier History (shared component) */}
+            <CourierHistoryCard phone={customerPhone} orderId={id!} />
 
-                {/* BD Courier success */}
-                {bdReport && (
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border">
-                    <div className="relative w-11 h-11 shrink-0">
-                      <svg className="w-11 h-11 -rotate-90" viewBox="0 0 48 48">
-                        <circle cx="24" cy="24" r="18" fill="none" stroke="hsl(var(--muted))" strokeWidth="4" />
-                        <circle cx="24" cy="24" r="18" fill="none"
-                          stroke={getSuccessColor(bdReport.success_rate)} strokeWidth="4"
-                          strokeDasharray={`${bdReport.success_rate * 1.131} 113.1`} strokeLinecap="round" />
-                      </svg>
-                      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold">{Math.round(bdReport.success_rate)}%</span>
-                    </div>
-                    <div>
-                      <Badge className={cn("text-[10px]", riskInfo.bg, riskInfo.color)}>{riskInfo.label}</Badge>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">{bdReport.total_orders} total · {bdReport.successful_orders} success</p>
-                    </div>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 ml-auto" onClick={() => refetchBD()}>
-                      <RefreshCw className={cn("w-3 h-3", bdLoading && "animate-spin")} />
-                    </Button>
-                  </div>
-                )}
+            {/* Order Items (shared component) */}
+            <OrderItemsCard items={orderItems} onItemsChange={setOrderItems} />
 
-                {/* Previous orders */}
-                {isReturning && prevOrders && prevOrders.length > 0 && (
-                  <div className="border-t border-border pt-3 space-y-2">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Previous Orders</p>
-                    {prevOrders.slice(0, 4).map((o) => {
-                      const oItems = (o as any).order_items || [];
-                      const firstName = oItems[0]?.products?.name || "Product";
-                      return (
-                        <div key={o.id} className="flex items-center justify-between text-xs p-2 rounded-lg bg-muted/50">
-                          <div className="flex-1 min-w-0">
-                            <span className="font-medium">#{o.order_number}</span>
-                            <span className="text-muted-foreground ml-2 truncate">{firstName} · {formatBDT(o.total_amount)}</span>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0 ml-2">
-                            <Badge className={cn("text-[10px] px-1.5 py-0",
-                              o.status === "delivered" ? "bg-emerald-100 text-emerald-800" :
-                              o.status === "cancelled" ? "bg-red-100 text-red-800" : "bg-muted text-muted-foreground"
-                            )}>{o.status}</Badge>
-                            <span className="text-[10px] text-muted-foreground">{formatDate(o.created_at)}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            {/* Delivery & Payment (shared component) */}
+            <DeliveryPaymentCard
+              order={order}
+              items={orderItems}
+              deliveryForm={deliveryForm}
+              onFormChange={setDeliveryForm}
+            />
 
-            {/* 2) ORDER ITEMS */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Package className="w-4 h-4 text-muted-foreground" /> Order Items ({items?.length || 0})
-                  </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {items?.map((item) => {
-                    const product = item.products as any;
-                    const pName = product?.name || (item as any).product_name_fallback || "Product";
-                    return (
-                      <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border hover:bg-muted/50 transition-all group">
-                        <div className="w-11 h-11 rounded-lg overflow-hidden border border-border shrink-0">
-                          {product?.image_url ? (
-                            <img src={product.image_url} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full bg-primary/5 flex items-center justify-center text-xs font-bold text-primary">{pName[0]}</div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">{pName}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-[10px] text-primary font-mono">{product?.sku || "-"}</span>
-                            {product?.stock_quantity != null && (
-                              <span className={cn("text-[10px]", product.stock_quantity < 10 ? "text-destructive" : "text-muted-foreground")}>
-                                Stock: {product.stock_quantity}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="w-8 text-center font-bold text-sm tabular-nums">×{item.quantity}</span>
-                        </div>
-                        <div className="text-right shrink-0 w-20">
-                          <p className="text-[11px] text-muted-foreground">{formatBDT(item.unit_price)} ea</p>
-                          <p className="text-sm font-semibold tabular-nums">{formatBDT(item.total_price)}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {(!items || items.length === 0) && (
-                    <div className="text-center py-6 text-muted-foreground text-sm">
-                      <Package className="w-6 h-6 mx-auto mb-2 opacity-30" />No items
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* 3) DELIVERY & NOTES */}
+            {/* Call Log (web-order-specific) */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-muted-foreground" /> Delivery & Notes
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Note input */}
-                <div className="space-y-2">
-                  <Textarea
-                    value={newNote}
-                    onChange={(e) => setNewNote(e.target.value)}
-                    placeholder="Add a note about this order..."
-                    rows={2}
-                    className="text-sm resize-none"
-                  />
-                  <div className="flex flex-wrap gap-1.5">
-                    {QUICK_NOTES.map((chip) => (
-                      <button key={chip} onClick={() => setNewNote((prev) => prev ? `${prev}, ${chip}` : chip)}
-                        className="px-2.5 py-1 rounded-lg text-[10px] font-medium bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border border-border transition-all">
-                        {chip}
-                      </button>
-                    ))}
-                  </div>
-                  {newNote.trim() && (
-                    <Button onClick={() => noteMutation.mutate()} disabled={noteMutation.isPending} size="sm" className="gap-1.5 text-xs">
-                      <Send className="w-3 h-3" /> Save Note
-                    </Button>
-                  )}
-                </div>
-                {notes?.filter((n) => n.note_type === "note").slice(0, 3).map((note) => (
-                  <div key={note.id} className="p-2.5 rounded-lg bg-muted/50 border border-border">
-                    <p className="text-xs">{note.content}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">{note.created_by} · {timeAgo(note.created_at)}</p>
-                  </div>
-                ))}
-
-                <Separator />
-
-                {/* Address */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <label className="text-[11px] text-muted-foreground font-medium">District</label>
-                      {districtAutoFilled && <span className="flex items-center gap-0.5 text-[10px] text-emerald-600 font-medium"><CheckCircle2 className="w-3 h-3" /> Auto</span>}
-                      {showParsingIndicator && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
-                    </div>
-                    <Input value={detectedDistrict || (districtEmpty ? "" : existingDistrict)} readOnly
-                      className={cn("h-9 text-sm", districtAutoFilled && "border-emerald-300 ring-1 ring-emerald-200")} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <label className="text-[11px] text-muted-foreground font-medium">Thana</label>
-                      {thanaAutoFilled && <span className="flex items-center gap-0.5 text-[10px] text-emerald-600 font-medium"><CheckCircle2 className="w-3 h-3" /> Auto</span>}
-                    </div>
-                    <Input value={detectedThana || (thanaEmpty ? "" : existingThana)} readOnly
-                      className={cn("h-9 text-sm", thanaAutoFilled && "border-emerald-300 ring-1 ring-emerald-200")} />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="text-[11px] text-muted-foreground font-medium mb-1 block">Full Address</label>
-                    <Textarea value={order.delivery_address || customer?.address || ""} readOnly rows={2} className="text-sm resize-none" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* 4) CALL LOG */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Phone className="w-4 h-4 text-muted-foreground" /> Call Log
+                  <Phone className="w-4 h-4 text-[#6c63ff]" /> Call Log
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -825,7 +709,7 @@ export default function WebOrderDetail() {
                 </div>
                 {callResult && (
                   <Button onClick={() => callLogMutation.mutate()} disabled={callLogMutation.isPending}
-                    className="w-full text-xs gap-1.5" size="sm">
+                    className="w-full text-xs gap-1.5 bg-[#6c63ff] hover:bg-[#5a52d5]" size="sm">
                     <Send className="w-3 h-3" /> Log Call
                   </Button>
                 )}
@@ -844,30 +728,74 @@ export default function WebOrderDetail() {
               </CardContent>
             </Card>
 
-            {/* 5) ACTIVITY LOG */}
+            {/* Delivery Notes (web-order-specific) */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-muted-foreground" /> Activity Log
+                  <MapPin className="w-4 h-4 text-[#6c63ff]" /> Notes
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Textarea
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  placeholder="Add a note about this order..."
+                  rows={2}
+                  className="text-sm resize-none"
+                />
+                <div className="flex flex-wrap gap-1.5">
+                  {QUICK_NOTES.map((chip) => (
+                    <button key={chip} onClick={() => setNewNote((prev) => prev ? `${prev}, ${chip}` : chip)}
+                      className="px-2.5 py-1 rounded-lg text-[10px] font-medium bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border border-border transition-all">
+                      {chip}
+                    </button>
+                  ))}
+                </div>
+                {newNote.trim() && (
+                  <Button onClick={() => noteMutation.mutate()} disabled={noteMutation.isPending} size="sm" className="gap-1.5 text-xs bg-[#6c63ff] hover:bg-[#5a52d5]">
+                    <Send className="w-3 h-3" /> Save Note
+                  </Button>
+                )}
+                {notes?.filter((n) => n.note_type === "note").slice(0, 3).map((note) => (
+                  <div key={note.id} className="p-2.5 rounded-lg bg-muted/50 border border-border">
+                    <p className="text-xs">{note.content}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">{note.created_by} · {timeAgo(note.created_at)}</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* Activity Log (web-order-specific, uses web_order_notes) */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-[#6c63ff]" /> Activity Log
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {notes && notes.length > 0 ? (
-                  <div className="relative space-y-4 pl-6">
-                    <div className="absolute left-[9px] top-2 bottom-2 w-px bg-border" />
-                    {notes.map((note) => (
-                      <div key={note.id} className="relative flex gap-3">
-                        <div className={cn("absolute left-[-15px] top-1.5 w-2.5 h-2.5 rounded-full ring-2 ring-background", noteTypeDot(note.note_type))} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs">{note.content}</p>
-                          <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
-                            <span>{note.created_by || "System"}</span>
-                            <span>·</span>
-                            <span>{timeAgo(note.created_at)}</span>
+                  <div className="space-y-0">
+                    {notes.map((note, i) => {
+                      const isFirst = i === 0;
+                      const isLast = i === notes.length - 1;
+                      const dotColor = isFirst ? "bg-[#6c63ff]" : noteTypeDot(note.note_type);
+                      return (
+                        <div key={note.id} className="flex gap-3 relative">
+                          <div className="flex flex-col items-center">
+                            <div className={cn("w-2.5 h-2.5 rounded-full shrink-0 mt-1.5 ring-2 ring-background", dotColor)} />
+                            {!isLast && <div className="w-px flex-1 bg-border/50 mt-1" />}
+                          </div>
+                          <div className="pb-4 flex-1 min-w-0">
+                            <p className="text-xs font-medium leading-relaxed">{note.content}</p>
+                            <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
+                              <span>{note.created_by || "System"}</span>
+                              <span>·</span>
+                              <span>{timeAgo(note.created_at)}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-8">
@@ -879,125 +807,156 @@ export default function WebOrderDetail() {
             </Card>
           </div>
 
-          {/* ════ RIGHT COLUMN (Sticky) ════ */}
+          {/* ════ RIGHT COLUMN (sticky) ════ */}
           <div className="space-y-5 lg:sticky lg:top-24 lg:self-start">
 
-            {/* 1) STATUS ACTIONS */}
+            {/* 1) ORDER STATUS (2×2 grid design) */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-muted-foreground" /> Status Actions
+                  <Zap className="w-4 h-4 text-[#6c63ff]" /> Order Status
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-1.5">
-                {STATUS_BUTTONS.map((s) => {
-                  const Icon = s.icon;
-                  const isActive = currentStatus === s.key;
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {STATUS_BUTTONS.map((s) => {
+                    const isActive = currentStatus === s.key;
+                    const t = themeMap[s.theme];
+                    const isConfirm = s.key === "confirm";
 
-                  if (s.key === "confirm") {
-                    return (
-                      <AlertDialogRoot key={s.key} open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-                        <ADTrigger asChild>
-                          <button disabled={isActive || statusMutation.isPending || confirmSending}
-                            className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left",
-                              isActive ? "bg-foreground text-background" : "hover:bg-muted/80",
-                              (isActive || statusMutation.isPending || confirmSending) && "opacity-50 cursor-not-allowed")}>
-                            <div className={cn("w-2.5 h-2.5 rounded-full shrink-0", s.dotColor)} />
-                            <Icon className="w-4 h-4 shrink-0" />
-                            <span className="flex-1">{s.label}</span>
-                            {confirmSending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                            {isActive && !confirmSending && <CheckCircle2 className="w-3.5 h-3.5" />}
-                          </button>
-                        </ADTrigger>
-                        <ADContent>
-                          <ADHeader>
-                            <ADTitle>Confirm this order?</ADTitle>
-                            <ADDesc>This will confirm the order, deduct stock, and automatically map the address for Pathao courier.</ADDesc>
-                          </ADHeader>
-                          <ADFooter>
-                            <ADCancel>Cancel</ADCancel>
-                            <ADAction onClick={handleConfirmWithMapping} disabled={confirmSending}
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                              {confirmSending ? <><Loader2 className="w-4 h-4 animate-spin mr-1" /> Confirming...</> : "✅ Confirm Order"}
-                            </ADAction>
-                          </ADFooter>
-                        </ADContent>
-                      </AlertDialogRoot>
-                    );
-                  }
+                    if (isConfirm) {
+                      return (
+                        <AlertDialogRoot key={s.key} open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+                          <ADTrigger asChild>
+                            <button
+                              disabled={isActive || statusMutation.isPending || confirmSending}
+                              className={cn(
+                                "relative flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 text-xs font-medium transition-all",
+                                isActive
+                                  ? `${t.bg} ${t.border} ring-2 ${t.ring}`
+                                  : "border-border bg-background hover:border-muted-foreground/20 hover:bg-muted/30",
+                                (isActive || statusMutation.isPending || confirmSending) && "opacity-50 cursor-not-allowed"
+                              )}
+                            >
+                              {isActive && (
+                                <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[#6c63ff] flex items-center justify-center">
+                                  <CheckCircle2 className="w-3 h-3 text-white" />
+                                </div>
+                              )}
+                              <div className={cn("w-2.5 h-2.5 rounded-full", t.dot)} />
+                              <s.icon className="w-4 h-4" />
+                              <span className="text-center leading-tight">{s.label}</span>
+                              {confirmSending && <Loader2 className="w-3 h-3 animate-spin" />}
+                            </button>
+                          </ADTrigger>
+                          <ADContent>
+                            <ADHeader>
+                              <ADTitle>Confirm this order?</ADTitle>
+                              <ADDesc>This will confirm the order, deduct stock, and automatically map the address for Pathao courier.</ADDesc>
+                            </ADHeader>
+                            <ADFooter>
+                              <ADCancel>Cancel</ADCancel>
+                              <ADAction onClick={handleConfirmWithMapping} disabled={confirmSending}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                                {confirmSending ? <><Loader2 className="w-4 h-4 animate-spin mr-1" /> Confirming...</> : "✅ Confirm Order"}
+                              </ADAction>
+                            </ADFooter>
+                          </ADContent>
+                        </AlertDialogRoot>
+                      );
+                    }
 
-                  if (s.key === "on_hold") {
                     return (
-                      <button key={s.key}
-                        onClick={() => { setReasonModal({ open: true, type: "on_hold" }); setReasonValue(""); setReasonNote(""); }}
+                      <button
+                        key={s.key}
+                        onClick={() => handleStatusAction(s.key)}
                         disabled={isActive || statusMutation.isPending}
-                        className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left",
-                          isActive ? "bg-foreground text-background" : "hover:bg-muted/80",
-                          (isActive || statusMutation.isPending) && "opacity-50 cursor-not-allowed")}>
-                        <div className={cn("w-2.5 h-2.5 rounded-full shrink-0", s.dotColor)} />
-                        <Icon className="w-4 h-4 shrink-0" />
-                        <span className="flex-1">{s.label}</span>
-                        {isActive && <CheckCircle2 className="w-3.5 h-3.5" />}
+                        className={cn(
+                          "relative flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 text-xs font-medium transition-all",
+                          isActive
+                            ? `${t.bg} ${t.border} ring-2 ${t.ring}`
+                            : "border-border bg-background hover:border-muted-foreground/20 hover:bg-muted/30",
+                          (isActive || statusMutation.isPending) && "opacity-50 cursor-not-allowed"
+                        )}
+                      >
+                        {isActive && (
+                          <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[#6c63ff] flex items-center justify-center">
+                            <CheckCircle2 className="w-3 h-3 text-white" />
+                          </div>
+                        )}
+                        <div className={cn("w-2.5 h-2.5 rounded-full", t.dot)} />
+                        <s.icon className="w-4 h-4" />
+                        <span className="text-center leading-tight">{s.label}</span>
                       </button>
                     );
-                  }
+                  })}
+                </div>
 
-                  return (
-                    <button key={s.key}
-                      onClick={() => statusMutation.mutate({ newStatus: s.key })}
-                      disabled={isActive || statusMutation.isPending}
-                      className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left",
-                        isActive ? "bg-foreground text-background" : "hover:bg-muted/80",
-                        (isActive || statusMutation.isPending) && "opacity-50 cursor-not-allowed")}>
-                      <div className={cn("w-2.5 h-2.5 rounded-full shrink-0", s.dotColor)} />
-                      <Icon className="w-4 h-4 shrink-0" />
-                      <span className="flex-1">{s.label}</span>
-                      {isActive && <CheckCircle2 className="w-3.5 h-3.5" />}
-                    </button>
-                  );
-                })}
-
-                {/* Cancel */}
+                {/* Cancel button full width */}
                 <button
-                  onClick={() => { setReasonModal({ open: true, type: "cancel" }); setReasonValue(""); setReasonNote(""); }}
+                  onClick={() => handleStatusAction("cancel")}
                   disabled={currentStatus === "cancel" || statusMutation.isPending}
-                  className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left mt-2",
-                    currentStatus === "cancel" ? "bg-foreground text-background opacity-50 cursor-not-allowed" : "hover:bg-destructive/10 text-destructive")}>
-                  <div className="w-2.5 h-2.5 rounded-full shrink-0 bg-red-500" />
-                  <XCircle className="w-4 h-4 shrink-0" />
-                  <span className="flex-1">Cancel</span>
-                  {currentStatus === "cancel" && <CheckCircle2 className="w-3.5 h-3.5" />}
+                  className={cn(
+                    "w-full flex items-center justify-center gap-2 p-3 rounded-xl border-2 text-sm font-medium transition-all",
+                    currentStatus === "cancel"
+                      ? "bg-red-50 border-red-300 ring-2 ring-red-200 text-red-700 opacity-50 cursor-not-allowed"
+                      : "border-border hover:border-red-200 hover:bg-red-50/50 text-red-600"
+                  )}
+                >
+                  <XCircle className="w-4 h-4" />
+                  🚫 Cancel Order
                 </button>
+
+                {/* Save button */}
+                <Button
+                  onClick={() => saveMutation.mutate()}
+                  disabled={saveMutation.isPending}
+                  className="w-full h-11 rounded-xl bg-gradient-to-r from-[#6c63ff] to-[#5a52d5] hover:from-[#5a52d5] hover:to-[#4a42c5] text-white font-semibold shadow-lg shadow-[#6c63ff]/20 hover:shadow-xl hover:shadow-[#6c63ff]/30 transition-all hover:-translate-y-0.5"
+                >
+                  <Save className="w-4 h-4 mr-2" /> Save Order
+                </Button>
               </CardContent>
             </Card>
 
-            {/* 2) PAYMENT & SUMMARY */}
+            {/* 2) ORDER INFO */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-muted-foreground" /> Payment Summary
+                  <Info className="w-4 h-4 text-[#6c63ff]" /> Order Info
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Method</span><span className="capitalize font-medium">{order.payment_method || "COD"}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Status</span>
-                  <Badge className={cn("text-[10px]", order.payment_status === "paid" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700")}>{order.payment_status || "pending"}</Badge>
-                </div>
-                <Separator />
-                <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="tabular-nums">{formatBDT(subtotal)}</span></div>
-                {discount > 0 && <div className="flex justify-between text-destructive"><span>Discount</span><span className="tabular-nums">-{formatBDT(discount)}</span></div>}
-                <div className="flex justify-between"><span className="text-muted-foreground">Delivery</span><span className="tabular-nums">{formatBDT(deliveryCharge)}</span></div>
-                {order.cod_amount ? <div className="flex justify-between"><span className="text-muted-foreground">COD Amount</span><span className="tabular-nums">{formatBDT(order.cod_amount)}</span></div> : null}
-                <Separator />
-                <div className="flex justify-between items-baseline">
-                  <span className="font-semibold">Grand Total</span>
-                  <span className="text-xl font-bold text-primary tabular-nums">{formatBDT(grandTotal)}</span>
-                </div>
-                <div className="bg-muted/50 rounded-lg p-2.5 grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Items</span><span>{items?.length || 0}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Qty</span><span>{items?.reduce((s, i) => s + i.quantity, 0) || 0}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Source</span><span className="capitalize">{order.channel}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Order #</span><span>{order.order_number}</span></div>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-lg bg-muted/50 space-y-1">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <Globe className="w-3 h-3" />
+                      <span className="text-[10px] uppercase tracking-wide">Source</span>
+                    </div>
+                    <Badge variant="outline" className="text-xs capitalize">{order.channel || "Manual"}</Badge>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/50 space-y-1">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <Truck className="w-3 h-3" />
+                      <span className="text-[10px] uppercase tracking-wide">Courier</span>
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      {order.pathao_consignment_id ? "Pathao" : "—"}
+                    </Badge>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/50 space-y-1">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <Calendar className="w-3 h-3" />
+                      <span className="text-[10px] uppercase tracking-wide">Created</span>
+                    </div>
+                    <span className="text-xs font-medium">{formatDate(order.created_at)}</span>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/50 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Success Rate</span>
+                      <span className={cn("text-xs font-bold", srColor)}>{successRate}%</span>
+                    </div>
+                    <Progress value={successRate} className="h-1.5" />
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -1026,7 +985,7 @@ export default function WebOrderDetail() {
 
         {/* ═══ REASON MODAL ═══ */}
         <Dialog open={reasonModal.open} onOpenChange={(open) => setReasonModal((prev) => ({ ...prev, open }))}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md rounded-2xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 {reasonModal.type === "cancel" ? "❌ Cancel Order" : "⏸️ Put On Hold"}
