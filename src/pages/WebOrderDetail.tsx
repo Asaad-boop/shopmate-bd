@@ -1217,13 +1217,13 @@ export default function WebOrderDetail() {
           {/* Divider */}
           <div className="w-px h-8 bg-white/10 mx-4" />
 
-          {/* Center-right: Grand Total */}
+          {/* Center: Grand Total */}
           <div className="text-right mr-4">
             <p className="text-[10px] font-medium text-white/50 uppercase tracking-wider">Grand Total</p>
             <p className="text-2xl font-extrabold text-[#6c63ff]">৳{grandTotal.toLocaleString()}</p>
           </div>
 
-          {/* Right: Confirm button */}
+          {/* Center-right: Confirm button */}
           <AlertDialogRoot open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
             <Button onClick={() => setShowConfirmDialog(true)} disabled={confirmSending || currentStatus === "confirm"}
               className="h-11 px-8 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm gap-2 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-400/40 transition-all hover:-translate-y-0.5 disabled:opacity-50">
@@ -1244,6 +1244,9 @@ export default function WebOrderDetail() {
               </ADFooter>
             </ADContent>
           </AlertDialogRoot>
+
+          {/* Right spacer to push confirm toward middle */}
+          <div className="flex-1" />
         </div>
 
         {/* ═══ REASON MODAL ═══ */}
