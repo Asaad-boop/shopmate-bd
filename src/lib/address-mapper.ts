@@ -91,6 +91,51 @@ const THANA_SYNONYMS: Record<string, string[]> = {
   bashundhara: ["বসুন্ধরা", "bashundhara"],
 };
 
+/* ── Canonical English name mappings ── */
+const CANONICAL_DISTRICT_NAMES: Record<string, string> = {
+  dhaka: "Dhaka", chattogram: "Chattogram", gazipur: "Gazipur", narayanganj: "Narayanganj",
+  sylhet: "Sylhet", rajshahi: "Rajshahi", khulna: "Khulna", rangpur: "Rangpur",
+  mymensingh: "Mymensingh", comilla: "Comilla", bogura: "Bogura", jessore: "Jessore",
+  dinajpur: "Dinajpur", barishal: "Barishal", cox_bazar: "Cox's Bazar", tangail: "Tangail",
+  narsingdi: "Narsingdi", manikganj: "Manikganj", munshiganj: "Munshiganj", faridpur: "Faridpur",
+  kishoreganj: "Kishoreganj", noakhali: "Noakhali", brahmanbaria: "Brahmanbaria",
+  habiganj: "Habiganj", moulvibazar: "Moulvibazar", sunamganj: "Sunamganj", chandpur: "Chandpur",
+  lakshmipur: "Lakshmipur", feni: "Feni", pabna: "Pabna", sirajganj: "Sirajganj",
+  natore: "Natore", naogaon: "Naogaon", chapainawabganj: "Chapainawabganj", joypurhat: "Joypurhat",
+  satkhira: "Satkhira", bagerhat: "Bagerhat", narail: "Narail", jhenaidah: "Jhenaidah",
+  magura: "Magura", kushtia: "Kushtia", meherpur: "Meherpur", chuadanga: "Chuadanga",
+  pirojpur: "Pirojpur", jhalokati: "Jhalokati", barguna: "Barguna", patuakhali: "Patuakhali",
+  bhola: "Bhola", gopalganj: "Gopalganj", madaripur: "Madaripur", shariatpur: "Shariatpur",
+  rajbari: "Rajbari", thakurgaon: "Thakurgaon", panchagarh: "Panchagarh", nilphamari: "Nilphamari",
+  lalmonirhat: "Lalmonirhat", kurigram: "Kurigram", gaibandha: "Gaibandha", sherpur: "Sherpur",
+  jamalpur: "Jamalpur", netrokona: "Netrokona", bandarban: "Bandarban", rangamati: "Rangamati",
+  khagrachari: "Khagrachari",
+};
+
+const CANONICAL_THANA_NAMES: Record<string, string> = {
+  mirpur: "Mirpur", uttara: "Uttara", dhanmondi: "Dhanmondi", gulshan: "Gulshan",
+  banani: "Banani", mohammadpur: "Mohammadpur", motijheel: "Motijheel", jatrabari: "Jatrabari",
+  tejgaon: "Tejgaon", badda: "Badda", khilkhet: "Khilkhet", savar: "Savar",
+  tongi: "Tongi", keraniganj: "Keraniganj", demra: "Demra", bashundhara: "Bashundhara",
+};
+
+/** Look up canonical English name for a matched candidate */
+export function toCanonicalName(
+  matchedName: string,
+  synonymsDict: Record<string, string[]>,
+  canonicalDict: Record<string, string>
+): string {
+  const lower = matchedName.toLowerCase();
+  // Check if it directly matches a canonical key
+  for (const [key, synonyms] of Object.entries(synonymsDict)) {
+    if (key === lower || synonyms.some(s => s.toLowerCase() === lower) || lower.includes(key)) {
+      if (canonicalDict[key]) return canonicalDict[key];
+    }
+  }
+  // Fallback: return original name (already English from Pathao API)
+  return matchedName;
+}
+
 /* ── Normalize address text ── */
 export function normalizeAddress(text: string): string {
   if (!text) return "";
@@ -241,12 +286,17 @@ export function mapAddressToPathao(
 
   const success = cityMatch.score >= 0.70 && (zoneMatch.best ? zoneMatch.score >= 0.65 : false);
 
+  const canonicalCity = toCanonicalName(cityMatch.best.name, DISTRICT_SYNONYMS, CANONICAL_DISTRICT_NAMES);
+  const canonicalZone = zoneMatch.best
+    ? toCanonicalName(zoneMatch.best.name, THANA_SYNONYMS, CANONICAL_THANA_NAMES)
+    : "";
+
   return {
     cityId: cityMatch.best.id,
-    cityName: cityMatch.best.name,
+    cityName: canonicalCity,
     cityScore: cityMatch.score,
     zoneId: zoneMatch.best?.id || null,
-    zoneName: zoneMatch.best?.name || "",
+    zoneName: canonicalZone,
     zoneScore: zoneMatch.score,
     success,
   };
