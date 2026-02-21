@@ -362,15 +362,29 @@ export default function WebOrderDetail() {
 
   // Auto-match detected thana → Pathao zone (supports Bengali + English via fuzzy match)
   useEffect(() => {
-    if (!pathaoZones?.length) return;
+    if (!pathaoZones?.length || pathaoZoneId) return;
     const thana = detectedThana || deliveryForm.zone;
-    if (!thana || thana === "-" || pathaoZoneId) return;
     const candidates = pathaoZones.map(z => ({ id: z.zone_id, name: z.zone_name }));
-    // Try thana name first, then full address for cross-script matching
-    let match = findBestMatch(thana, candidates, THANA_SYNONYMS);
-    if (!match.best || match.score < 0.65) {
-      const address = order?.delivery_address || deliveryForm.address;
-      if (address) match = findBestMatch(address, candidates, THANA_SYNONYMS);
+    let thanaMatch: ReturnType<typeof findBestMatch> = { best: null, score: 0 };
+    let addressMatch: ReturnType<typeof findBestMatch> = { best: null, score: 0 };
+    // Try thana name first
+    if (thana && thana !== "-") {
+      thanaMatch = findBestMatch(thana, candidates, THANA_SYNONYMS);
+    }
+    // Always try full address too — may find more specific match (e.g. "Uttara Sector 3" vs "Abdullahpur Uttara")
+    const address = order?.delivery_address || deliveryForm.address;
+    if (address) {
+      addressMatch = findBestMatch(address, candidates, THANA_SYNONYMS);
+    }
+    // Prefer address match if it found a longer/more specific candidate name (more words matched)
+    let match = thanaMatch;
+    if (addressMatch.best && addressMatch.score >= 0.65) {
+      const thanaWords = thanaMatch.best?.name.split(/\s+/).length || 0;
+      const addrWords = addressMatch.best.name.split(/\s+/).length || 0;
+      // Prefer address match if it's more specific (more words) or if thana didn't match well
+      if (addrWords > thanaWords || !thanaMatch.best || thanaMatch.score < 0.65) {
+        match = addressMatch;
+      }
     }
     if (match.best && match.score >= 0.65) {
       setPathaoZoneId(match.best.id);

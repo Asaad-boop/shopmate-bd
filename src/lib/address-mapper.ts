@@ -182,13 +182,39 @@ export function findBestMatch(
   if (!query || !candidates.length) return { best: null, score: 0 };
 
   const normalizedQuery = normalizeAddress(query);
+  const queryWords = normalizedQuery.split(" ").filter((w) => w.length >= 2 || /^\d+$/.test(w));
 
-  // 1. Exact contains match
+  // 0. All-words-present match — ALL words of candidate appear in query (order-independent)
+  // Score by how many words matched (more = better fit, e.g. "Uttara Sector 3" > "Abdullahpur Uttara")
+  let allWordsMatches: { candidate: { id: number; name: string }; matchedWords: number; totalWords: number }[] = [];
+  for (const c of candidates) {
+    const cWords = c.name.toLowerCase().split(/\s+/).filter(w => w.length >= 1);
+    const matched = cWords.filter(cw => queryWords.some(qw => {
+      // For short words (<=3 chars), require exact match to avoid false positives
+      if (cw.length <= 3 || qw.length <= 3) return qw === cw;
+      return qw === cw || qw.includes(cw) || cw.includes(qw);
+    }));
+    if (matched.length === cWords.length) {
+      allWordsMatches.push({ candidate: c, matchedWords: matched.length, totalWords: cWords.length });
+    }
+  }
+  if (allWordsMatches.length > 0) {
+    // Prefer candidate with MOST words matched (more specific match)
+    allWordsMatches.sort((a, b) => b.totalWords - a.totalWords);
+    return { best: allWordsMatches[0].candidate, score: 1.0 };
+  }
+
+  // 1. Substring contains match — prefer shorter (more specific) candidate names
+  const containsMatches: { candidate: { id: number; name: string } }[] = [];
   for (const c of candidates) {
     const cName = c.name.toLowerCase();
     if (normalizedQuery.includes(cName) || cName.includes(normalizedQuery)) {
-      return { best: c, score: 1.0 };
+      containsMatches.push({ candidate: c });
     }
+  }
+  if (containsMatches.length > 0) {
+    containsMatches.sort((a, b) => a.candidate.name.length - b.candidate.name.length);
+    return { best: containsMatches[0].candidate, score: 0.95 };
   }
 
   // 2. Check synonyms
@@ -223,12 +249,12 @@ export function findBestMatch(
   let bestScore = 0;
   let bestCandidate: { id: number; name: string } | null = null;
 
-  const queryWords = normalizedQuery.split(" ").filter((w) => w.length >= 3);
+  const fuzzyWords = normalizedQuery.split(" ").filter((w) => w.length >= 3);
 
   for (const c of candidates) {
     const cName = c.name.toLowerCase();
     // Score against each word
-    for (const word of queryWords) {
+    for (const word of fuzzyWords) {
       const score = diceCoefficient(word, cName);
       if (score > bestScore) {
         bestScore = score;
