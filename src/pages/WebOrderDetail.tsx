@@ -43,6 +43,7 @@ import { useBDCourierSingle, getRiskLevel, getSuccessColor } from "@/hooks/use-b
 import { PathaoTrackingCard } from "@/components/pathao/PathaoTrackingCard";
 import { AddressFixDrawer } from "@/components/orders/AddressFixDrawer";
 import { mapAddressToPathao, type MappingResult } from "@/lib/address-mapper";
+import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/use-pathao";
 import { useCompanySettings } from "@/hooks/use-company-settings";
 import { useInvoiceSettings } from "@/hooks/use-invoice-settings";
 import { printInvoice } from "@/components/orders/PrintInvoice";
@@ -168,6 +169,17 @@ export default function WebOrderDetail() {
   const [reasonValue, setReasonValue] = useState("");
   const [reasonNote, setReasonNote] = useState("");
   const [addressFixSending, setAddressFixSending] = useState(false);
+
+  // Pathao City/Zone/Area inline selects
+  const [pathaoCityId, setPathaoCityId] = useState<number | null>(null);
+  const [pathaoZoneId, setPathaoZoneId] = useState<number | null>(null);
+  const [pathaoAreaId, setPathaoAreaId] = useState<number | null>(null);
+  const [citySearch, setCitySearch] = useState("");
+  const [zoneSearch, setZoneSearch] = useState("");
+
+  const { data: pathaoCities, isLoading: citiesLoading } = usePathaoCities();
+  const { data: pathaoZones, isLoading: zonesLoading } = usePathaoZones(pathaoCityId);
+  const { data: pathaoAreas } = usePathaoAreas(pathaoZoneId);
 
   /* ── Queries ── */
   const { data: order, isLoading } = useQuery({
@@ -328,7 +340,33 @@ export default function WebOrderDetail() {
     }
   }, [detectedDistrict, detectedThana, districtEmpty, thanaEmpty, order, addressParseApplied]);
 
-  /* ── Computed values ── */
+  // Auto-match detected district → Pathao city
+  useEffect(() => {
+    if (!pathaoCities?.length) return;
+    const district = detectedDistrict || deliveryForm.city;
+    if (!district || pathaoCityId) return;
+    const match = pathaoCities.find(c => c.city_name.toLowerCase() === district.toLowerCase());
+    if (match) setPathaoCityId(match.city_id);
+  }, [pathaoCities, detectedDistrict, deliveryForm.city]);
+
+  // Auto-match detected thana → Pathao zone
+  useEffect(() => {
+    if (!pathaoZones?.length) return;
+    const thana = detectedThana || deliveryForm.zone;
+    if (!thana || pathaoZoneId) return;
+    const match = pathaoZones.find(z => z.zone_name.toLowerCase() === thana.toLowerCase());
+    if (match) setPathaoZoneId(match.zone_id);
+  }, [pathaoZones, detectedThana, deliveryForm.zone]);
+
+  // Reset zone when city changes
+  useEffect(() => { setPathaoZoneId(null); setPathaoAreaId(null); }, [pathaoCityId]);
+
+  // Filtered lists for search
+  const filteredCities = pathaoCities?.filter(c => c.city_name.toLowerCase().includes(citySearch.toLowerCase())) || [];
+  const filteredZones = pathaoZones?.filter(z => z.zone_name.toLowerCase().includes(zoneSearch.toLowerCase())) || [];
+  const selectedCityName = pathaoCities?.find(c => c.city_id === pathaoCityId)?.city_name || "";
+  const selectedZoneName = pathaoZones?.find(z => z.zone_id === pathaoZoneId)?.zone_name || "";
+
   const subtotal = orderItems.reduce((s, i) => s + (i.unit_price * i.quantity), 0);
   const totalDiscount = orderItems.reduce((s, i) => s + (i.discount || 0), 0) + (order?.discount || 0);
   const deliveryCharge = order?.delivery_charge || 0;
@@ -445,33 +483,44 @@ export default function WebOrderDetail() {
         content: "Order confirmed and moved to Orders list",
         old_status: order.web_order_status || "processing", new_status: "confirm", created_by: "Staff",
       });
-      const fullAddress = order.delivery_address || customer?.address || "";
-      const { data: citiesData, error: citiesErr } = await supabase.functions.invoke("pathao-proxy", { body: { action: "cities" } });
-      if (citiesErr) throw citiesErr;
-      const cities = citiesData?.data?.data || [];
-      const mappingResult = mapAddressToPathao(fullAddress, cities, []);
-      if (mappingResult.success && mappingResult.cityId) {
-        const { data: zonesData } = await supabase.functions.invoke("pathao-proxy", { body: { action: "zones", city_id: mappingResult.cityId } });
-        const zones = zonesData?.data?.data || [];
-        const fullMapping = mapAddressToPathao(fullAddress, cities, zones);
-        if (fullMapping.success && fullMapping.cityId && fullMapping.zoneId) {
-          try {
-            await sendToPathao(fullMapping.cityId, fullMapping.cityName, fullMapping.zoneId, fullMapping.zoneName);
-          } catch (pathaoErr: any) {
-            toast({ title: "Order confirmed but Pathao send failed", description: pathaoErr.message, variant: "destructive" });
-            await supabase.from("orders").update({ courier_status: "PATHAO_FAILED" }).eq("id", id!);
+      // Use inline-selected Pathao city/zone if available
+      if (pathaoCityId && pathaoZoneId) {
+        try {
+          await sendToPathao(pathaoCityId, selectedCityName, pathaoZoneId, selectedZoneName);
+        } catch (pathaoErr: any) {
+          toast({ title: "Order confirmed but Pathao send failed", description: pathaoErr.message, variant: "destructive" });
+          await supabase.from("orders").update({ courier_status: "PATHAO_FAILED" }).eq("id", id!);
+        }
+      } else {
+        // Fallback: auto-mapping from address
+        const fullAddress = order.delivery_address || customer?.address || "";
+        const { data: citiesData, error: citiesErr } = await supabase.functions.invoke("pathao-proxy", { body: { action: "cities" } });
+        if (citiesErr) throw citiesErr;
+        const cities = citiesData?.data?.data || [];
+        const mappingResult = mapAddressToPathao(fullAddress, cities, []);
+        if (mappingResult.success && mappingResult.cityId) {
+          const { data: zonesData } = await supabase.functions.invoke("pathao-proxy", { body: { action: "zones", city_id: mappingResult.cityId } });
+          const zones = zonesData?.data?.data || [];
+          const fullMapping = mapAddressToPathao(fullAddress, cities, zones);
+          if (fullMapping.success && fullMapping.cityId && fullMapping.zoneId) {
+            try {
+              await sendToPathao(fullMapping.cityId, fullMapping.cityName, fullMapping.zoneId, fullMapping.zoneName);
+            } catch (pathaoErr: any) {
+              toast({ title: "Order confirmed but Pathao send failed", description: pathaoErr.message, variant: "destructive" });
+              await supabase.from("orders").update({ courier_status: "PATHAO_FAILED" }).eq("id", id!);
+            }
+          } else {
+            setAddressMappingResult(fullMapping);
+            await supabase.from("orders").update({ courier_status: "ADDRESS_FIX_REQUIRED" }).eq("id", id!);
+            toast({ title: "📍 Address fix required" });
+            setAddressFixOpen(true);
           }
         } else {
-          setAddressMappingResult(fullMapping);
+          setAddressMappingResult(mappingResult);
           await supabase.from("orders").update({ courier_status: "ADDRESS_FIX_REQUIRED" }).eq("id", id!);
           toast({ title: "📍 Address fix required" });
           setAddressFixOpen(true);
         }
-      } else {
-        setAddressMappingResult(mappingResult);
-        await supabase.from("orders").update({ courier_status: "ADDRESS_FIX_REQUIRED" }).eq("id", id!);
-        toast({ title: "📍 Address fix required" });
-        setAddressFixOpen(true);
       }
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -903,34 +952,87 @@ export default function WebOrderDetail() {
                   <Badge variant="outline" className="text-[10px] gap-1">🚚 Pathao</Badge>
                   <Badge className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 gap-1">💰 {order.payment_method || "COD"}</Badge>
                 </div>
-                {/* Location */}
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <Label className="text-[10px] text-muted-foreground uppercase">City</Label>
-                    <Select value={deliveryForm.city} onValueChange={(v) => setDeliveryForm(f => ({ ...f, city: v }))}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="City" /></SelectTrigger>
-                      <SelectContent className="bg-background z-50">
-                        <SelectItem value={deliveryForm.city || "Dhaka"}>{deliveryForm.city || "Dhaka"}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-[10px] text-muted-foreground uppercase">Zone</Label>
-                    <Select value={deliveryForm.zone} onValueChange={(v) => setDeliveryForm(f => ({ ...f, zone: v }))}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Zone" /></SelectTrigger>
-                      <SelectContent className="bg-background z-50">
-                        <SelectItem value={deliveryForm.zone || "-"}>{deliveryForm.zone || "-"}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-[10px] text-muted-foreground uppercase">Area</Label>
-                    <Select value={deliveryForm.area || "default"} onValueChange={(v) => setDeliveryForm(f => ({ ...f, area: v }))}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Area" /></SelectTrigger>
-                      <SelectContent className="bg-background z-50">
-                        <SelectItem value={deliveryForm.area || "default"}>{deliveryForm.area || "—"}</SelectItem>
-                      </SelectContent>
-                    </Select>
+                {/* Pathao Location Mapping */}
+                <div>
+                  <Label className="text-[10px] text-muted-foreground uppercase flex items-center gap-1 mb-2">
+                    <MapPin className="w-3 h-3" /> Pathao Location
+                    {pathaoCityId && pathaoZoneId && (
+                      <Badge className="ml-1 text-[8px] bg-emerald-50 text-emerald-600 border-emerald-200 px-1.5 py-0">✓ Mapped</Badge>
+                    )}
+                  </Label>
+                  {/* AI Detected badges */}
+                  {(detectedDistrict || detectedThana) && (
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <span className="text-[9px] text-muted-foreground">AI:</span>
+                      {detectedDistrict && (
+                        <Badge variant="outline" className="text-[9px] bg-emerald-50 text-emerald-700 border-emerald-200 gap-1 px-1.5 py-0">
+                          <CheckCircle2 className="w-2.5 h-2.5" /> {detectedDistrict}
+                        </Badge>
+                      )}
+                      {detectedThana && (
+                        <Badge variant="outline" className="text-[9px] bg-emerald-50 text-emerald-700 border-emerald-200 gap-1 px-1.5 py-0">
+                          <CheckCircle2 className="w-2.5 h-2.5" /> {detectedThana}
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-3 gap-2">
+                    {/* City (District) */}
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">City *</Label>
+                      <Select value={pathaoCityId ? String(pathaoCityId) : ""} onValueChange={(v) => setPathaoCityId(Number(v))}>
+                        <SelectTrigger className={cn("h-8 text-xs", pathaoCityId && "border-emerald-300 bg-emerald-50/30")}>
+                          <SelectValue placeholder={citiesLoading ? "Loading..." : "Select City"} />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background z-50 max-h-60">
+                          <div className="px-2 py-1.5 sticky top-0 bg-background border-b border-border">
+                            <div className="relative">
+                              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                              <input className="w-full pl-6 pr-2 py-1 text-[11px] rounded border border-input bg-background outline-none"
+                                placeholder="Search city..." value={citySearch} onChange={(e) => setCitySearch(e.target.value)} onClick={(e) => e.stopPropagation()} />
+                            </div>
+                          </div>
+                          {filteredCities.map((c) => (
+                            <SelectItem key={c.city_id} value={String(c.city_id)} className="text-xs">{c.city_name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {/* Zone (Thana) */}
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">Zone *</Label>
+                      <Select value={pathaoZoneId ? String(pathaoZoneId) : ""} onValueChange={(v) => setPathaoZoneId(Number(v))} disabled={!pathaoCityId}>
+                        <SelectTrigger className={cn("h-8 text-xs", pathaoZoneId && "border-emerald-300 bg-emerald-50/30")}>
+                          <SelectValue placeholder={zonesLoading ? "Loading..." : "Select Zone"} />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background z-50 max-h-60">
+                          <div className="px-2 py-1.5 sticky top-0 bg-background border-b border-border">
+                            <div className="relative">
+                              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                              <input className="w-full pl-6 pr-2 py-1 text-[11px] rounded border border-input bg-background outline-none"
+                                placeholder="Search zone..." value={zoneSearch} onChange={(e) => setZoneSearch(e.target.value)} onClick={(e) => e.stopPropagation()} />
+                            </div>
+                          </div>
+                          {filteredZones.map((z) => (
+                            <SelectItem key={z.zone_id} value={String(z.zone_id)} className="text-xs">{z.zone_name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {/* Area */}
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">Area</Label>
+                      <Select value={pathaoAreaId ? String(pathaoAreaId) : ""} onValueChange={(v) => setPathaoAreaId(Number(v))} disabled={!pathaoZoneId}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Area" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background z-50 max-h-60">
+                          {pathaoAreas?.map((a) => (
+                            <SelectItem key={a.area_id} value={String(a.area_id)} className="text-xs">{a.area_name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
                 {/* Customer fields */}
