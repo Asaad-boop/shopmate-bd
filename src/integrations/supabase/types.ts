@@ -162,6 +162,54 @@ export type Database = {
           },
         ]
       }
+      courier_history: {
+        Row: {
+          courier_name: string
+          created_at: string
+          delivered_at: string | null
+          id: string
+          order_id: string | null
+          phone: string
+          status: string | null
+          tracking_id: string | null
+        }
+        Insert: {
+          courier_name: string
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          order_id?: string | null
+          phone: string
+          status?: string | null
+          tracking_id?: string | null
+        }
+        Update: {
+          courier_name?: string
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          order_id?: string | null
+          phone?: string
+          status?: string | null
+          tracking_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_summary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courier_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_qc_cache: {
         Row: {
           cancelled_orders: number | null
