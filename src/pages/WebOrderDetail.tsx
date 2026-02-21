@@ -389,8 +389,9 @@ export default function WebOrderDetail() {
     if (!pathaoZones?.length) return;
     const candidates = pathaoZones.map(z => ({ id: z.zone_id, name: z.zone_name }));
 
-    // Run the scoring-based parser
-    const parsed = parseAddress(address);
+    // Run the scoring-based parser with the currently selected city
+    const currentCity = pathaoCities?.find(c => c.city_id === pathaoCityId)?.city_name || "Dhaka";
+    const parsed = parseAddress(address, currentCity);
     setParseResult(parsed);
     setAddressConfidence(Math.round(parsed.confidence * 100));
 
@@ -425,7 +426,7 @@ export default function WebOrderDetail() {
         setDeliveryForm(f => ({ ...f, zone: thanaMatch.best!.name }));
       }
     }
-  }, [pathaoZones, mappingMode, detectedThana, deliveryForm.zone]);
+  }, [pathaoZones, pathaoCities, pathaoCityId, mappingMode, detectedThana, deliveryForm.zone]);
 
   // Trigger auto-map on initial load
   useEffect(() => {
