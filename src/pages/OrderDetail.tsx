@@ -1,64 +1,29 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatusBadge, ChannelBadge } from "@/components/ui/status-badge";
+import { orderStatusConfig, paymentStatusConfig, formatBDT, formatDateTime } from "@/lib/format";
 import { useToast } from "@/hooks/use-toast";
-import { useCompanySettings } from "@/hooks/use-company-settings";
-import { useInvoiceSettings } from "@/hooks/use-invoice-settings";
-import { printInvoice } from "@/components/orders/PrintInvoice";
-import { formatDateTime } from "@/lib/format";
-import { ArrowLeft, Printer, Save } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { ArrowLeft, Check, Truck, Package, ClipboardList, CheckCircle2, ExternalLink, RefreshCw } from "lucide-react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
-
-import { CustomerCard } from "@/components/order-detail/CustomerCard";
-import { OrderItemsCard, type OrderItem } from "@/components/order-detail/OrderItemsCard";
-import { DeliveryPaymentCard, type DeliveryPaymentData } from "@/components/order-detail/DeliveryPaymentCard";
-import { StatusSidebar } from "@/components/order-detail/StatusSidebar";
-import { OrderInfoCard } from "@/components/order-detail/OrderInfoCard";
-import { ActivityLog } from "@/components/order-detail/ActivityLog";
-
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  processing: { label: "Processing", color: "bg-orange-100 text-orange-800" },
-  good_but_no_response: { label: "Good", color: "bg-emerald-100 text-emerald-800" },
-  good_no_response: { label: "Good No Response", color: "bg-slate-100 text-slate-700" },
-  no_response: { label: "No Response", color: "bg-slate-100 text-slate-700" },
-  on_hold: { label: "On Hold", color: "bg-amber-100 text-amber-800" },
-  advance_payment: { label: "Advance", color: "bg-blue-100 text-blue-800" },
-  cancel: { label: "Cancel", color: "bg-red-100 text-red-800" },
-  confirm: { label: "Confirm", color: "bg-emerald-100 text-emerald-800" },
-  pending: { label: "Pending", color: "bg-amber-100 text-amber-800" },
-  delivered: { label: "Delivered", color: "bg-emerald-500 text-white" },
-};
+import { useBDCourierSingle, getRiskLevel, getSuccessColor } from "@/hooks/use-bd-courier";
+const STATUSES = ["pending", "confirmed", "processing", "shipped", "delivered"] as const;
+const STATUS_ICONS = [ClipboardList, Check, Package, Truck, CheckCircle2];
 
 export default function OrderDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { settings: company } = useCompanySettings();
-  const { invoiceSettings } = useInvoiceSettings();
+  const [trackingCode, setTrackingCode] = useState("");
 
-  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
-  const [deliveryData, setDeliveryData] = useState<DeliveryPaymentData>({
-    channel: "",
-    delivery_address: "",
-    delivery_district: "",
-    delivery_thana: "",
-    customer_name: "",
-    customer_phone: "",
-    notes: "",
-    delivery_charge: 60,
-    discount: 0,
-    advance_enabled: false,
-    advance_via: "",
-    advance_amount: 0,
-    advance_txn_id: "",
-  });
-
-  // Fetch order
   const { data: order, isLoading } = useQuery({
     queryKey: ["order", id],
     queryFn: async () => {
@@ -68,18 +33,27 @@ export default function OrderDetail() {
         .eq("id", id!)
         .single();
       if (error) throw error;
+      if (data.pathao_tracking_code) setTrackingCode(data.pathao_tracking_code);
       return data;
     },
     enabled: !!id,
   });
 
-  // Fetch order items
-  const { data: dbItems } = useQuery({
+  const { data: shopifyStoreUrl } = useQuery({
+    queryKey: ["shopify-store-url"],
+    queryFn: async () => {
+      const { data } = await supabase.from("settings").select("value").eq("key", "shopify_store_url").maybeSingle();
+      return data?.value || "";
+    },
+    enabled: !!order && order.channel === "shopify",
+  });
+
+  const { data: items } = useQuery({
     queryKey: ["order-items", id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("order_items")
-        .select("*, products(name, sku, image_url, selling_price)")
+        .select("*, products(name, sku, image_url)")
         .eq("order_id", id!);
       if (error) throw error;
       return data;
@@ -87,234 +61,349 @@ export default function OrderDetail() {
     enabled: !!id,
   });
 
-  // Initialize state from fetched data
-  useEffect(() => {
-    if (order) {
-      const customer = order.customers as any;
-      setDeliveryData({
-        channel: order.channel || "",
-        delivery_address: order.delivery_address || customer?.address || "",
-        delivery_district: order.delivery_district || customer?.district || "",
-        delivery_thana: order.delivery_thana || customer?.thana || "",
-        customer_name: customer?.full_name || "",
-        customer_phone: customer?.phone || "",
-        notes: order.notes || "",
-        delivery_charge: order.delivery_charge || 60,
-        discount: order.discount || 0,
-        advance_enabled: !!(order.cod_amount && order.total_amount && order.cod_amount < order.total_amount),
-        advance_via: order.payment_method || "",
-        advance_amount: order.total_amount && order.cod_amount ? order.total_amount - order.cod_amount : 0,
-        advance_txn_id: "",
-      });
-    }
-  }, [order]);
-
-  useEffect(() => {
-    if (dbItems) {
-      setOrderItems(
-        dbItems.map((item) => {
-          const product = item.products as any;
-          return {
-            id: item.id,
-            product_id: item.product_id || "",
-            product_name: product?.name || (item as any).product_name_fallback || "Product",
-            sku: product?.sku || "",
-            image_url: product?.image_url || null,
-            unit_price: item.unit_price,
-            quantity: item.quantity,
-            discount: item.discount || 0,
-            total_price: item.total_price,
-          };
-        })
-      );
-    }
-  }, [dbItems]);
-
-  // Save order mutation
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const subtotal = orderItems.reduce((s, i) => s + i.total_price, 0);
-      const grandTotal = subtotal - deliveryData.discount + deliveryData.delivery_charge;
-      const codAmount = deliveryData.advance_enabled
-        ? grandTotal - deliveryData.advance_amount
-        : grandTotal;
-
-      // Update order
-      const { error: orderError } = await supabase
-        .from("orders")
-        .update({
-          delivery_address: deliveryData.delivery_address,
-          delivery_district: deliveryData.delivery_district,
-          delivery_thana: deliveryData.delivery_thana,
-          notes: deliveryData.notes,
-          delivery_charge: deliveryData.delivery_charge,
-          discount: deliveryData.discount,
-          subtotal,
-          total_amount: grandTotal,
-          cod_amount: codAmount,
-          payment_method: deliveryData.advance_enabled ? deliveryData.advance_via : order?.payment_method,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", id!);
-      if (orderError) throw orderError;
-
-      // Delete old items and insert new
-      await supabase.from("order_items").delete().eq("order_id", id!);
-      if (orderItems.length > 0) {
-        const { error: itemsError } = await supabase.from("order_items").insert(
-          orderItems.map((item) => ({
-            order_id: id!,
-            product_id: item.product_id,
-            product_name_fallback: item.product_name,
-            unit_price: item.unit_price,
-            quantity: item.quantity,
-            discount: item.discount,
-            total_price: item.total_price,
-          }))
-        );
-        if (itemsError) throw itemsError;
-      }
-
-      // Log activity
-      await supabase.from("order_activity_log" as any).insert({
-        order_id: id!,
-        action: "items_updated",
-        done_by: "admin",
-        details: `${orderItems.length} items, total: ${grandTotal}`,
-      });
+  const statusMutation = useMutation({
+    mutationFn: async (newStatus: string) => {
+      const { error } = await supabase.from("orders").update({ status: newStatus, updated_at: new Date().toISOString() }).eq("id", id!);
+      if (error) throw error;
     },
     onSuccess: () => {
-      toast({ title: "Order saved successfully" });
+      toast({ title: "Order status updated" });
       queryClient.invalidateQueries({ queryKey: ["order", id] });
-      queryClient.invalidateQueries({ queryKey: ["order-items", id] });
-      queryClient.invalidateQueries({ queryKey: ["order-activity", id] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
     },
-    onError: (err: any) =>
-      toast({ title: "Save failed", description: err.message, variant: "destructive" }),
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
-  const handlePrintInvoice = useCallback(() => {
-    if (!order) return;
-    // Need to attach items for printing
-    const orderWithItems = {
-      ...order,
-      order_items: dbItems || [],
-    };
-    printInvoice(orderWithItems, company, invoiceSettings);
-  }, [order, dbItems, company, invoiceSettings]);
+  const trackingMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("orders").update({ pathao_tracking_code: trackingCode }).eq("id", id!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Tracking code saved" });
+      queryClient.invalidateQueries({ queryKey: ["order", id] });
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
 
   if (isLoading) {
     return (
       <div className="space-y-6 animate-fade-in">
-        <Skeleton className="h-10 w-64" />
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
-          <div className="space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
             <Skeleton className="h-40 w-full" />
             <Skeleton className="h-60 w-full" />
-            <Skeleton className="h-80 w-full" />
           </div>
-          <div className="space-y-6">
-            <Skeleton className="h-80 w-full" />
-            <Skeleton className="h-40 w-full" />
-          </div>
+          <Skeleton className="h-60 w-full" />
         </div>
       </div>
     );
   }
 
-  if (!order) {
-    return (
-      <div className="text-center py-12 text-muted-foreground">Order not found</div>
-    );
-  }
+  if (!order) return <div className="text-center py-12 text-muted-foreground">Order not found</div>;
 
+  const currentStatusIdx = STATUSES.indexOf(order.status as any);
   const customer = order.customers as any;
-  const currentStatus = order.web_order_status || order.status || "pending";
-  const statusCfg = STATUS_LABELS[currentStatus] || { label: currentStatus, color: "bg-muted text-muted-foreground" };
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Page Header */}
-      <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl -mx-6 px-6 py-4 border-b border-border/50">
-        <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={() => navigate("/orders")}>
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+        <div className="flex-1">
           <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/orders")}
-              className="shrink-0"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div>
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-xl font-bold tracking-tight">
-                  #{order.order_number}
-                </h1>
-                <Badge className={cn("text-xs", statusCfg.color)}>
-                  {statusCfg.label}
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Created {formatDateTime(order.created_at)}
-              </p>
-            </div>
+            <h1 className="text-2xl font-bold">{order.order_number}</h1>
+            <ChannelBadge channel={order.channel} />
+            <StatusBadge config={orderStatusConfig} status={order.status} />
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              onClick={handlePrintInvoice}
-            >
-              <Printer className="w-3.5 h-3.5" />
-              Print Invoice
-            </Button>
-            <Button
-              size="sm"
-              className="gap-1.5"
-              onClick={() => saveMutation.mutate()}
-              disabled={saveMutation.isPending}
-            >
-              <Save className="w-3.5 h-3.5" />
-              {saveMutation.isPending ? "Saving..." : "Save Changes"}
-            </Button>
-          </div>
+          <p className="text-sm text-muted-foreground">{formatDateTime(order.order_date)}</p>
         </div>
       </div>
 
-      {/* Two column layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
-        {/* Left Column */}
-        <div className="space-y-6">
-          <CustomerCard
-            customerId={order.customer_id}
-            customerPhone={customer?.phone}
-          />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          {/* Status Timeline */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Order Status</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between mb-6">
+                {STATUSES.map((s, i) => {
+                  const Icon = STATUS_ICONS[i];
+                  const isActive = i <= currentStatusIdx;
+                  const isCurrent = i === currentStatusIdx;
+                  return (
+                    <div key={s} className="flex flex-col items-center flex-1 relative">
+                      {i > 0 && (
+                        <div className={cn("absolute top-4 right-1/2 w-full h-0.5", i <= currentStatusIdx ? "bg-primary" : "bg-border")} style={{ transform: "translateX(-50%)", left: "-50%" }} />
+                      )}
+                      <div className={cn("w-8 h-8 rounded-full flex items-center justify-center z-10 relative", isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground", isCurrent && "ring-2 ring-primary ring-offset-2")}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <span className={cn("text-xs mt-2 font-medium", isActive ? "text-foreground" : "text-muted-foreground")}>
+                        {orderStatusConfig[s]?.label || s}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              {order.status !== "delivered" && order.status !== "cancelled" && (
+                <div className="flex gap-2 flex-wrap">
+                  {STATUSES.filter((_, i) => i > currentStatusIdx).map((s) => (
+                    <Button key={s} size="sm" variant="outline" onClick={() => statusMutation.mutate(s)} disabled={statusMutation.isPending}>
+                      Mark as {orderStatusConfig[s]?.label}
+                    </Button>
+                  ))}
+                  <Button size="sm" variant="destructive" onClick={() => statusMutation.mutate("cancelled")} disabled={statusMutation.isPending}>
+                    Cancel Order
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-          <OrderItemsCard items={orderItems} onChange={setOrderItems} />
+          {/* Order Items */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Order Items</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {items?.map((item) => {
+                  const product = item.products as any;
+                  const pName = product?.name || (item as any).product_name_fallback || "Product";
+                  const pInitial = pName[0].toUpperCase();
+                  return (
+                  <div key={item.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center shrink-0 border border-border">
+                        {product?.image_url ? (
+                          <img src={product.image_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">{pInitial}</div>
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{pName}</p>
+                        <p className="text-xs text-muted-foreground">SKU: {product?.sku || "-"}</p>
+                      </div>
+                    </div>
+                    <div className="text-right text-sm">
+                      <p>{item.quantity} × {formatBDT(item.unit_price)}</p>
+                      <p className="font-medium">{formatBDT(item.total_price)}</p>
+                    </div>
+                  </div>
+                  );
+                })}
+                {(!items || items.length === 0) && (
+                  <p className="text-center text-muted-foreground py-4 text-sm">No items</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-          <DeliveryPaymentCard
-            data={deliveryData}
-            onChange={setDeliveryData}
-            items={orderItems}
-          />
+          {/* Pathao Tracking */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Courier / Pathao Tracking</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-3 items-end">
+                <div className="flex-1">
+                  <Label>Tracking Code</Label>
+                  <Input value={trackingCode} onChange={(e) => setTrackingCode(e.target.value)} placeholder="Enter Pathao tracking code" />
+                </div>
+                <Button onClick={() => trackingMutation.mutate()} disabled={trackingMutation.isPending}>
+                  Save
+                </Button>
+              </div>
+              {order.pathao_consignment_id && (
+                <p className="text-xs text-muted-foreground mt-2">Consignment ID: {order.pathao_consignment_id}</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Shopify Info */}
+          {order.channel === "shopify" && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">🛍️ Shopify Info</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                {order.shopify_order_id && (
+                  <div className="flex justify-between"><span className="text-muted-foreground">Shopify Order ID</span><span className="font-mono">{order.shopify_order_id}</span></div>
+                )}
+                {order.shopify_order_number && (
+                  <div className="flex justify-between"><span className="text-muted-foreground">Shopify Order #</span><span>{order.shopify_order_number}</span></div>
+                )}
+                {shopifyStoreUrl && order.shopify_order_id && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-2"
+                    onClick={() => window.open(`https://${shopifyStoreUrl}/admin/orders/${order.shopify_order_id}`, "_blank")}
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" /> View in Shopify
+                  </Button>
+                )}
+                {!order.shopify_order_id && !order.shopify_order_number && (
+                  <p className="text-muted-foreground text-xs">No Shopify order data linked yet</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Delivery Info */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Delivery Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <p><span className="text-muted-foreground">Address:</span> {order.delivery_address || "-"}</p>
+              <p><span className="text-muted-foreground">District:</span> {order.delivery_district || "-"}</p>
+              <p><span className="text-muted-foreground">Thana:</span> {order.delivery_thana || "-"}</p>
+              {order.notes && <p><span className="text-muted-foreground">Notes:</span> {order.notes}</p>}
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Right Column - Sticky */}
-        <div className="space-y-6 lg:sticky lg:top-24 lg:self-start">
-          <StatusSidebar
-            orderId={order.id}
-            currentStatus={currentStatus}
-            onSave={() => saveMutation.mutate()}
-            isSaving={saveMutation.isPending}
-          />
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Financial Summary */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Financial Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatBDT(order.subtotal)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span className="text-destructive">-{formatBDT(order.discount)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Delivery Charge</span><span>{formatBDT(order.delivery_charge)}</span></div>
+              <div className="border-t border-border pt-2 flex justify-between font-bold"><span>Total</span><span>{formatBDT(order.total_amount)}</span></div>
+              <div className="border-t border-border pt-2 space-y-1">
+                <div className="flex justify-between"><span className="text-muted-foreground">Cost of Goods</span><span>{formatBDT(order.cost_of_goods)}</span></div>
+                <div className="flex justify-between font-medium text-green-600"><span>Gross Profit</span><span>{formatBDT(order.gross_profit)}</span></div>
+              </div>
+              <div className="border-t border-border pt-2 space-y-1">
+                <div className="flex justify-between"><span className="text-muted-foreground">Payment</span><StatusBadge config={paymentStatusConfig} status={order.payment_status} /></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Method</span><span className="capitalize">{order.payment_method || "-"}</span></div>
+                {order.cod_amount ? <div className="flex justify-between"><span className="text-muted-foreground">COD Amount</span><span>{formatBDT(order.cod_amount)}</span></div> : null}
+              </div>
+            </CardContent>
+          </Card>
 
-          <OrderInfoCard order={order} customerPhone={customer?.phone} />
+          {/* Customer Info */}
+          {customer && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Customer</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <p className="font-medium">{customer.full_name}</p>
+                <p className="text-muted-foreground">{customer.phone}</p>
+                {customer.phone2 && <p className="text-muted-foreground">{customer.phone2}</p>}
+                {customer.address && <p className="text-muted-foreground">{customer.address}</p>}
+                <div className="flex gap-2 pt-1">
+                  <StatusBadge config={{ vip: { label: "VIP", color: "bg-amber-100 text-amber-800" }, regular: { label: "Regular", color: "bg-gray-100 text-gray-800" }, new: { label: "New", color: "bg-blue-100 text-blue-800" } }} status={customer.segment} />
+                </div>
+                <div className="border-t border-border pt-2 mt-2 space-y-1">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Orders</span><span>{customer.total_orders || 0}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Total Spent</span><span>{formatBDT(customer.total_spent)}</span></div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-          <ActivityLog orderId={order.id} />
+          {/* BD Courier Report */}
+          {customer?.phone && <BDCourierReport phone={customer.phone} />}
         </div>
       </div>
     </div>
+  );
+}
+
+function BDCourierReport({ phone }: { phone: string }) {
+  const { data, isLoading, refetch, isFetching } = useBDCourierSingle(phone);
+  const risk = getRiskLevel(data?.success_rate);
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">📊 BD Courier Report</CardTitle>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw className={cn("w-3.5 h-3.5", isFetching && "animate-spin")} />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
+        ) : !data || data.error ? (
+          <div className="text-center py-4">
+            <p className="text-sm text-muted-foreground">
+              {data?.error === "api_error" ? "চেক করা যায়নি" : "🆕 নতুন কাস্টমার - কোন ডেটা নেই"}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center gap-4">
+              <div className="relative w-16 h-16">
+                <svg className="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
+                  <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
+                  <circle
+                    cx="18" cy="18" r="15" fill="none"
+                    stroke={getSuccessColor(data.success_rate)}
+                    strokeWidth="3"
+                    strokeDasharray={`${data.success_rate * 0.942} 94.2`}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-sm font-bold">{data.success_rate}%</span>
+              </div>
+              <div>
+                <Badge className={cn("text-xs", risk.bg, risk.color)}>{risk.label}</Badge>
+                <p className="text-xs text-muted-foreground mt-1">Total: {data.total_orders} orders</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="p-2 rounded-lg bg-green-50">
+                <p className="text-lg font-bold text-green-700">{data.successful_orders}</p>
+                <p className="text-[10px] text-green-600">Delivered</p>
+              </div>
+              <div className="p-2 rounded-lg bg-red-50">
+                <p className="text-lg font-bold text-red-700">{data.returned_orders}</p>
+                <p className="text-[10px] text-red-600">Returned</p>
+              </div>
+              <div className="p-2 rounded-lg bg-orange-50">
+                <p className="text-lg font-bold text-orange-700">{data.cancelled_orders || 0}</p>
+                <p className="text-[10px] text-orange-600">Cancelled</p>
+              </div>
+            </div>
+            {data.raw_data?.courier_data && (
+              <div className="space-y-1.5 border-t border-border pt-2">
+                <p className="text-xs font-medium text-muted-foreground">By Courier</p>
+                {Object.entries(data.raw_data.courier_data).map(([courier, info]: [string, any]) => (
+                  <div key={courier} className="flex justify-between text-xs">
+                    <span className="capitalize">{courier}</span>
+                    <span>{info.success || info.delivered || 0}/{info.total || 0}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {data.last_fetched_at && (
+              <p className="text-[10px] text-muted-foreground text-right">
+                Last checked: {new Date(data.last_fetched_at).toLocaleString("bn-BD")}
+              </p>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
