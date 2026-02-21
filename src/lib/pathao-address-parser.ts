@@ -40,6 +40,7 @@ export interface ParseAddressResult {
   area: string;
   confidence: number;
   needs_manual_review: boolean;
+  mapping_mode: "auto" | "manual";
   reasons: string[];
   top_suggestions: ZoneSuggestion[];
   address_normalized: string;
@@ -455,6 +456,7 @@ export function parseAddress(
     area,
     confidence: Math.round(confidence * 100) / 100,
     needs_manual_review,
+    mapping_mode: "auto" as const,
     reasons: [...new Set(reasons)], // dedupe
     top_suggestions,
     address_normalized,
@@ -467,14 +469,15 @@ export function getParseConfidenceLevel(confidence: number): {
   level: "high" | "medium" | "low";
   label: string;
   color: string;
+  borderColor: string;
   icon: string;
 } {
   const pct = confidence * 100;
   if (pct >= 85) {
-    return { level: "high", label: "Auto-detected", color: "bg-emerald-50 text-emerald-700 border-emerald-200", icon: "🟢" };
+    return { level: "high", label: "Auto-mapped", color: "bg-emerald-50 text-emerald-700 border-emerald-200", borderColor: "border-emerald-300", icon: "🟢" };
   }
-  if (pct >= 60) {
-    return { level: "medium", label: "Please verify", color: "bg-amber-50 text-amber-700 border-amber-200", icon: "🟡" };
+  if (pct >= 70) {
+    return { level: "medium", label: "Please confirm location", color: "bg-amber-50 text-amber-700 border-amber-200", borderColor: "border-amber-300", icon: "🟡" };
   }
-  return { level: "low", label: "Manual entry required", color: "bg-red-50 text-red-700 border-red-200", icon: "🔴" };
+  return { level: "low", label: "Manual selection needed", color: "bg-red-50 text-red-700 border-red-200", borderColor: "border-red-300", icon: "🔴" };
 }

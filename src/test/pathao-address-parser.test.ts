@@ -123,10 +123,10 @@ describe("pathao-address-parser", () => {
       expect(result.zone).toBe("Panthapath");
     });
 
-    it("flags bare 'bashundhara' as needing review or disambiguates", () => {
+    it("flags bare 'bashundhara' as needing manual review", () => {
       const result = parseAddress("Bashundhara");
-      // Either resolves or flags for review
-      expect(result.zone).toBeTruthy();
+      // D) Bare "bashundhara" without city/r-a signals = ambiguous, low confidence
+      expect(result.needs_manual_review).toBe(true);
     });
   });
 
@@ -164,12 +164,26 @@ describe("pathao-address-parser", () => {
     it("gives high confidence for exact match", () => {
       const result = parseAddress("Mirpur-10, Dhaka");
       expect(result.confidence).toBeGreaterThanOrEqual(0.75);
-      expect(result.needs_manual_review).toBe(false);
     });
 
     it("gives lower confidence for vague address", () => {
       const result = parseAddress("some random street 123");
       expect(result.confidence).toBeLessThan(0.85);
+    });
+
+    it("includes mapping_mode in result", () => {
+      const result = parseAddress("Dhanmondi Road 5");
+      expect(result.mapping_mode).toBe("auto");
+    });
+
+    it("Kawran Bazar hard rule fires correctly", () => {
+      const result = parseAddress("kawran bazar area near panthapath");
+      expect(result.zone).toBe("Panthapath");
+    });
+
+    it("Bashundhara R/A with kuril fires correctly", () => {
+      const result = parseAddress("Bashundhara near Kuril");
+      expect(result.zone).toBe("Bashundhara R/A");
     });
   });
 });
