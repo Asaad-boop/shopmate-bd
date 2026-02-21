@@ -1191,39 +1191,59 @@ export default function WebOrderDetail() {
         </div>
 
         {/* ═══ STICKY BOTTOM CONFIRM BAR (58px) ═══ */}
-        <div className="h-[58px] shrink-0 bg-background/80 backdrop-blur-xl border-t border-border/50 flex items-center justify-between px-4 z-30 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate">Order #{order.order_number} — {customer?.full_name || "Customer"}</p>
-            <p className="text-[10px] text-muted-foreground truncate">
-              📋 {statusCfg.label} · {order.channel} · {totalItemCount} item{totalItemCount !== 1 ? "s" : ""} · Pathao
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-[10px] text-muted-foreground uppercase">Grand Total</p>
-              <p className="text-xl font-bold text-[#6c63ff]">৳{grandTotal.toLocaleString()}</p>
+        <div className="h-[58px] shrink-0 bg-[#1a1a2e] backdrop-blur-xl border-t border-white/10 flex items-center px-5 z-30 shadow-[0_-4px_20px_rgba(0,0,0,0.3)]">
+          {/* Left: Order info */}
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="w-2.5 h-2.5 rounded-full bg-[#6c63ff] shrink-0 ring-2 ring-[#6c63ff]/30" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white truncate">Order #{order.order_number} — {customer?.full_name || "Customer"}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  📋 {statusCfg.label}
+                </span>
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-white/10 text-white/70">
+                  🛒 {order.channel}
+                </span>
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-white/10 text-white/70">
+                  📦 {totalItemCount} Item{totalItemCount !== 1 ? "s" : ""}
+                </span>
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-red-500/20 text-red-300 border border-red-500/30">
+                  🚚 Pathao
+                </span>
+              </div>
             </div>
-            <AlertDialogRoot open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-              <Button onClick={() => setShowConfirmDialog(true)} disabled={confirmSending || currentStatus === "confirm"}
-                className="h-10 px-6 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm gap-2 shadow-lg shadow-emerald-500/20">
-                {confirmSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                Confirm Order
-              </Button>
-              <ADContent>
-                <ADHeader>
-                  <ADTitle>Confirm this order?</ADTitle>
-                  <ADDesc>Order #{order.order_number} will be confirmed and moved to Orders list. Stock will be deducted.</ADDesc>
-                </ADHeader>
-                <ADFooter>
-                  <ADCancel>Cancel</ADCancel>
-                  <ADAction onClick={handleConfirmWithMapping} disabled={confirmSending}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                    {confirmSending ? <><Loader2 className="w-4 h-4 animate-spin mr-1" /> Confirming...</> : "✅ Yes, Confirm"}
-                  </ADAction>
-                </ADFooter>
-              </ADContent>
-            </AlertDialogRoot>
           </div>
+
+          {/* Divider */}
+          <div className="w-px h-8 bg-white/10 mx-4" />
+
+          {/* Center-right: Grand Total */}
+          <div className="text-right mr-4">
+            <p className="text-[10px] font-medium text-white/50 uppercase tracking-wider">Grand Total</p>
+            <p className="text-2xl font-extrabold text-[#6c63ff]">৳{grandTotal.toLocaleString()}</p>
+          </div>
+
+          {/* Right: Confirm button */}
+          <AlertDialogRoot open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+            <Button onClick={() => setShowConfirmDialog(true)} disabled={confirmSending || currentStatus === "confirm"}
+              className="h-11 px-8 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm gap-2 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-400/40 transition-all hover:-translate-y-0.5 disabled:opacity-50">
+              {confirmSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+              Confirm Order
+            </Button>
+            <ADContent>
+              <ADHeader>
+                <ADTitle>Confirm this order?</ADTitle>
+                <ADDesc>Order #{order.order_number} will be confirmed and moved to Orders list. Stock will be deducted.</ADDesc>
+              </ADHeader>
+              <ADFooter>
+                <ADCancel>Cancel</ADCancel>
+                <ADAction onClick={handleConfirmWithMapping} disabled={confirmSending}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                  {confirmSending ? <><Loader2 className="w-4 h-4 animate-spin mr-1" /> Confirming...</> : "✅ Yes, Confirm"}
+                </ADAction>
+              </ADFooter>
+            </ADContent>
+          </AlertDialogRoot>
         </div>
 
         {/* ═══ REASON MODAL ═══ */}
