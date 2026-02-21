@@ -480,6 +480,9 @@ export default function WebOrdersPage() {
                             {order.channel === "shopify" && (
                               <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">🛍️ Shopify</span>
                             )}
+                            {(order as any).needs_address_review && (
+                              <span className="text-[9px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">⚠️ Address</span>
+                            )}
                           </div>
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">{formatDateTime(order.created_at)}</p>
@@ -588,6 +591,9 @@ export default function WebOrdersPage() {
                               </span>
                               {isNew(order.created_at) && (
                                 <span className="text-[8px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full animate-pulse-subtle">NEW</span>
+                              )}
+                              {(order as any).needs_address_review && (
+                                <span className="text-[8px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">⚠️</span>
                               )}
                             </div>
                             <button
