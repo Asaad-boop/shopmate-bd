@@ -452,6 +452,54 @@ export type Database = {
         }
         Relationships: []
       }
+      order_activity_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: string | null
+          done_by: string | null
+          id: string
+          new_status: string | null
+          old_status: string | null
+          order_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: string | null
+          done_by?: string | null
+          id?: string
+          new_status?: string | null
+          old_status?: string | null
+          order_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: string | null
+          done_by?: string | null
+          id?: string
+          new_status?: string | null
+          old_status?: string | null
+          order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_activity_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_summary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_activity_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           discount: number | null
