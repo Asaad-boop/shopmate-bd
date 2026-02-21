@@ -1,30 +1,34 @@
 /**
  * Auto address mapping with fuzzy matching for Pathao integration.
  * Maps free-text Bangladesh addresses to Pathao city_id and zone_id.
+ * 
+ * Enhanced with romanization normalization for Bengali address variations.
  */
 
-/* ── Synonyms dictionary ── */
+import { normalizeRomanization, resolveDistrict, getVariationLookup } from "./address-variations";
+
+/* ── Synonyms dictionary (kept for backward compat + Pathao API matching) ── */
 export const DISTRICT_SYNONYMS: Record<string, string[]> = {
-  dhaka: ["ঢাকা", "dhaka", "ঢাকা জেলা", "dkh"],
-  chattogram: ["চট্টগ্রাম", "chittagong", "chattogram", "ctg", "চট্টগ্রাম জেলা"],
-  gazipur: ["গাজীপুর", "gazipur", "গাজিপুর"],
-  narayanganj: ["নারায়ণগঞ্জ", "narayanganj", "n.ganj"],
-  sylhet: ["সিলেট", "sylhet"],
-  rajshahi: ["রাজশাহী", "rajshahi"],
-  khulna: ["খুলনা", "khulna"],
-  rangpur: ["রংপুর", "rangpur"],
-  mymensingh: ["ময়মনসিংহ", "mymensingh"],
-  comilla: ["কুমিল্লা", "comilla", "cumilla"],
+  dhaka: ["ঢাকা", "dhaka", "dacca", "daka"],
+  chattogram: ["চট্টগ্রাম", "chittagong", "chattogram", "ctg", "chottogram"],
+  gazipur: ["গাজীপুর", "gazipur", "গাজিপুর", "gajipur", "ghazipur"],
+  narayanganj: ["নারায়ণগঞ্জ", "narayanganj", "n.ganj", "naraynganj"],
+  sylhet: ["সিলেট", "sylhet", "silhet", "silet"],
+  rajshahi: ["রাজশাহী", "rajshahi", "rajsahi"],
+  khulna: ["খুলনা", "khulna", "kulna"],
+  rangpur: ["রংপুর", "rangpur", "rongpur", "rangpoor"],
+  mymensingh: ["ময়মনসিংহ", "mymensingh", "maimansingh"],
+  comilla: ["কুমিল্লা", "comilla", "cumilla", "kumilla"],
   bogura: ["বগুড়া", "bogra", "bogura"],
   jessore: ["যশোর", "jessore", "jashore"],
   dinajpur: ["দিনাজপুর", "dinajpur"],
   barishal: ["বরিশাল", "barisal", "barishal"],
   cox_bazar: ["কক্সবাজার", "cox's bazar", "coxs bazar", "cox bazar"],
   tangail: ["টাঙ্গাইল", "tangail"],
-  narsingdi: ["নরসিংদী", "narsingdi"],
+  narsingdi: ["নরসিংদী", "narsingdi", "norshinghi", "nersingdi"],
   manikganj: ["মানিকগঞ্জ", "manikganj"],
   munshiganj: ["মুন্সীগঞ্জ", "munshiganj"],
-  faridpur: ["ফরিদপুর", "faridpur"],
+  faridpur: ["ফরিদপুর", "faridpur", "faridpoor"],
   kishoreganj: ["কিশোরগঞ্জ", "kishoreganj"],
   noakhali: ["নোয়াখালী", "noakhali"],
   brahmanbaria: ["ব্রাহ্মণবাড়িয়া", "brahmanbaria", "b.baria"],
@@ -33,7 +37,7 @@ export const DISTRICT_SYNONYMS: Record<string, string[]> = {
   sunamganj: ["সুনামগঞ্জ", "sunamganj"],
   chandpur: ["চাঁদপুর", "chandpur"],
   lakshmipur: ["লক্ষ্মীপুর", "lakshmipur", "laxmipur"],
-  feni: ["ফেনী", "feni"],
+  feni: ["ফেনী", "feni", "pheni"],
   pabna: ["পাবনা", "pabna"],
   sirajganj: ["সিরাজগঞ্জ", "sirajganj"],
   natore: ["নাটোর", "natore"],
@@ -52,14 +56,14 @@ export const DISTRICT_SYNONYMS: Record<string, string[]> = {
   jhalokati: ["ঝালকাঠি", "jhalokati"],
   barguna: ["বরগুনা", "barguna"],
   patuakhali: ["পটুয়াখালী", "patuakhali"],
-  bhola: ["ভোলা", "bhola"],
+  bhola: ["ভোলা", "bhola", "bola"],
   gopalganj: ["গোপালগঞ্জ", "gopalganj"],
   madaripur: ["মাদারীপুর", "madaripur"],
   shariatpur: ["শরীয়তপুর", "shariatpur"],
   rajbari: ["রাজবাড়ী", "rajbari"],
   thakurgaon: ["ঠাকুরগাঁও", "thakurgaon"],
   panchagarh: ["পঞ্চগড়", "panchagarh"],
-  nilphamari: ["নীলফামারী", "nilphamari"],
+  nilphamari: ["নীলফামারী", "nilphamari", "nilfamari"],
   lalmonirhat: ["লালমনিরহাট", "lalmonirhat"],
   kurigram: ["কুড়িগ্রাম", "kurigram"],
   gaibandha: ["গাইবান্ধা", "gaibandha"],
@@ -71,18 +75,17 @@ export const DISTRICT_SYNONYMS: Record<string, string[]> = {
   khagrachari: ["খাগড়াছড়ি", "khagrachari"],
 };
 
-// Thana synonyms (common ones)
 export const THANA_SYNONYMS: Record<string, string[]> = {
   mirpur: ["মিরপুর", "mirpur"],
-  uttara: ["উত্তরা", "uttara"],
-  dhanmondi: ["ধানমন্ডি", "dhanmondi", "dhanmandi"],
+  uttara: ["উত্তরা", "uttara", "utara"],
+  dhanmondi: ["ধানমন্ডি", "dhanmondi", "dhanmandi", "dhanmondy"],
   gulshan: ["গুলশান", "gulshan"],
   banani: ["বনানী", "banani"],
-  mohammadpur: ["মোহাম্মদপুর", "mohammadpur"],
-  motijheel: ["মতিঝিল", "motijheel"],
+  mohammadpur: ["মোহাম্মদপুর", "mohammadpur", "mohammedpur", "muhammadpur"],
+  motijheel: ["মতিঝিল", "motijheel", "motijeel"],
   jatrabari: ["যাত্রাবাড়ী", "jatrabari"],
-  tejgaon: ["তেজগাঁও", "tejgaon"],
-  badda: ["বাড্ডা", "badda"],
+  tejgaon: ["তেজগাঁও", "tejgaon", "tegaon"],
+  badda: ["বাড্ডা", "badda", "bada"],
   khilkhet: ["খিলক্ষেত", "khilkhet"],
   savar: ["সাভার", "savar"],
   tongi: ["টঙ্গী", "tongi"],
@@ -93,7 +96,7 @@ export const THANA_SYNONYMS: Record<string, string[]> = {
 
 /* ── Canonical English name mappings ── */
 const CANONICAL_DISTRICT_NAMES: Record<string, string> = {
-  dhaka: "Dhaka", chattogram: "Chattogram", gazipur: "Gazipur", narayanganj: "Narayanganj",
+  dhaka: "Dhaka", chattogram: "Chittagong", gazipur: "Gazipur", narayanganj: "Narayanganj",
   sylhet: "Sylhet", rajshahi: "Rajshahi", khulna: "Khulna", rangpur: "Rangpur",
   mymensingh: "Mymensingh", comilla: "Comilla", bogura: "Bogura", jessore: "Jessore",
   dinajpur: "Dinajpur", barishal: "Barishal", cox_bazar: "Cox's Bazar", tangail: "Tangail",
@@ -109,7 +112,7 @@ const CANONICAL_DISTRICT_NAMES: Record<string, string> = {
   rajbari: "Rajbari", thakurgaon: "Thakurgaon", panchagarh: "Panchagarh", nilphamari: "Nilphamari",
   lalmonirhat: "Lalmonirhat", kurigram: "Kurigram", gaibandha: "Gaibandha", sherpur: "Sherpur",
   jamalpur: "Jamalpur", netrokona: "Netrokona", bandarban: "Bandarban", rangamati: "Rangamati",
-  khagrachari: "Khagrachari",
+  khagrachari: "Khagrachhari",
 };
 
 const CANONICAL_THANA_NAMES: Record<string, string> = {
@@ -126,13 +129,11 @@ export function toCanonicalName(
   canonicalDict: Record<string, string>
 ): string {
   const lower = matchedName.toLowerCase();
-  // Check if it directly matches a canonical key
   for (const [key, synonyms] of Object.entries(synonymsDict)) {
     if (key === lower || synonyms.some(s => s.toLowerCase() === lower) || lower.includes(key)) {
       if (canonicalDict[key]) return canonicalDict[key];
     }
   }
-  // Fallback: return original name (already English from Pathao API)
   return matchedName;
 }
 
@@ -140,9 +141,7 @@ export function toCanonicalName(
 export function normalizeAddress(text: string): string {
   if (!text) return "";
   let normalized = text.toLowerCase();
-  // Remove extra punctuation
   normalized = normalized.replace(/[,।\.\-\/:;'"()]+/g, " ");
-  // Normalize whitespace
   normalized = normalized.replace(/\s+/g, " ").trim();
   return normalized;
 }
@@ -168,7 +167,7 @@ function diceCoefficient(a: string, b: string): number {
   return (2 * intersection) / (aBigrams.size + bBigrams.size);
 }
 
-/* ── Find best match ── */
+/* ── Find best match (enhanced with romanization) ── */
 export interface MatchResult {
   best: { id: number; name: string } | null;
   score: number;
@@ -182,29 +181,41 @@ export function findBestMatch(
   if (!query || !candidates.length) return { best: null, score: 0 };
 
   const normalizedQuery = normalizeAddress(query);
+  const romanizedQuery = normalizeRomanization(normalizedQuery);
   const queryWords = normalizedQuery.split(" ").filter((w) => w.length >= 2 || /^\d+$/.test(w));
 
-  // 0. All-words-present match — ALL words of candidate appear in query (order-independent)
-  // Score by how many words matched (more = better fit, e.g. "Uttara Sector 3" > "Abdullahpur Uttara")
-  let allWordsMatches: { candidate: { id: number; name: string }; matchedWords: number; totalWords: number }[] = [];
+  // 0. Variation dictionary lookup: resolve district name from input
+  const resolvedDistrict = resolveDistrict(normalizedQuery);
+  if (resolvedDistrict) {
+    for (const c of candidates) {
+      if (c.name.toLowerCase() === resolvedDistrict.toLowerCase()) {
+        return { best: c, score: 1.0 };
+      }
+      // Fuzzy match resolved name against candidate
+      if (diceCoefficient(c.name.toLowerCase(), resolvedDistrict.toLowerCase()) > 0.85) {
+        return { best: c, score: 0.98 };
+      }
+    }
+  }
+
+  // 1. All-words-present match
+  let allWordsMatches: { candidate: { id: number; name: string }; totalWords: number }[] = [];
   for (const c of candidates) {
     const cWords = c.name.toLowerCase().split(/\s+/).filter(w => w.length >= 1);
     const matched = cWords.filter(cw => queryWords.some(qw => {
-      // For short words (<=3 chars), require exact match to avoid false positives
       if (cw.length <= 3 || qw.length <= 3) return qw === cw;
       return qw === cw || qw.includes(cw) || cw.includes(qw);
     }));
     if (matched.length === cWords.length) {
-      allWordsMatches.push({ candidate: c, matchedWords: matched.length, totalWords: cWords.length });
+      allWordsMatches.push({ candidate: c, totalWords: cWords.length });
     }
   }
   if (allWordsMatches.length > 0) {
-    // Prefer candidate with MOST words matched (more specific match)
     allWordsMatches.sort((a, b) => b.totalWords - a.totalWords);
     return { best: allWordsMatches[0].candidate, score: 1.0 };
   }
 
-  // 1. Substring contains match — prefer shorter (more specific) candidate names
+  // 2. Substring contains match
   const containsMatches: { candidate: { id: number; name: string } }[] = [];
   for (const c of candidates) {
     const cName = c.name.toLowerCase();
@@ -217,12 +228,26 @@ export function findBestMatch(
     return { best: containsMatches[0].candidate, score: 0.95 };
   }
 
-  // 2. Check synonyms
+  // 3. Romanization-normalized matching
+  for (const c of candidates) {
+    const romanizedCandidate = normalizeRomanization(c.name.toLowerCase());
+    if (romanizedQuery.includes(romanizedCandidate) || romanizedCandidate.includes(romanizedQuery)) {
+      return { best: c, score: 0.92 };
+    }
+    // Check romanized words
+    const romanizedWords = romanizedQuery.split(" ").filter(w => w.length >= 3);
+    for (const word of romanizedWords) {
+      if (word === romanizedCandidate || romanizedCandidate.includes(word) || word.includes(romanizedCandidate)) {
+        return { best: c, score: 0.90 };
+      }
+    }
+  }
+
+  // 4. Check synonyms
   if (synonymsDict) {
     for (const [_key, synonyms] of Object.entries(synonymsDict)) {
       const matchedSynonym = synonyms.some((s) => normalizedQuery.includes(s.toLowerCase()));
       if (matchedSynonym) {
-        // Find candidate matching any synonym
         for (const c of candidates) {
           const cName = c.name.toLowerCase();
           if (synonyms.some((s) => cName.includes(s.toLowerCase()) || s.toLowerCase().includes(cName))) {
@@ -233,10 +258,9 @@ export function findBestMatch(
     }
   }
 
-  // 3. Check if the full address text contains any candidate name
+  // 5. Word-level matching
   for (const c of candidates) {
     const cName = c.name.toLowerCase();
-    // Split address into words and check
     const words = normalizedQuery.split(" ");
     for (const word of words) {
       if (word.length >= 3 && (cName.includes(word) || word.includes(cName))) {
@@ -245,7 +269,7 @@ export function findBestMatch(
     }
   }
 
-  // 4. Fuzzy match using Dice coefficient — test each word against each candidate
+  // 6. Fuzzy match using Dice coefficient (with romanization)
   let bestScore = 0;
   let bestCandidate: { id: number; name: string } | null = null;
 
@@ -253,20 +277,22 @@ export function findBestMatch(
 
   for (const c of candidates) {
     const cName = c.name.toLowerCase();
-    // Score against each word
+    const romanizedCName = normalizeRomanization(cName);
+    
     for (const word of fuzzyWords) {
+      // Standard dice
       const score = diceCoefficient(word, cName);
-      if (score > bestScore) {
-        bestScore = score;
-        bestCandidate = c;
-      }
+      if (score > bestScore) { bestScore = score; bestCandidate = c; }
+      // Romanized dice
+      const romanizedWord = normalizeRomanization(word);
+      const rScore = diceCoefficient(romanizedWord, romanizedCName);
+      if (rScore > bestScore) { bestScore = rScore; bestCandidate = c; }
     }
-    // Also score the full query
+    // Full query scores
     const fullScore = diceCoefficient(normalizedQuery, cName);
-    if (fullScore > bestScore) {
-      bestScore = fullScore;
-      bestCandidate = c;
-    }
+    if (fullScore > bestScore) { bestScore = fullScore; bestCandidate = c; }
+    const rFullScore = diceCoefficient(romanizedQuery, romanizedCName);
+    if (rFullScore > bestScore) { bestScore = rFullScore; bestCandidate = c; }
   }
 
   return { best: bestCandidate, score: bestScore };
@@ -290,7 +316,6 @@ export function mapAddressToPathao(
 ): MappingResult {
   const normalized = normalizeAddress(fullAddress);
 
-  // Map city
   const cityCandidates = cities.map((c) => ({ id: c.city_id, name: c.city_name }));
   const cityMatch = findBestMatch(normalized, cityCandidates, DISTRICT_SYNONYMS);
 
@@ -299,14 +324,10 @@ export function mapAddressToPathao(
       cityId: cityMatch.best?.id || null,
       cityName: cityMatch.best?.name || "",
       cityScore: cityMatch.score,
-      zoneId: null,
-      zoneName: "",
-      zoneScore: 0,
-      success: false,
+      zoneId: null, zoneName: "", zoneScore: 0, success: false,
     };
   }
 
-  // Map zone
   const zoneCandidates = zones.map((z) => ({ id: z.zone_id, name: z.zone_name }));
   const zoneMatch = findBestMatch(normalized, zoneCandidates, THANA_SYNONYMS);
 

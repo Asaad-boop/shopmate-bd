@@ -104,6 +104,7 @@ export type Database = {
           detected_area: string | null
           detected_city: string | null
           detected_zone: string | null
+          frequency: number
           id: string
           raw_address: string
           raw_area_text: string | null
@@ -116,6 +117,7 @@ export type Database = {
           detected_area?: string | null
           detected_city?: string | null
           detected_zone?: string | null
+          frequency?: number
           id?: string
           raw_address: string
           raw_area_text?: string | null
@@ -128,6 +130,7 @@ export type Database = {
           detected_area?: string | null
           detected_city?: string | null
           detected_zone?: string | null
+          frequency?: number
           id?: string
           raw_address?: string
           raw_area_text?: string | null
