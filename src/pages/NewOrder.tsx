@@ -50,22 +50,7 @@ const SOURCES = ["UNKNOWN", "Facebook", "Instagram", "Walk-in", "Referral"];
 const QUICK_NOTES = ["Call before delivery", "Fragile", "Gift wrap", "After 5 PM"];
 const DEFAULT_SHIPPING_NOTE = "🛡️ মার্চেন্টের অনুমতি ছাড়া প্রোডাক্ট খোলা সম্পূর্ণ নিষিদ্ধ। খোলা পণ্য গ্রহণযোগ্য নয়।";
 
-const TIME_RANGES = [
-  { label: "Today", value: "today" },
-  { label: "7 Days", value: "7d" },
-  { label: "30 Days", value: "30d" },
-  { label: "90 Days", value: "90d" },
-];
-
-function getTimeRangeDate(range: string): Date {
-  const now = new Date();
-  switch (range) {
-    case "today": return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    case "7d": { const d = new Date(); d.setDate(d.getDate() - 7); return d; }
-    case "90d": { const d = new Date(); d.setDate(d.getDate() - 90); return d; }
-    default: { const d = new Date(); d.setDate(d.getDate() - 30); return d; }
-  }
-}
+/* (time ranges removed — KPI shows all-time) */
 
 /* ═══ Sub Components ═══ */
 
@@ -79,14 +64,14 @@ interface CourierKpiData {
 }
 
 function DeliveryStatCard({
-  name, emoji, data, isLoading, accent = false,
-}: { name: string; emoji: string; data: CourierKpiData | null; isLoading: boolean; accent?: boolean }) {
+  name, emoji, data, isLoading, selected, onClick,
+}: { name: string; emoji: string; data: CourierKpiData | null; isLoading: boolean; selected?: boolean; onClick?: () => void }) {
   if (isLoading) {
     return (
-      <div className={cn("rounded-xl border p-3 min-w-[170px] flex-1", accent ? "border-primary/30 bg-primary/[0.04]" : "border-border/50 bg-card")}>
+      <div className="rounded-[14px] border p-3 min-w-[160px] flex-1 bg-card shadow-sm">
         <div className="space-y-2">
           <Skeleton className="h-4 w-20" />
-          <Skeleton className="h-7 w-16" />
+          <Skeleton className="h-8 w-16" />
           <Skeleton className="h-3 w-full" />
           <Skeleton className="h-3 w-3/4" />
           <Skeleton className="h-1.5 w-full rounded-full" />
@@ -95,25 +80,27 @@ function DeliveryStatCard({
     );
   }
   const d = data || { total: 0, delivered: 0, shipped: 0, returned: 0, cancelled: 0, successRate: 0 };
+  const isZeroRate = d.total > 0 && d.successRate === 0;
   return (
-    <div className={cn(
-      "rounded-xl border p-3 min-w-[170px] flex-1 transition-all hover:-translate-y-0.5 hover:shadow-md cursor-default",
-      accent ? "border-primary/40 bg-primary/[0.04] hover:border-primary/60" : "border-border/50 bg-card hover:border-primary/30"
-    )}>
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-1.5">
-          <span className="text-base">{emoji}</span>
-          <span className={cn("text-[11px] font-bold", accent ? "text-primary" : "text-foreground")}>{name}</span>
-        </div>
-      </div>
-      <p className={cn("text-2xl font-extrabold tabular-nums leading-none mb-2",
-        d.successRate >= 80 ? "text-emerald-600" : d.successRate >= 50 ? "text-amber-600" : d.total === 0 ? "text-muted-foreground" : "text-destructive"
+    <div
+      onClick={onClick}
+      className={cn(
+        "rounded-[14px] border p-3 min-w-[160px] flex-1 transition-all cursor-pointer shadow-sm hover:shadow-md",
+        selected
+          ? "border-[hsl(217,91%,60%)] bg-[hsl(217,91%,60%,0.06)] ring-1 ring-[hsl(217,91%,60%,0.3)]"
+          : "border-border/50 bg-card hover:border-border"
       )}>
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <span className="text-sm">{emoji}</span>
+        <span className={cn("text-[11px] font-bold", selected ? "text-[hsl(217,91%,60%)]" : "text-foreground")}>{name}</span>
+      </div>
+      <p className={cn("text-2xl font-extrabold tabular-nums leading-none mb-2")}
+        style={{ fontFamily: "'Syne', sans-serif", color: isZeroRate ? 'hsl(0, 84%, 60%)' : d.total === 0 ? 'hsl(var(--muted-foreground))' : d.successRate >= 80 ? 'hsl(160, 84%, 39%)' : d.successRate >= 50 ? 'hsl(38, 92%, 50%)' : 'hsl(0, 84%, 60%)' }}>
         {d.total > 0 ? `${d.successRate}%` : "—"}
       </p>
       <div className="space-y-0.5 text-[10px]">
         <div className="flex justify-between"><span className="text-muted-foreground">Total</span><span className="font-semibold">{d.total}</span></div>
-        <div className="flex justify-between"><span className="text-muted-foreground">Success</span><span className="font-semibold text-emerald-600">{d.delivered}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Success</span><span className="font-semibold" style={{ color: 'hsl(160, 84%, 39%)' }}>{d.delivered}</span></div>
         <div className="flex justify-between"><span className="text-muted-foreground">Cancelled</span><span className="font-semibold text-destructive">{d.cancelled}</span></div>
       </div>
       <Progress value={d.successRate} className="h-1 mt-2" />
@@ -122,16 +109,14 @@ function DeliveryStatCard({
 }
 
 function OurRecordCard({
-  data, isLoading, timeRange, setTimeRange,
-}: { data: CourierKpiData & { webOrderCancel?: number } | null; isLoading: boolean; timeRange: string; setTimeRange: (v: string) => void }) {
-  const [filterOpen, setFilterOpen] = useState(false);
-
+  data, isLoading, selected, onClick,
+}: { data: (CourierKpiData & { webOrderCancel?: number }) | null; isLoading: boolean; selected?: boolean; onClick?: () => void }) {
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-primary/30 bg-primary/[0.04] p-3 min-w-[170px] flex-1">
+      <div className="rounded-[14px] border p-3 min-w-[160px] flex-1 bg-card shadow-sm">
         <div className="space-y-2">
           <Skeleton className="h-4 w-20" />
-          <Skeleton className="h-7 w-16" />
+          <Skeleton className="h-8 w-16" />
           <Skeleton className="h-3 w-full" />
           <Skeleton className="h-3 w-3/4" />
           <Skeleton className="h-1.5 w-full rounded-full" />
@@ -141,49 +126,34 @@ function OurRecordCard({
   }
 
   const d = data || { total: 0, delivered: 0, shipped: 0, returned: 0, cancelled: 0, successRate: 0, webOrderCancel: 0 };
+  const isZeroRate = d.total > 0 && d.successRate === 0;
 
   return (
-    <div className="rounded-xl border border-primary/40 bg-primary/[0.04] p-3 min-w-[170px] flex-1 transition-all hover:-translate-y-0.5 hover:shadow-md cursor-default relative">
+    <div
+      onClick={onClick}
+      className={cn(
+        "rounded-[14px] border p-3 min-w-[160px] flex-1 transition-all cursor-pointer shadow-sm hover:shadow-md",
+        selected
+          ? "border-[hsl(217,91%,60%)] bg-[hsl(217,91%,60%,0.06)] ring-1 ring-[hsl(217,91%,60%,0.3)]"
+          : "border-border/50 bg-card hover:border-border"
+      )}>
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-1.5">
-          <span className="text-base">🏆</span>
-          <span className="text-[11px] font-bold text-primary">Our Record</span>
-        </div>
-        <div className="relative">
-          <button
-            onClick={() => setFilterOpen(!filterOpen)}
-            className="px-1.5 py-0.5 rounded-md text-[9px] font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-          >
-            Filter
-          </button>
-          {filterOpen && (
-            <div className="absolute right-0 top-full mt-1 z-50 bg-card border border-border rounded-xl shadow-lg py-1 min-w-[120px]">
-              {TIME_RANGES.map((tr) => (
-                <button key={tr.value}
-                  onClick={() => { setTimeRange(tr.value); setFilterOpen(false); }}
-                  className={cn(
-                    "w-full text-left px-3 py-1.5 text-[11px] font-medium transition-colors",
-                    timeRange === tr.value ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"
-                  )}>
-                  {tr.label}
-                </button>
-              ))}
-            </div>
-          )}
+          <span className="text-sm">🏆</span>
+          <span className={cn("text-[11px] font-bold", selected ? "text-[hsl(217,91%,60%)]" : "text-foreground")}>Our Record</span>
         </div>
       </div>
-      <p className={cn("text-2xl font-extrabold tabular-nums leading-none mb-2",
-        d.successRate >= 80 ? "text-emerald-600" : d.successRate >= 50 ? "text-amber-600" : d.total === 0 ? "text-muted-foreground" : "text-destructive"
-      )}>
+      <p className={cn("text-2xl font-extrabold tabular-nums leading-none mb-2")}
+        style={{ fontFamily: "'Syne', sans-serif", color: isZeroRate ? 'hsl(0, 84%, 60%)' : d.total === 0 ? 'hsl(var(--muted-foreground))' : d.successRate >= 80 ? 'hsl(160, 84%, 39%)' : d.successRate >= 50 ? 'hsl(38, 92%, 50%)' : 'hsl(0, 84%, 60%)' }}>
         {d.total > 0 ? `${d.successRate}%` : "—"}
       </p>
       <div className="space-y-0.5 text-[10px]">
         <div className="flex justify-between"><span className="text-muted-foreground">Total</span><span className="font-semibold">{d.total}</span></div>
-        <div className="flex justify-between"><span className="text-muted-foreground">Shipped</span><span className="font-semibold text-blue-600">{d.shipped}</span></div>
-        <div className="flex justify-between"><span className="text-muted-foreground">Returned</span><span className="font-semibold text-amber-600">{d.returned}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Shipped</span><span className="font-semibold" style={{ color: 'hsl(217, 91%, 60%)' }}>{d.shipped}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Returned</span><span className="font-semibold" style={{ color: 'hsl(38, 92%, 50%)' }}>{d.returned}</span></div>
         <div className="flex justify-between"><span className="text-muted-foreground">Cancelled</span><span className="font-semibold text-destructive">{d.cancelled}</span></div>
         {(d.webOrderCancel ?? 0) > 0 && (
-          <div className="flex justify-between"><span className="text-muted-foreground">Web Cancel</span><span className="font-semibold text-orange-600">{d.webOrderCancel}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Web Cancel</span><span className="font-semibold" style={{ color: 'hsl(24, 95%, 53%)' }}>{d.webOrderCancel}</span></div>
         )}
       </div>
       <Progress value={d.successRate} className="h-1 mt-2" />
@@ -191,16 +161,16 @@ function OurRecordCard({
   );
 }
 
-function DeliveryPerformanceSection({ timeRange, setTimeRange }: { timeRange: string; setTimeRange: (v: string) => void }) {
-  const fromDate = getTimeRangeDate(timeRange);
+function DeliveryPerformanceSection() {
+  const [selectedCard, setSelectedCard] = useState<string | null>(null);
 
+  // All-time data — no time filter
   const { data: allOrders, isLoading } = useQuery({
-    queryKey: ["delivery-kpi-orders", timeRange],
+    queryKey: ["delivery-kpi-orders-alltime"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
-        .select("status, delivery_thana, notes, tags, channel, web_order_status")
-        .gte("order_date", fromDate.toISOString());
+        .select("status, web_order_status");
       if (error) throw error;
       return data;
     },
@@ -208,12 +178,11 @@ function DeliveryPerformanceSection({ timeRange, setTimeRange }: { timeRange: st
   });
 
   const { data: courierRows, isLoading: courierLoading } = useQuery({
-    queryKey: ["delivery-kpi-couriers", timeRange],
+    queryKey: ["delivery-kpi-couriers-alltime"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("courier_history")
-        .select("courier_name, status")
-        .gte("created_at", fromDate.toISOString());
+        .select("courier_name, status");
       if (error) throw error;
       return data;
     },
@@ -257,32 +226,25 @@ function DeliveryPerformanceSection({ timeRange, setTimeRange }: { timeRange: st
   const loading = isLoading || courierLoading;
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+    <Card className="rounded-[14px] border-border/50 shadow-sm overflow-hidden">
+      <CardContent className="p-4">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 mb-3">
           📊 Delivery Performance
         </h2>
-        <div className="flex items-center gap-1">
-          {TIME_RANGES.map((tr) => (
-            <button key={tr.value}
-              onClick={() => setTimeRange(tr.value)}
-              className={cn(
-                "px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors",
-                timeRange === tr.value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
-              )}>
-              {tr.label}
-            </button>
-          ))}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+          <DeliveryStatCard name="Overall" emoji="📊" data={overallStats} isLoading={loading}
+            selected={selectedCard === "overall"} onClick={() => setSelectedCard(selectedCard === "overall" ? null : "overall")} />
+          <DeliveryStatCard name="Pathao" emoji="🛵" data={courierStatsMap["pathao"] || null} isLoading={loading}
+            selected={selectedCard === "pathao"} onClick={() => setSelectedCard(selectedCard === "pathao" ? null : "pathao")} />
+          <DeliveryStatCard name="RedX" emoji="🔴" data={courierStatsMap["redx"] || null} isLoading={loading}
+            selected={selectedCard === "redx"} onClick={() => setSelectedCard(selectedCard === "redx" ? null : "redx")} />
+          <DeliveryStatCard name="Steadfast" emoji="⚡" data={courierStatsMap["steadfast"] || null} isLoading={loading}
+            selected={selectedCard === "steadfast"} onClick={() => setSelectedCard(selectedCard === "steadfast" ? null : "steadfast")} />
+          <OurRecordCard data={ourRecord} isLoading={loading}
+            selected={selectedCard === "our"} onClick={() => setSelectedCard(selectedCard === "our" ? null : "our")} />
         </div>
-      </div>
-      <div className="flex gap-2.5 overflow-x-auto pb-1">
-        <DeliveryStatCard name="Overall" emoji="📊" data={overallStats} isLoading={loading} />
-        <DeliveryStatCard name="Pathao" emoji="🛵" data={courierStatsMap["pathao"] || null} isLoading={loading} />
-        <DeliveryStatCard name="RedX" emoji="🔴" data={courierStatsMap["redx"] || null} isLoading={loading} />
-        <DeliveryStatCard name="Steadfast" emoji="⚡" data={courierStatsMap["steadfast"] || null} isLoading={loading} />
-        <OurRecordCard data={ourRecord} isLoading={loading} timeRange={timeRange} setTimeRange={setTimeRange} />
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -448,7 +410,6 @@ export default function NewOrder() {
   const [parseResult, setParseResult] = useState<ParseAddressResult | null>(null);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [isReturningCustomer, setIsReturningCustomer] = useState(false);
-  const [deliveryTimeRange, setDeliveryTimeRange] = useState("30d");
 
   const updateForm = useCallback((updates: Partial<typeof form>) => {
     setForm((f) => ({ ...f, ...updates }));
@@ -801,7 +762,7 @@ export default function NewOrder() {
         <div className="space-y-6">
 
           {/* ── Card 1: Delivery Performance (always visible, real data) ── */}
-          <DeliveryPerformanceSection timeRange={deliveryTimeRange} setTimeRange={setDeliveryTimeRange} />
+          <DeliveryPerformanceSection />
 
           {/* ── Card 2: Customer Information ── */}
           <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
