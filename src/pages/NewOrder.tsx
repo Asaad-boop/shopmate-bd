@@ -15,7 +15,7 @@ import {
   Plus, Minus, X, Search, Package, Phone, Loader2,
   Star, RefreshCw, Trash2, MessageCircle, ShieldCheck,
   AlertTriangle, AlertCircle, User, ChevronRight, Zap, TrendingUp,
-  ArrowLeft, FileText,
+  ArrowLeft, FileText, Truck, Bike, Zap as ZapIcon, Circle, Send, Bug,
 } from "lucide-react";
 import { formatBDT, formatDate } from "@/lib/format";
 import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/use-pathao";
@@ -46,12 +46,12 @@ interface CourierKpiData {
 }
 
 /* ═══ Constants ═══ */
-const COURIERS = [
-  { id: "pathao", name: "Pathao", emoji: "🛵" },
-  { id: "steadfast", name: "Steadfast", emoji: "⚡" },
-  { id: "redx", name: "RedX", emoji: "🔴" },
-  { id: "paperfly", name: "Paperfly", emoji: "📄" },
-  { id: "carrbee", name: "Carrbee", emoji: "🐝" },
+const COURIERS: { id: string; name: string; emoji: string; icon: React.ReactNode; color: string }[] = [
+  { id: "pathao", name: "Pathao", emoji: "🛵", icon: <Bike className="w-4 h-4" />, color: "text-emerald-600 bg-emerald-100" },
+  { id: "steadfast", name: "Steadfast", emoji: "⚡", icon: <Zap className="w-4 h-4" />, color: "text-orange-600 bg-orange-100" },
+  { id: "redx", name: "RedX", emoji: "🔴", icon: <Truck className="w-4 h-4" />, color: "text-red-600 bg-red-100" },
+  { id: "paperfly", name: "Paperfly", emoji: "📄", icon: <Send className="w-4 h-4" />, color: "text-blue-600 bg-blue-100" },
+  { id: "carrbee", name: "Carrbee", emoji: "🐝", icon: <Package className="w-4 h-4" />, color: "text-amber-600 bg-amber-100" },
 ];
 
 const SOURCES = ["UNKNOWN", "Facebook", "Instagram", "Walk-in", "Referral"];
@@ -203,65 +203,87 @@ function DeliveryPerformanceSection() {
       <SectionLabel icon={<TrendingUp className="w-3.5 h-3.5" />}>Delivery Performance</SectionLabel>
 
       {loading ? (
-        <div className="space-y-2">
-          <div className="grid grid-cols-4 gap-2"><Skeleton className="h-16 rounded-lg" /><Skeleton className="h-16 rounded-lg" /><Skeleton className="h-16 rounded-lg" /><Skeleton className="h-16 rounded-lg" /></div>
-          <Skeleton className="h-32 rounded-lg" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-[130px] rounded-xl" />
+          ))}
         </div>
       ) : (
-        <div className="space-y-3">
-          {/* Summary KPIs */}
-          <div className="grid grid-cols-4 gap-2">
-            <div className="p-2.5 rounded-lg border border-border/30 bg-muted/20 text-center">
-              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Total Orders</p>
-              <p className="text-lg font-bold tabular-nums" style={{ fontFamily: "'Syne', sans-serif" }}>{o.total}</p>
-              <p className="text-[8px] text-muted-foreground">All time</p>
-            </div>
-            <div className="p-2.5 rounded-lg border border-emerald-200/50 bg-emerald-50/30 text-center">
-              <p className="text-[9px] text-emerald-700 uppercase tracking-wider">Successful</p>
-              <p className="text-lg font-bold tabular-nums text-emerald-600" style={{ fontFamily: "'Syne', sans-serif" }}>{o.delivered}</p>
-              <p className="text-[8px] text-emerald-600/60">Delivered</p>
-            </div>
-            <div className="p-2.5 rounded-lg border border-red-200/50 bg-red-50/30 text-center">
-              <p className="text-[9px] text-red-700 uppercase tracking-wider">Cancelled</p>
-              <p className="text-lg font-bold tabular-nums text-red-500" style={{ fontFamily: "'Syne', sans-serif" }}>{totalFailed}</p>
-              <p className="text-[8px] text-red-500/60">Failed</p>
-            </div>
-            <div className="p-2.5 rounded-lg border border-primary/20 bg-primary/5 text-center">
-              <p className="text-[9px] text-primary uppercase tracking-wider">Success Rate</p>
-              <p className={cn("text-lg font-bold tabular-nums", rateColor)} style={{ fontFamily: "'Syne', sans-serif" }}>{o.successRate}%</p>
-              <div className="mt-1 h-[3px] rounded-full bg-primary/10 overflow-hidden">
-                <div className={cn("h-full rounded-full transition-all", o.successRate >= 80 ? "bg-emerald-500" : o.successRate >= 50 ? "bg-amber-500" : "bg-red-500")}
-                  style={{ width: `${o.successRate}%` }} />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+          {/* Overall Card */}
+          <div className="rounded-xl border border-primary/20 bg-primary/[0.03] p-3.5 flex flex-col">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-primary" />
               </div>
+              <p className="text-[11px] font-semibold text-primary">Overall</p>
+            </div>
+            <p className={cn("text-2xl font-bold tabular-nums leading-none mb-2", rateColor)}
+              style={{ fontFamily: "'Syne', sans-serif" }}>
+              {o.total > 0 ? `${o.successRate}%` : "—"}
+            </p>
+            <div className="space-y-1 mt-auto">
+              <div className="flex justify-between text-[10px]">
+                <span className="text-muted-foreground">Total</span>
+                <span className="font-semibold tabular-nums">{o.total}</span>
+              </div>
+              <div className="flex justify-between text-[10px]">
+                <span className="text-muted-foreground">Success</span>
+                <span className="font-semibold tabular-nums text-emerald-600">{o.delivered}</span>
+              </div>
+              <div className="flex justify-between text-[10px]">
+                <span className="text-muted-foreground">Failed</span>
+                <span className="font-semibold tabular-nums text-red-500">{totalFailed}</span>
+              </div>
+            </div>
+            <div className="mt-2.5 h-[3px] rounded-full bg-muted overflow-hidden">
+              <div className={cn("h-full rounded-full transition-all duration-500",
+                o.successRate >= 80 ? "bg-emerald-500" : o.successRate >= 50 ? "bg-amber-500" : "bg-red-500"
+              )} style={{ width: `${o.total > 0 ? o.successRate : 0}%` }} />
             </div>
           </div>
 
-          {/* Courier Breakdown Table */}
-          <div className="rounded-lg border border-border/30 overflow-hidden">
-            <div className="grid grid-cols-4 gap-0 bg-primary text-primary-foreground px-3 py-1.5">
-              <span className="text-[9px] font-semibold uppercase tracking-wider">Courier</span>
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-center">Total</span>
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-center">Success</span>
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-center">Cancel</span>
-            </div>
-            {COURIERS.map((c, i) => {
-              const stats = courierStatsMap[c.id] || { total: 0, delivered: 0, cancelled: 0, returned: 0 };
-              return (
-                <div key={c.id} className={cn("grid grid-cols-4 gap-0 px-3 py-2 border-t border-border/20", i % 2 === 0 ? "bg-background" : "bg-muted/20")}>
-                  <span className="text-[11px] font-medium flex items-center gap-1.5">{c.emoji} {c.name}</span>
-                  <span className="text-[11px] tabular-nums text-center font-medium">{stats.total}</span>
-                  <span className="text-[11px] tabular-nums text-center font-semibold text-emerald-600">{stats.delivered}</span>
-                  <span className="text-[11px] tabular-nums text-center font-semibold text-red-500">{stats.cancelled + stats.returned}</span>
+          {/* Per-Courier Cards */}
+          {COURIERS.map((c) => {
+            const stats = courierStatsMap[c.id] || { total: 0, delivered: 0, cancelled: 0, returned: 0, shipped: 0, successRate: 0 };
+            const failed = (stats.cancelled || 0) + (stats.returned || 0);
+            const rate = stats.total > 0 ? Math.round((stats.delivered / Math.max(stats.delivered + failed, 1)) * 100) : 0;
+            const rc = stats.total === 0 ? "text-muted-foreground" :
+              rate >= 80 ? "text-emerald-600" : rate >= 50 ? "text-amber-600" : "text-red-500";
+            return (
+              <div key={c.id} className="rounded-xl border border-border/40 bg-card p-3.5 flex flex-col hover:border-border/80 hover:shadow-sm transition-all">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", c.color)}>
+                    {c.icon}
+                  </div>
+                  <p className="text-[11px] font-semibold">{c.name}</p>
                 </div>
-              );
-            })}
-            <div className="grid grid-cols-4 gap-0 px-3 py-2 border-t-2 border-border/40 bg-muted/30">
-              <span className="text-[11px] font-bold">Total</span>
-              <span className="text-[11px] tabular-nums text-center font-bold">{o.total}</span>
-              <span className="text-[11px] tabular-nums text-center font-bold text-emerald-600">{o.delivered}</span>
-              <span className="text-[11px] tabular-nums text-center font-bold text-red-500">{totalFailed}</span>
-            </div>
-          </div>
+                <p className={cn("text-2xl font-bold tabular-nums leading-none mb-2", rc)}
+                  style={{ fontFamily: "'Syne', sans-serif" }}>
+                  {stats.total > 0 ? `${rate}%` : "—"}
+                </p>
+                <div className="space-y-1 mt-auto">
+                  <div className="flex justify-between text-[10px]">
+                    <span className="text-muted-foreground">Total</span>
+                    <span className="font-semibold tabular-nums">{stats.total}</span>
+                  </div>
+                  <div className="flex justify-between text-[10px]">
+                    <span className="text-muted-foreground">Success</span>
+                    <span className="font-semibold tabular-nums text-emerald-600">{stats.delivered}</span>
+                  </div>
+                  <div className="flex justify-between text-[10px]">
+                    <span className="text-muted-foreground">Failed</span>
+                    <span className="font-semibold tabular-nums text-red-500">{failed}</span>
+                  </div>
+                </div>
+                <div className="mt-2.5 h-[3px] rounded-full bg-muted overflow-hidden">
+                  <div className={cn("h-full rounded-full transition-all duration-500",
+                    rate >= 80 ? "bg-emerald-500" : rate >= 50 ? "bg-amber-500" : "bg-red-500"
+                  )} style={{ width: `${stats.total > 0 ? rate : 0}%` }} />
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
