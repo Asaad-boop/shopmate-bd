@@ -1,6 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
 
 export function usePurchaseOrders() {
   return useQuery({
@@ -8,7 +7,7 @@ export function usePurchaseOrders() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("purchase_orders")
-        .select("*, suppliers(name, country, wechat_id), purchase_order_items(id, qty_ordered:quantity, qty_received:received_quantity, product_name)")
+        .select("*, suppliers(name, country, wechat_id), agents(name, phone), purchase_order_items(id, qty_ordered:quantity, qty_received:received_quantity, product_name)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -23,7 +22,7 @@ export function usePurchaseOrder(id: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("purchase_orders")
-        .select("*, suppliers(*)")
+        .select("*, suppliers(*), agents(*)")
         .eq("id", id!)
         .single();
       if (error) throw error;
@@ -101,6 +100,20 @@ export function useSuppliers() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("suppliers")
+        .select("*")
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useAgents() {
+  return useQuery({
+    queryKey: ["agents"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("agents")
         .select("*")
         .order("name");
       if (error) throw error;

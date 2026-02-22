@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   ClipboardList, Ship, Clock, CheckCircle2, Wallet,
-  Plus, Download, Search, Package, Anchor, ShieldCheck,
+  Plus, Download, Search, Package,
   MoreHorizontal, Eye, Pencil,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -19,18 +19,19 @@ import {
 
 const statusConfig: Record<string, { label: string; icon: string; className: string }> = {
   draft: { label: "Draft", icon: "📋", className: "bg-muted text-muted-foreground" },
-  ordered: { label: "Ordered", icon: "📦", className: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" },
+  ordered: { label: "Ordered", icon: "📦", className: "bg-info/10 text-info" },
   shipped: { label: "In Transit", icon: "🚢", className: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300" },
   in_transit: { label: "In Transit", icon: "🚢", className: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300" },
-  customs: { label: "Customs", icon: "🛃", className: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300" },
-  received: { label: "Received", icon: "✅", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
+  customs: { label: "Customs", icon: "🛃", className: "bg-warning/10 text-warning" },
+  arrived_bd: { label: "Arrived in BD", icon: "📍", className: "bg-info/10 text-info" },
+  received: { label: "Received", icon: "✅", className: "bg-success/10 text-success" },
 };
 
 const paymentConfig: Record<string, { label: string; className: string }> = {
   pending: { label: "Unpaid", className: "bg-destructive/10 text-destructive" },
-  partial: { label: "Partially Paid", className: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" },
+  partial: { label: "Due Remaining", className: "bg-info/10 text-info" },
   advance: { label: "Advance Paid", className: "bg-warning/10 text-warning" },
-  paid: { label: "Fully Paid", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
+  paid: { label: "Fully Paid", className: "bg-success/10 text-success" },
 };
 
 export default function PurchaseOrdersPage() {
@@ -46,7 +47,8 @@ export default function PurchaseOrdersPage() {
     return pos.filter((po) => {
       const matchesSearch = !search ||
         po.po_number.toLowerCase().includes(search.toLowerCase()) ||
-        (po.suppliers as any)?.name?.toLowerCase().includes(search.toLowerCase());
+        (po.suppliers as any)?.name?.toLowerCase().includes(search.toLowerCase()) ||
+        (po.agents as any)?.name?.toLowerCase().includes(search.toLowerCase());
       const matchesStatus = statusFilter === "all" || po.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
@@ -92,7 +94,7 @@ export default function PurchaseOrdersPage() {
             <Download className="w-4 h-4" /> Export
           </Button>
           <Button size="sm" className="gap-1.5" onClick={() => navigate("/purchase-orders/new")}>
-            <Plus className="w-4 h-4" /> New Purchase Order
+            <Plus className="w-4 h-4" /> New PO
           </Button>
         </div>
       </div>
@@ -117,7 +119,7 @@ export default function PurchaseOrdersPage() {
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search PO number or supplier..."
+            placeholder="Search PO number, supplier, or agent..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 h-9"
@@ -162,10 +164,10 @@ export default function PurchaseOrdersPage() {
                   <Checkbox checked={selected.length === filtered.length && filtered.length > 0} onCheckedChange={toggleAll} />
                 </TableHead>
                 <TableHead>PO Number</TableHead>
-                <TableHead>Supplier</TableHead>
+                <TableHead>Import Type</TableHead>
+                <TableHead>Agent / Supplier</TableHead>
                 <TableHead>Products</TableHead>
                 <TableHead>Order Date</TableHead>
-                <TableHead>Expected Arrival</TableHead>
                 <TableHead>Total Cost</TableHead>
                 <TableHead>Payment</TableHead>
                 <TableHead>Shipment</TableHead>
@@ -175,7 +177,9 @@ export default function PurchaseOrdersPage() {
             <TableBody>
               {filtered.map((po, i) => {
                 const supplier = po.suppliers as any;
+                const agent = po.agents as any;
                 const items = po.purchase_order_items as any[] || [];
+                const importType = (po as any).import_type || "DIRECT";
                 const sc = statusConfig[po.status || "draft"] || statusConfig.draft;
                 const pc = paymentConfig[po.payment_status || "pending"] || paymentConfig.pending;
 
@@ -193,23 +197,26 @@ export default function PurchaseOrdersPage() {
                       <span className="font-bold text-primary">{po.po_number}</span>
                     </TableCell>
                     <TableCell>
+                      <Badge className={`text-[10px] font-semibold ${importType === "AGENT" ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"}`}>
+                        {importType === "AGENT" ? "🤝 Via Agent" : "🚀 Direct"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
                       <div className="flex items-center gap-1.5">
-                        <span>🇨🇳</span>
-                        <span className="text-sm font-medium">{supplier?.name || "—"}</span>
+                        <span>{importType === "AGENT" ? "🤝" : "🇨🇳"}</span>
+                        <span className="text-sm font-medium">
+                          {importType === "AGENT" ? (agent?.name || "—") : (supplier?.name || "—")}
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell>
                       <span className="text-sm text-muted-foreground">{items.length} items</span>
                     </TableCell>
-                    <TableCell className="text-sm">{po.order_date ? format(new Date(po.order_date), "dd MMM yyyy") : "—"}</TableCell>
-                    <TableCell className="text-sm">{po.expected_arrival_date ? format(new Date(po.expected_arrival_date), "dd MMM yyyy") : "—"}</TableCell>
+                    <TableCell className="text-sm">
+                      {po.order_date ? format(new Date(po.order_date), "dd MMM yyyy") : "—"}
+                    </TableCell>
                     <TableCell>
-                      <div>
-                        <p className="text-sm font-semibold">৳{(po.total_landed_cost_bdt || 0).toLocaleString()}</p>
-                        {po.total_product_cost_cny ? (
-                          <p className="text-xs text-muted-foreground">¥{(po.total_product_cost_cny || 0).toLocaleString()}</p>
-                        ) : null}
-                      </div>
+                      <p className="text-sm font-semibold">৳{(po.total_landed_cost_bdt || po.grand_total_bdt || 0).toLocaleString()}</p>
                     </TableCell>
                     <TableCell>
                       <Badge className={`text-[10px] font-semibold ${pc.className}`}>{pc.label}</Badge>

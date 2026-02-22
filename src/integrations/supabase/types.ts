@@ -137,6 +137,54 @@ export type Database = {
         }
         Relationships: []
       }
+      agents: {
+        Row: {
+          bank_account: string | null
+          bank_name: string | null
+          bkash_number: string | null
+          created_at: string | null
+          id: string
+          nagad_number: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          rating: number | null
+          total_amount: number | null
+          total_orders: number | null
+          whatsapp: string | null
+        }
+        Insert: {
+          bank_account?: string | null
+          bank_name?: string | null
+          bkash_number?: string | null
+          created_at?: string | null
+          id?: string
+          nagad_number?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          rating?: number | null
+          total_amount?: number | null
+          total_orders?: number | null
+          whatsapp?: string | null
+        }
+        Update: {
+          bank_account?: string | null
+          bank_name?: string | null
+          bkash_number?: string | null
+          created_at?: string | null
+          id?: string
+          nagad_number?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          rating?: number | null
+          total_amount?: number | null
+          total_orders?: number | null
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
       attendance: {
         Row: {
           check_in: string | null
@@ -888,6 +936,7 @@ export type Database = {
           note: string | null
           payment_date: string
           payment_method: string | null
+          payment_type: string | null
           po_id: string | null
           transaction_id: string | null
         }
@@ -899,6 +948,7 @@ export type Database = {
           note?: string | null
           payment_date?: string
           payment_method?: string | null
+          payment_type?: string | null
           po_id?: string | null
           transaction_id?: string | null
         }
@@ -910,6 +960,7 @@ export type Database = {
           note?: string | null
           payment_date?: string
           payment_method?: string | null
+          payment_type?: string | null
           po_id?: string | null
           transaction_id?: string | null
         }
@@ -1157,6 +1208,7 @@ export type Database = {
           actual_shipment_date: string | null
           additional_costs_bdt: number | null
           advance_paid_bdt: number | null
+          agent_id: string | null
           bl_number: string | null
           c_and_f_charge_bdt: number | null
           container_number: string | null
@@ -1174,6 +1226,7 @@ export type Database = {
           freight_forwarder: string | null
           grand_total_bdt: number | null
           id: string
+          import_type: string | null
           local_transport_bdt: number | null
           notes: string | null
           order_date: string
@@ -1200,6 +1253,7 @@ export type Database = {
           actual_shipment_date?: string | null
           additional_costs_bdt?: number | null
           advance_paid_bdt?: number | null
+          agent_id?: string | null
           bl_number?: string | null
           c_and_f_charge_bdt?: number | null
           container_number?: string | null
@@ -1217,6 +1271,7 @@ export type Database = {
           freight_forwarder?: string | null
           grand_total_bdt?: number | null
           id?: string
+          import_type?: string | null
           local_transport_bdt?: number | null
           notes?: string | null
           order_date: string
@@ -1243,6 +1298,7 @@ export type Database = {
           actual_shipment_date?: string | null
           additional_costs_bdt?: number | null
           advance_paid_bdt?: number | null
+          agent_id?: string | null
           bl_number?: string | null
           c_and_f_charge_bdt?: number | null
           container_number?: string | null
@@ -1260,6 +1316,7 @@ export type Database = {
           freight_forwarder?: string | null
           grand_total_bdt?: number | null
           id?: string
+          import_type?: string | null
           local_transport_bdt?: number | null
           notes?: string | null
           order_date?: string
@@ -1282,6 +1339,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "purchase_orders_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "purchase_orders_created_by_fkey"
             columns: ["created_by"]
