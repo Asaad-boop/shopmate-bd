@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAgents } from "@/hooks/use-purchase-orders";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -19,16 +19,46 @@ export default function AgentsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
 
-  const [form, setForm] = useState({
+  const emptyForm = {
     name: "", contact_person: "", profile_image_url: "",
     phone: "", whatsapp: "", bkash_number: "",
     nagad_number: "", bank_account: "", bank_name: "",
     notes: "", rating: 5,
+  };
+
+  const [form, setForm] = useState(() => {
+    try {
+      const saved = localStorage.getItem("agent-draft");
+      return saved ? JSON.parse(saved) : emptyForm;
+    } catch { return emptyForm; }
   });
+
+  // Persist draft to localStorage on every change
+  useEffect(() => {
+    if (!editing) {
+      localStorage.setItem("agent-draft", JSON.stringify(form));
+    }
+  }, [form, editing]);
+
+  // Restore modal open state if there was a draft with data
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("agent-draft");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.name || parsed.phone || parsed.contact_person) {
+          setForm(parsed);
+          setModalOpen(true);
+        }
+      }
+    } catch {}
+  }, []);
 
   const openNew = () => {
     setEditing(null);
-    setForm({ name: "", contact_person: "", profile_image_url: "", phone: "", whatsapp: "", bkash_number: "", nagad_number: "", bank_account: "", bank_name: "", notes: "", rating: 5 });
+    const draft = { ...emptyForm };
+    setForm(draft);
+    localStorage.removeItem("agent-draft");
     setModalOpen(true);
   };
 
@@ -54,6 +84,8 @@ export default function AgentsPage() {
       }
       queryClient.invalidateQueries({ queryKey: ["agents"] });
       toast({ title: editing ? "Agent updated!" : "Agent added!" });
+      localStorage.removeItem("agent-draft");
+      setForm({ ...emptyForm });
       setModalOpen(false);
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
