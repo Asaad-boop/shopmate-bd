@@ -16,7 +16,7 @@ import {
   Star, RefreshCw, Trash2, MessageCircle, ShieldCheck,
   AlertTriangle, AlertCircle, User, ChevronRight, Zap, TrendingUp,
   ArrowLeft, FileText, Truck, Bike, Zap as ZapIcon, Circle, Send, Bug,
-  ChevronDown,
+  ChevronDown, BarChart3, ClipboardList,
 } from "lucide-react";
 import { formatBDT, formatDate } from "@/lib/format";
 import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/use-pathao";
@@ -43,8 +43,6 @@ const COURIERS: { id: string; name: string; icon: React.ReactNode; color: string
   { id: "steadfast", name: "Steadfast", icon: <Zap className="w-4 h-4" />, color: "text-orange-600 bg-orange-100" },
   { id: "redx", name: "RedX", icon: <Truck className="w-4 h-4" />, color: "text-red-600 bg-red-100" },
   { id: "paperfly", name: "Paperfly", icon: <Send className="w-4 h-4" />, color: "text-blue-600 bg-blue-100" },
-  { id: "carrbee", name: "Carrbee", icon: <Package className="w-4 h-4" />, color: "text-amber-600 bg-amber-100" },
-  { id: "parceldex", name: "ParcelDex", icon: <Bug className="w-4 h-4" />, color: "text-violet-600 bg-violet-100" },
 ];
 
 const SOURCES = ["UNKNOWN", "Facebook", "Instagram", "Walk-in", "Referral"];
@@ -93,7 +91,7 @@ function DeliveryPerformanceSection({ phone }: { phone: string }) {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Per-customer orders from our DB
+  // Per-customer orders from our DB (orders table)
   const { data: customerOrders } = useQuery({
     queryKey: ["customer-orders-for-courier", phone],
     queryFn: async () => {
@@ -111,6 +109,17 @@ function DeliveryPerformanceSection({ phone }: { phone: string }) {
     enabled: phone.length >= 11,
     staleTime: 5 * 60 * 1000,
   });
+
+  // "Our Record" stats from our own orders table
+  const ourRecord = useMemo(() => {
+    if (!customerOrders || customerOrders.length === 0) return { total: 0, delivered: 0, cancelled: 0, returned: 0, successRate: 0 };
+    const total = customerOrders.length;
+    const delivered = customerOrders.filter((o) => o.status === "delivered").length;
+    const cancelled = customerOrders.filter((o) => o.status === "cancelled").length;
+    const returned = customerOrders.filter((o) => o.status === "returned").length;
+    const successRate = total > 0 ? Math.round((delivered / total) * 100) : 0;
+    return { total, delivered, cancelled, returned, successRate };
+  }, [customerOrders]);
 
   // Build courier map + summary from this customer's BD Courier raw_data
   const { summary, courierMap } = useMemo(() => {
@@ -201,34 +210,12 @@ function DeliveryPerformanceSection({ phone }: { phone: string }) {
             {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[72px] rounded-xl" />)}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-[150px] rounded-xl" />)}
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-[160px] rounded-xl" />)}
           </div>
         </div>
       ) : (
         <div className="space-y-3">
-          {/* Summary cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-            <div className="rounded-xl border border-border/40 bg-card p-3.5">
-              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Total Orders</p>
-              <p className="text-xl font-bold tabular-nums mt-1">{summary.total.toLocaleString()}</p>
-            </div>
-            <div className="rounded-xl border border-border/40 bg-card p-3.5">
-              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Delivered</p>
-              <p className="text-xl font-bold tabular-nums mt-1 text-emerald-600">{summary.delivered.toLocaleString()}</p>
-            </div>
-            <div className="rounded-xl border border-border/40 bg-card p-3.5">
-              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Cancelled</p>
-              <p className="text-xl font-bold tabular-nums mt-1 text-red-500">{summary.cancelled.toLocaleString()}</p>
-            </div>
-            <div className="rounded-xl border border-border/40 bg-card p-3.5">
-              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Success Rate</p>
-              <p className={cn("text-xl font-bold tabular-nums mt-1", rateColor)}>
-                {summary.total > 0 ? `${summary.successRate}%` : "—"}
-              </p>
-            </div>
-          </div>
-
-          {/* Courier cards */}
+          {/* All 6 cards: 4 couriers + Overall + Our Record */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
             {COURIERS.map((c) => {
               const s = courierMap[c.id] || { total: 0, delivered: 0, cancelled: 0, logo: "", tracked: false };
@@ -262,7 +249,7 @@ function DeliveryPerformanceSection({ phone }: { phone: string }) {
                     )} />
                   </div>
                   <p className={cn("text-2xl font-bold tabular-nums leading-none mb-3", rc)}>
-                    {!s.tracked ? <span className="text-xs font-medium text-muted-foreground/60">Not tracked</span> : s.total > 0 ? `${rate}%` : "0"}
+                    {s.total > 0 ? `${rate}%` : "0"}
                   </p>
                   <div className="space-y-1.5 mt-auto">
                     <div className="flex justify-between text-[10px]">
@@ -270,11 +257,11 @@ function DeliveryPerformanceSection({ phone }: { phone: string }) {
                       <span className="font-semibold tabular-nums">{s.total.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between text-[10px]">
-                      <span className="text-muted-foreground">Delivered</span>
+                      <span className="text-muted-foreground">Success</span>
                       <span className="font-semibold tabular-nums text-emerald-600">{s.delivered.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between text-[10px]">
-                      <span className="text-muted-foreground">Cancelled</span>
+                      <span className="text-muted-foreground">Cancel</span>
                       <span className="font-semibold tabular-nums text-red-500">{s.cancelled.toLocaleString()}</span>
                     </div>
                   </div>
@@ -286,6 +273,73 @@ function DeliveryPerformanceSection({ phone }: { phone: string }) {
                 </button>
               );
             })}
+
+            {/* Overall card (BD Courier summary) */}
+            <div className="rounded-xl border border-primary/30 bg-primary/[0.03] p-3.5 flex flex-col text-left">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary/10 text-primary">
+                  <BarChart3 className="w-4 h-4" />
+                </div>
+                <p className="text-xs font-semibold truncate flex-1">Overall</p>
+              </div>
+              <p className={cn("text-2xl font-bold tabular-nums leading-none mb-3", rateColor)}>
+                {summary.total > 0 ? `${summary.successRate}%` : "—"}
+              </p>
+              <div className="space-y-1.5 mt-auto">
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-muted-foreground">Total</span>
+                  <span className="font-semibold tabular-nums">{summary.total.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-muted-foreground">Success</span>
+                  <span className="font-semibold tabular-nums text-emerald-600">{summary.delivered.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-muted-foreground">Cancel</span>
+                  <span className="font-semibold tabular-nums text-red-500">{summary.cancelled.toLocaleString()}</span>
+                </div>
+              </div>
+              <div className="mt-3 h-[3px] rounded-full bg-muted overflow-hidden">
+                <div className={cn("h-full rounded-full transition-all duration-500",
+                  summary.successRate >= 80 ? "bg-emerald-500" : summary.successRate >= 50 ? "bg-amber-500" : "bg-red-500"
+                )} style={{ width: `${summary.total > 0 ? summary.successRate : 0}%` }} />
+              </div>
+            </div>
+
+            {/* Our Record card */}
+            <div className="rounded-xl border border-blue-200 bg-blue-50/30 dark:border-blue-800 dark:bg-blue-950/20 p-3.5 flex flex-col text-left">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-400">
+                  <ClipboardList className="w-4 h-4" />
+                </div>
+                <p className="text-xs font-semibold truncate flex-1">Our Record</p>
+              </div>
+              <p className={cn("text-2xl font-bold tabular-nums leading-none mb-3",
+                ourRecord.total === 0 ? "text-muted-foreground" :
+                ourRecord.successRate >= 80 ? "text-emerald-600" : ourRecord.successRate >= 50 ? "text-amber-600" : "text-red-500"
+              )}>
+                {ourRecord.total > 0 ? `${ourRecord.successRate}%` : "—"}
+              </p>
+              <div className="space-y-1.5 mt-auto">
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-muted-foreground">Total</span>
+                  <span className="font-semibold tabular-nums">{ourRecord.total.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-muted-foreground">Delivered</span>
+                  <span className="font-semibold tabular-nums text-emerald-600">{ourRecord.delivered.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-muted-foreground">Cancelled</span>
+                  <span className="font-semibold tabular-nums text-red-500">{ourRecord.cancelled.toLocaleString()}</span>
+                </div>
+              </div>
+              <div className="mt-3 h-[3px] rounded-full bg-muted overflow-hidden">
+                <div className={cn("h-full rounded-full transition-all duration-500",
+                  ourRecord.successRate >= 80 ? "bg-emerald-500" : ourRecord.successRate >= 50 ? "bg-amber-500" : "bg-red-500"
+                )} style={{ width: `${ourRecord.total > 0 ? ourRecord.successRate : 0}%` }} />
+              </div>
+            </div>
           </div>
 
           {/* ═══ Inline Courier History Panel ═══ */}
