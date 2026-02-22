@@ -306,6 +306,39 @@ export type Database = {
           },
         ]
       }
+      customer_followups: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          customer_phone: string
+          done_at: string | null
+          due_at: string
+          id: string
+          is_done: boolean | null
+          note: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          customer_phone: string
+          done_at?: string | null
+          due_at: string
+          id?: string
+          is_done?: boolean | null
+          note?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          customer_phone?: string
+          done_at?: string | null
+          due_at?: string
+          id?: string
+          is_done?: boolean | null
+          note?: string | null
+        }
+        Relationships: []
+      }
       customer_qc_cache: {
         Row: {
           cancelled_orders: number | null
@@ -354,11 +387,13 @@ export type Database = {
           full_name: string
           id: string
           last_order_date: string | null
+          manual_segment: string | null
           notes: string | null
           phone: string
           phone2: string | null
           segment: string | null
           source: string | null
+          tags: string[] | null
           thana: string | null
           total_orders: number | null
           total_spent: number | null
@@ -371,11 +406,13 @@ export type Database = {
           full_name: string
           id?: string
           last_order_date?: string | null
+          manual_segment?: string | null
           notes?: string | null
           phone: string
           phone2?: string | null
           segment?: string | null
           source?: string | null
+          tags?: string[] | null
           thana?: string | null
           total_orders?: number | null
           total_spent?: number | null
@@ -388,11 +425,13 @@ export type Database = {
           full_name?: string
           id?: string
           last_order_date?: string | null
+          manual_segment?: string | null
           notes?: string | null
           phone?: string
           phone2?: string | null
           segment?: string | null
           source?: string | null
+          tags?: string[] | null
           thana?: string | null
           total_orders?: number | null
           total_spent?: number | null
@@ -518,6 +557,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      leads: {
+        Row: {
+          converted_at: string | null
+          created_at: string | null
+          id: string
+          is_converted: boolean | null
+          name: string
+          note: string | null
+          phone: string
+          source: string | null
+          stage: string | null
+        }
+        Insert: {
+          converted_at?: string | null
+          created_at?: string | null
+          id?: string
+          is_converted?: boolean | null
+          name: string
+          note?: string | null
+          phone: string
+          source?: string | null
+          stage?: string | null
+        }
+        Update: {
+          converted_at?: string | null
+          created_at?: string | null
+          id?: string
+          is_converted?: boolean | null
+          name?: string
+          note?: string | null
+          phone?: string
+          source?: string | null
+          stage?: string | null
+        }
+        Relationships: []
       }
       leaves: {
         Row: {
