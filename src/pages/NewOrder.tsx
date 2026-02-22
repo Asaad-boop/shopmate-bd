@@ -139,8 +139,6 @@ function DeliveryKpiCard({
 }
 
 function DeliveryPerformanceSection() {
-  const [selectedCard, setSelectedCard] = useState<string | null>(null);
-
   const { data: allOrders, isLoading } = useQuery({
     queryKey: ["delivery-kpi-orders-alltime"],
     queryFn: async () => {
@@ -193,34 +191,79 @@ function DeliveryPerformanceSection() {
     return result;
   }, [courierRows, computeStats]);
 
-  const ourRecord = useMemo(() => {
-    if (!overallStats) return null;
-    const webOrderCancel = allOrders?.filter((o) => o.web_order_status === "cancelled").length ?? 0;
-    return { ...overallStats, webOrderCancel };
-  }, [overallStats, allOrders]);
-
   const loading = isLoading || courierLoading;
-  const toggle = (key: string) => setSelectedCard(prev => prev === key ? null : key);
+  const o = overallStats || { total: 0, delivered: 0, shipped: 0, returned: 0, cancelled: 0, successRate: 0 };
+  const totalFailed = o.cancelled + o.returned;
+  const rateColor = o.total === 0 ? "text-muted-foreground" :
+    o.successRate >= 80 ? "text-emerald-600" :
+    o.successRate >= 50 ? "text-amber-600" : "text-red-500";
 
   return (
     <div className="space-y-3">
       <SectionLabel icon={<TrendingUp className="w-3.5 h-3.5" />}>Delivery Performance</SectionLabel>
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
-        <DeliveryKpiCard name="Overall" data={overallStats} isLoading={loading}
-          selected={selectedCard === "overall"} onClick={() => toggle("overall")} accent />
-        <DeliveryKpiCard name="Pathao" data={courierStatsMap["pathao"] || null} isLoading={loading}
-          selected={selectedCard === "pathao"} onClick={() => toggle("pathao")} />
-        <DeliveryKpiCard name="Steadfast" data={courierStatsMap["steadfast"] || null} isLoading={loading}
-          selected={selectedCard === "steadfast"} onClick={() => toggle("steadfast")} />
-        <DeliveryKpiCard name="RedX" data={courierStatsMap["redx"] || null} isLoading={loading}
-          selected={selectedCard === "redx"} onClick={() => toggle("redx")} />
-        <DeliveryKpiCard name="Paperfly" data={courierStatsMap["paperfly"] || null} isLoading={loading}
-          selected={selectedCard === "paperfly"} onClick={() => toggle("paperfly")} />
-        <DeliveryKpiCard name="Carrbee" data={courierStatsMap["carrbee"] || null} isLoading={loading}
-          selected={selectedCard === "carrbee"} onClick={() => toggle("carrbee")} />
-        <DeliveryKpiCard name="Our Record" data={ourRecord} isLoading={loading}
-          selected={selectedCard === "our"} onClick={() => toggle("our")} />
-      </div>
+
+      {loading ? (
+        <div className="space-y-2">
+          <div className="grid grid-cols-4 gap-2"><Skeleton className="h-16 rounded-lg" /><Skeleton className="h-16 rounded-lg" /><Skeleton className="h-16 rounded-lg" /><Skeleton className="h-16 rounded-lg" /></div>
+          <Skeleton className="h-32 rounded-lg" />
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {/* Summary KPIs */}
+          <div className="grid grid-cols-4 gap-2">
+            <div className="p-2.5 rounded-lg border border-border/30 bg-muted/20 text-center">
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Total Orders</p>
+              <p className="text-lg font-bold tabular-nums" style={{ fontFamily: "'Syne', sans-serif" }}>{o.total}</p>
+              <p className="text-[8px] text-muted-foreground">All time</p>
+            </div>
+            <div className="p-2.5 rounded-lg border border-emerald-200/50 bg-emerald-50/30 text-center">
+              <p className="text-[9px] text-emerald-700 uppercase tracking-wider">Successful</p>
+              <p className="text-lg font-bold tabular-nums text-emerald-600" style={{ fontFamily: "'Syne', sans-serif" }}>{o.delivered}</p>
+              <p className="text-[8px] text-emerald-600/60">Delivered</p>
+            </div>
+            <div className="p-2.5 rounded-lg border border-red-200/50 bg-red-50/30 text-center">
+              <p className="text-[9px] text-red-700 uppercase tracking-wider">Cancelled</p>
+              <p className="text-lg font-bold tabular-nums text-red-500" style={{ fontFamily: "'Syne', sans-serif" }}>{totalFailed}</p>
+              <p className="text-[8px] text-red-500/60">Failed</p>
+            </div>
+            <div className="p-2.5 rounded-lg border border-primary/20 bg-primary/5 text-center">
+              <p className="text-[9px] text-primary uppercase tracking-wider">Success Rate</p>
+              <p className={cn("text-lg font-bold tabular-nums", rateColor)} style={{ fontFamily: "'Syne', sans-serif" }}>{o.successRate}%</p>
+              <div className="mt-1 h-[3px] rounded-full bg-primary/10 overflow-hidden">
+                <div className={cn("h-full rounded-full transition-all", o.successRate >= 80 ? "bg-emerald-500" : o.successRate >= 50 ? "bg-amber-500" : "bg-red-500")}
+                  style={{ width: `${o.successRate}%` }} />
+              </div>
+            </div>
+          </div>
+
+          {/* Courier Breakdown Table */}
+          <div className="rounded-lg border border-border/30 overflow-hidden">
+            <div className="grid grid-cols-4 gap-0 bg-primary text-primary-foreground px-3 py-1.5">
+              <span className="text-[9px] font-semibold uppercase tracking-wider">Courier</span>
+              <span className="text-[9px] font-semibold uppercase tracking-wider text-center">Total</span>
+              <span className="text-[9px] font-semibold uppercase tracking-wider text-center">Success</span>
+              <span className="text-[9px] font-semibold uppercase tracking-wider text-center">Cancel</span>
+            </div>
+            {COURIERS.map((c, i) => {
+              const stats = courierStatsMap[c.id] || { total: 0, delivered: 0, cancelled: 0, returned: 0 };
+              return (
+                <div key={c.id} className={cn("grid grid-cols-4 gap-0 px-3 py-2 border-t border-border/20", i % 2 === 0 ? "bg-background" : "bg-muted/20")}>
+                  <span className="text-[11px] font-medium flex items-center gap-1.5">{c.emoji} {c.name}</span>
+                  <span className="text-[11px] tabular-nums text-center font-medium">{stats.total}</span>
+                  <span className="text-[11px] tabular-nums text-center font-semibold text-emerald-600">{stats.delivered}</span>
+                  <span className="text-[11px] tabular-nums text-center font-semibold text-red-500">{stats.cancelled + stats.returned}</span>
+                </div>
+              );
+            })}
+            <div className="grid grid-cols-4 gap-0 px-3 py-2 border-t-2 border-border/40 bg-muted/30">
+              <span className="text-[11px] font-bold">Total</span>
+              <span className="text-[11px] tabular-nums text-center font-bold">{o.total}</span>
+              <span className="text-[11px] tabular-nums text-center font-bold text-emerald-600">{o.delivered}</span>
+              <span className="text-[11px] tabular-nums text-center font-bold text-red-500">{totalFailed}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
