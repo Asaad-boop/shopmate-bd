@@ -75,21 +75,10 @@ function KpiPill({ label, value, color }: { label: string; value: number; color?
 function DeliveryPerformanceSection({ phone }: { phone: string }) {
   const [selectedCourier, setSelectedCourier] = useState<string | null>(null);
 
-  // Global aggregated data from all customer_qc_cache
-  const { data: cacheRows, isLoading } = useQuery({
-    queryKey: ["delivery-perf-bdcourier-alltime"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("customer_qc_cache")
-        .select("raw_data");
-      if (error) throw error;
-      return data;
-    },
-    staleTime: 5 * 60 * 1000,
-  });
+  const hasPhone = phone.length >= 11;
 
-  // Per-customer BD Courier data
-  const { data: bdCourier, isLoading: bdLoading } = useBDCourierSingle(phone, phone.length >= 11);
+  // Per-customer BD Courier data — this is the ONLY data source now
+  const { data: bdCourier, isLoading: bdLoading } = useBDCourierSingle(phone, hasPhone);
 
   // Per-customer courier history from our DB (courier_history table)
   const { data: courierHistory } = useQuery({
@@ -123,31 +112,38 @@ function DeliveryPerformanceSection({ phone }: { phone: string }) {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Build courier map + summary from this customer's BD Courier raw_data
   const { summary, courierMap } = useMemo(() => {
     const cMap: Record<string, { total: number; delivered: number; cancelled: number; logo: string }> = {};
     COURIERS.forEach((c) => { cMap[c.id] = { total: 0, delivered: 0, cancelled: 0, logo: "" }; });
     let sTotal = 0, sDelivered = 0, sCancelled = 0;
 
-    if (cacheRows) {
-      for (const row of cacheRows) {
-        const cd = (row.raw_data as any)?.courierData;
-        if (!cd) continue;
+    if (bdCourier?.raw_data) {
+      const cd = (bdCourier.raw_data as any)?.courierData;
+      if (cd) {
         for (const c of COURIERS) {
           const d = cd[c.id];
           if (d) {
-            cMap[c.id].total += d.total_parcel || 0;
-            cMap[c.id].delivered += d.success_parcel || 0;
-            cMap[c.id].cancelled += d.cancelled_parcel || 0;
-            if (d.logo && !cMap[c.id].logo) cMap[c.id].logo = d.logo;
+            cMap[c.id].total = d.total_parcel || 0;
+            cMap[c.id].delivered = d.success_parcel || 0;
+            cMap[c.id].cancelled = d.cancelled_parcel || 0;
+            if (d.logo) cMap[c.id].logo = d.logo;
           }
         }
         const s = cd.summary;
         if (s) {
-          sTotal += s.total_parcel || 0;
-          sDelivered += s.success_parcel || 0;
-          sCancelled += s.cancelled_parcel || 0;
+          sTotal = s.total_parcel || 0;
+          sDelivered = s.success_parcel || 0;
+          sCancelled = s.cancelled_parcel || 0;
         }
       }
+    }
+
+    // Fallback to top-level bdCourier fields if no courierData
+    if (sTotal === 0 && bdCourier) {
+      sTotal = bdCourier.total_orders || 0;
+      sDelivered = bdCourier.successful_orders || 0;
+      sCancelled = bdCourier.cancelled_orders || 0;
     }
 
     const sRate = sTotal > 0 ? Math.round((sDelivered / sTotal) * 100) : 0;
@@ -155,26 +151,10 @@ function DeliveryPerformanceSection({ phone }: { phone: string }) {
       summary: { total: sTotal, delivered: sDelivered, cancelled: sCancelled, successRate: sRate },
       courierMap: cMap,
     };
-  }, [cacheRows]);
-
-  // Customer-specific per-courier stats from BD Courier raw_data
-  const customerCourierStats = useMemo(() => {
-    if (!bdCourier?.raw_data) return {};
-    const cd = (bdCourier.raw_data as any)?.courierData;
-    if (!cd) return {};
-    const stats: Record<string, { total: number; delivered: number; cancelled: number }> = {};
-    for (const c of COURIERS) {
-      const d = cd[c.id];
-      if (d) {
-        stats[c.id] = {
-          total: d.total_parcel || 0,
-          delivered: d.success_parcel || 0,
-          cancelled: d.cancelled_parcel || 0,
-        };
-      }
-    }
-    return stats;
   }, [bdCourier]);
+
+  // Customer courier stats is now same as courierMap (already customer-specific)
+  const customerCourierStats = courierMap;
 
   const rateColor = summary.total === 0 ? "text-muted-foreground" :
     summary.successRate >= 80 ? "text-emerald-600" :
@@ -207,7 +187,14 @@ function DeliveryPerformanceSection({ phone }: { phone: string }) {
     <div className="space-y-4">
       <SectionLabel icon={<TrendingUp className="w-3.5 h-3.5" />}>Delivery Performance</SectionLabel>
 
-      {isLoading ? (
+      {!hasPhone ? (
+        <div className="flex items-center justify-center py-10 rounded-xl border border-dashed border-border/40 bg-muted/10">
+          <div className="text-center">
+            <Phone className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
+            <p className="text-xs text-muted-foreground/50">Enter customer phone to view delivery performance</p>
+          </div>
+        </div>
+      ) : bdLoading ? (
         <div className="space-y-3">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[72px] rounded-xl" />)}
@@ -248,9 +235,6 @@ function DeliveryPerformanceSection({ phone }: { phone: string }) {
               const rc = s.total === 0 ? "text-muted-foreground" :
                 rate >= 80 ? "text-emerald-600" : rate >= 50 ? "text-amber-600" : "text-red-500";
               const isSelected = selectedCourier === c.id;
-              // Customer-specific badge
-              const custStat = customerCourierStats[c.id];
-              const hasCustData = phone.length >= 11 && custStat && custStat.total > 0;
               return (
                 <button
                   key={c.id}
@@ -270,14 +254,7 @@ function DeliveryPerformanceSection({ phone }: { phone: string }) {
                         {c.icon}
                       </div>
                     )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold truncate">{c.name}</p>
-                      {hasCustData && (
-                        <span className="inline-flex items-center gap-0.5 text-[8px] font-semibold text-primary bg-primary/10 px-1 py-0.5 rounded mt-0.5">
-                          👤 {custStat.total}
-                        </span>
-                      )}
-                    </div>
+                    <p className="text-xs font-semibold truncate flex-1">{c.name}</p>
                     <ChevronDown className={cn(
                       "w-3 h-3 text-muted-foreground/40 transition-transform duration-200 shrink-0",
                       isSelected && "rotate-180 text-primary"
