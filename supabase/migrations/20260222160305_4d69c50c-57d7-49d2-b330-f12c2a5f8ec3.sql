@@ -1,0 +1,1 @@
+DELETE FROM orders WHERE order_number LIKE 'TEST-%';
