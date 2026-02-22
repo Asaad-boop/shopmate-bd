@@ -114,8 +114,8 @@ function DeliveryPerformanceSection({ phone }: { phone: string }) {
 
   // Build courier map + summary from this customer's BD Courier raw_data
   const { summary, courierMap } = useMemo(() => {
-    const cMap: Record<string, { total: number; delivered: number; cancelled: number; logo: string }> = {};
-    COURIERS.forEach((c) => { cMap[c.id] = { total: 0, delivered: 0, cancelled: 0, logo: "" }; });
+    const cMap: Record<string, { total: number; delivered: number; cancelled: number; logo: string; tracked: boolean }> = {};
+    COURIERS.forEach((c) => { cMap[c.id] = { total: 0, delivered: 0, cancelled: 0, logo: "", tracked: false }; });
     let sTotal = 0, sDelivered = 0, sCancelled = 0;
 
     if (bdCourier?.raw_data) {
@@ -127,6 +127,7 @@ function DeliveryPerformanceSection({ phone }: { phone: string }) {
             cMap[c.id].total = d.total_parcel || 0;
             cMap[c.id].delivered = d.success_parcel || 0;
             cMap[c.id].cancelled = d.cancelled_parcel || 0;
+            cMap[c.id].tracked = true;
             if (d.logo) cMap[c.id].logo = d.logo;
           }
         }
@@ -230,7 +231,7 @@ function DeliveryPerformanceSection({ phone }: { phone: string }) {
           {/* Courier cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
             {COURIERS.map((c) => {
-              const s = courierMap[c.id] || { total: 0, delivered: 0, cancelled: 0, logo: "" };
+              const s = courierMap[c.id] || { total: 0, delivered: 0, cancelled: 0, logo: "", tracked: false };
               const rate = s.total > 0 ? Math.round((s.delivered / s.total) * 100) : 0;
               const rc = s.total === 0 ? "text-muted-foreground" :
                 rate >= 80 ? "text-emerald-600" : rate >= 50 ? "text-amber-600" : "text-red-500";
@@ -261,7 +262,7 @@ function DeliveryPerformanceSection({ phone }: { phone: string }) {
                     )} />
                   </div>
                   <p className={cn("text-2xl font-bold tabular-nums leading-none mb-3", rc)}>
-                    {s.total > 0 ? `${rate}%` : "—"}
+                    {!s.tracked ? <span className="text-xs font-medium text-muted-foreground/60">Not tracked</span> : s.total > 0 ? `${rate}%` : "0"}
                   </p>
                   <div className="space-y-1.5 mt-auto">
                     <div className="flex justify-between text-[10px]">
