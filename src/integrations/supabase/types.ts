@@ -142,12 +142,14 @@ export type Database = {
           bank_account: string | null
           bank_name: string | null
           bkash_number: string | null
+          contact_person: string | null
           created_at: string | null
           id: string
           nagad_number: string | null
           name: string
           notes: string | null
           phone: string | null
+          profile_image_url: string | null
           rating: number | null
           total_amount: number | null
           total_orders: number | null
@@ -157,12 +159,14 @@ export type Database = {
           bank_account?: string | null
           bank_name?: string | null
           bkash_number?: string | null
+          contact_person?: string | null
           created_at?: string | null
           id?: string
           nagad_number?: string | null
           name: string
           notes?: string | null
           phone?: string | null
+          profile_image_url?: string | null
           rating?: number | null
           total_amount?: number | null
           total_orders?: number | null
@@ -172,12 +176,14 @@ export type Database = {
           bank_account?: string | null
           bank_name?: string | null
           bkash_number?: string | null
+          contact_person?: string | null
           created_at?: string | null
           id?: string
           nagad_number?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
+          profile_image_url?: string | null
           rating?: number | null
           total_amount?: number | null
           total_orders?: number | null

@@ -20,21 +20,23 @@ export default function AgentsPage() {
   const [editing, setEditing] = useState<any>(null);
 
   const [form, setForm] = useState({
-    name: "", phone: "", whatsapp: "", bkash_number: "",
+    name: "", contact_person: "", profile_image_url: "",
+    phone: "", whatsapp: "", bkash_number: "",
     nagad_number: "", bank_account: "", bank_name: "",
     notes: "", rating: 5,
   });
 
   const openNew = () => {
     setEditing(null);
-    setForm({ name: "", phone: "", whatsapp: "", bkash_number: "", nagad_number: "", bank_account: "", bank_name: "", notes: "", rating: 5 });
+    setForm({ name: "", contact_person: "", profile_image_url: "", phone: "", whatsapp: "", bkash_number: "", nagad_number: "", bank_account: "", bank_name: "", notes: "", rating: 5 });
     setModalOpen(true);
   };
 
   const openEdit = (a: any) => {
     setEditing(a);
     setForm({
-      name: a.name, phone: a.phone || "", whatsapp: a.whatsapp || "",
+      name: a.name, contact_person: a.contact_person || "", profile_image_url: a.profile_image_url || "",
+      phone: a.phone || "", whatsapp: a.whatsapp || "",
       bkash_number: a.bkash_number || "", nagad_number: a.nagad_number || "",
       bank_account: a.bank_account || "", bank_name: a.bank_name || "",
       notes: a.notes || "", rating: a.rating || 5,
@@ -98,7 +100,8 @@ export default function AgentsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
+                <TableHead>Agent</TableHead>
+                <TableHead>Contact Person</TableHead>
                 <TableHead>Phone</TableHead>
                 <TableHead>WhatsApp</TableHead>
                 <TableHead>bKash</TableHead>
@@ -111,7 +114,19 @@ export default function AgentsPage() {
             <TableBody>
               {filtered.map((a) => (
                 <TableRow key={a.id}>
-                  <TableCell><span className="font-semibold text-sm">🤝 {a.name}</span></TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2.5">
+                      {a.profile_image_url ? (
+                        <img src={a.profile_image_url} alt={a.name} className="w-8 h-8 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                          {a.name?.[0]?.toUpperCase()}
+                        </div>
+                      )}
+                      <span className="font-semibold text-sm">{a.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{a.contact_person || "—"}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{a.phone || "—"}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{a.whatsapp || "—"}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{a.bkash_number || "—"}</TableCell>
@@ -143,7 +158,22 @@ export default function AgentsPage() {
             <DialogTitle>{editing ? "Edit Agent" : "Add Agent"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <Input placeholder="Agent Name *" value={form.name} onChange={(e) => setForm(p => ({ ...p, name: e.target.value }))} />
+            <div className="flex items-center gap-4 mb-2">
+              <div className="relative group">
+                {form.profile_image_url ? (
+                  <img src={form.profile_image_url} alt="Profile" className="w-16 h-16 rounded-full object-cover border-2 border-primary/20" />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-2xl font-bold text-muted-foreground">
+                    {form.name ? form.name[0].toUpperCase() : <Users className="w-6 h-6" />}
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 space-y-2">
+                <Input placeholder="Agent Name *" value={form.name} onChange={(e) => setForm(p => ({ ...p, name: e.target.value }))} />
+                <Input placeholder="Contact Person Name" value={form.contact_person} onChange={(e) => setForm(p => ({ ...p, contact_person: e.target.value }))} />
+              </div>
+            </div>
+            <Input placeholder="Profile Image URL" value={form.profile_image_url} onChange={(e) => setForm(p => ({ ...p, profile_image_url: e.target.value }))} className="text-xs" />
             <div className="grid grid-cols-2 gap-2">
               <Input placeholder="Phone" value={form.phone} onChange={(e) => setForm(p => ({ ...p, phone: e.target.value }))} />
               <Input placeholder="WhatsApp" value={form.whatsapp} onChange={(e) => setForm(p => ({ ...p, whatsapp: e.target.value }))} />
