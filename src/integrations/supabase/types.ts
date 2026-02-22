@@ -386,6 +386,8 @@ export type Database = {
           email: string | null
           full_name: string
           id: string
+          import_batch_id: string | null
+          imported_at: string | null
           last_order_date: string | null
           manual_segment: string | null
           notes: string | null
@@ -405,6 +407,8 @@ export type Database = {
           email?: string | null
           full_name: string
           id?: string
+          import_batch_id?: string | null
+          imported_at?: string | null
           last_order_date?: string | null
           manual_segment?: string | null
           notes?: string | null
@@ -424,6 +428,8 @@ export type Database = {
           email?: string | null
           full_name?: string
           id?: string
+          import_batch_id?: string | null
+          imported_at?: string | null
           last_order_date?: string | null
           manual_segment?: string | null
           notes?: string | null
@@ -499,6 +505,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      import_batches: {
+        Row: {
+          created_at: string
+          duplicate_action: string
+          failed_count: number
+          file_name: string
+          id: string
+          imported_count: number
+          skipped_count: number
+          total_rows: number
+        }
+        Insert: {
+          created_at?: string
+          duplicate_action?: string
+          failed_count?: number
+          file_name: string
+          id?: string
+          imported_count?: number
+          skipped_count?: number
+          total_rows?: number
+        }
+        Update: {
+          created_at?: string
+          duplicate_action?: string
+          failed_count?: number
+          file_name?: string
+          id?: string
+          imported_count?: number
+          skipped_count?: number
+          total_rows?: number
+        }
+        Relationships: []
       }
       inventory_movements: {
         Row: {
