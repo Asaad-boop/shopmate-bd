@@ -63,13 +63,13 @@ function DeliveryStatCard({
   const barBg = isPurple ? "bg-primary/20" : "bg-emerald-100";
   return (
     <div className={cn(
-      "rounded-xl border bg-card p-3.5 min-w-[150px] flex-1 transition-all hover:-translate-y-0.5 hover:shadow-md hover:border-primary/40 group cursor-default",
+      "rounded-xl border bg-card p-2.5 min-w-[130px] flex-1 transition-all hover:-translate-y-0.5 hover:shadow-md hover:border-primary/40 group cursor-default",
     )}>
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-xs font-semibold text-foreground">{name}</span>
         <span className="text-lg">{emoji}</span>
       </div>
-      <p className={cn("text-2xl font-extrabold tabular-nums", color)}>{successRate}%</p>
+      <p className={cn("text-xl font-extrabold tabular-nums", color)}>{successRate}%</p>
       <div className="mt-2 space-y-0.5">
         {rows.map((r) => (
           <div key={r.label} className="flex justify-between text-[11px]">
@@ -217,15 +217,29 @@ export default function NewOrder() {
   const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
   const total = subtotal - form.discount + form.delivery_charge;
   const grandTotal = total;
+  const showDeliveryPerformance = form.customer_phone.length >= 11;
 
   /* ── Address Parsing ── */
   const autoMapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-set Dhaka as default city when address is typed and no city selected
+  const ensureCitySelected = useCallback(() => {
+    if (!selectedCityId && cities) {
+      const dhaka = cities.find((c) => c.city_name.toLowerCase() === "dhaka");
+      if (dhaka) {
+        setSelectedCityId(dhaka.city_id);
+        setCityName(dhaka.city_name);
+      }
+    }
+  }, [selectedCityId, cities]);
 
   const runAutoMap = useCallback((address: string) => {
     if (!address || address.length < 5) {
       setParseResult(null);
       return;
     }
+    // Ensure city is set so zones can load
+    ensureCitySelected();
     const currentCity = cities?.find((c) => c.city_id === selectedCityId)?.city_name || "Dhaka";
     const parsed = parseAddress(address, currentCity);
     setParseResult(parsed);
@@ -233,7 +247,6 @@ export default function NewOrder() {
     const conf = getParseConfidenceLevel(parsed.confidence);
 
     if (conf.level === "high" && zones) {
-      // Auto-select zone
       const zoneMatch = zones.find((z) => z.zone_name.toLowerCase() === parsed.zone.toLowerCase());
       if (zoneMatch) {
         setSelectedZoneId(zoneMatch.zone_id);
@@ -246,7 +259,14 @@ export default function NewOrder() {
         setZoneName(zoneMatch.zone_name);
       }
     }
-  }, [cities, selectedCityId, zones]);
+  }, [cities, selectedCityId, zones, ensureCitySelected]);
+
+  // Re-run autoMap when zones load (they load async after city is set)
+  useEffect(() => {
+    if (zones && zones.length > 0 && form.delivery_address && parseResult && !selectedZoneId) {
+      runAutoMap(form.delivery_address);
+    }
+  }, [zones]);
 
   // Auto-fill area when areas load + parseResult has area
   useEffect(() => {
@@ -261,9 +281,11 @@ export default function NewOrder() {
 
   const handleAddressChange = useCallback((address: string) => {
     updateForm({ delivery_address: address });
+    // Auto-set Dhaka city when user starts typing address
+    ensureCitySelected();
     if (autoMapTimerRef.current) clearTimeout(autoMapTimerRef.current);
     autoMapTimerRef.current = setTimeout(() => runAutoMap(address), 400);
-  }, [updateForm, runAutoMap]);
+  }, [updateForm, runAutoMap, ensureCitySelected]);
 
   const handleClearAddress = () => {
     updateForm({ delivery_address: "" });
@@ -528,16 +550,17 @@ export default function NewOrder() {
         {/* ══ LEFT COLUMN ══ */}
         <div className="space-y-6">
 
-          {/* ── Card 1: Delivery Performance ── */}
+          {/* ── Card 1: Delivery Performance (only after phone entered) ── */}
+          {showDeliveryPerformance && (
           <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+            <CardContent className="p-3.5">
+              <div className="flex items-center justify-between mb-2.5">
+                <h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                   📊 Delivery Performance
                 </h2>
-                <span className="text-[10px] text-muted-foreground">Last 30 days</span>
+                <span className="text-[9px] text-muted-foreground">Last 30 days</span>
               </div>
-              <div className="flex gap-3 overflow-x-auto pb-1">
+              <div className="flex gap-2 overflow-x-auto pb-0.5">
                 {/* Overall */}
                 <DeliveryStatCard
                   name="Overall" emoji="🏆"
@@ -580,6 +603,7 @@ export default function NewOrder() {
               </div>
             </CardContent>
           </Card>
+          )}
 
           {/* ── Card 2: Customer Information ── */}
           <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
