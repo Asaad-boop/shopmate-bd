@@ -153,8 +153,8 @@ function DeliveryPerformanceSection() {
   });
 
   const { summary, courierMap } = useMemo(() => {
-    const cMap: Record<string, { total: number; delivered: number; cancelled: number }> = {};
-    COURIERS.forEach((c) => { cMap[c.id] = { total: 0, delivered: 0, cancelled: 0 }; });
+    const cMap: Record<string, { total: number; delivered: number; cancelled: number; logo: string }> = {};
+    COURIERS.forEach((c) => { cMap[c.id] = { total: 0, delivered: 0, cancelled: 0, logo: "" }; });
     let sTotal = 0, sDelivered = 0, sCancelled = 0;
 
     if (cacheRows) {
@@ -167,6 +167,7 @@ function DeliveryPerformanceSection() {
             cMap[c.id].total += d.total_parcel || 0;
             cMap[c.id].delivered += d.success_parcel || 0;
             cMap[c.id].cancelled += d.cancelled_parcel || 0;
+            if (d.logo && !cMap[c.id].logo) cMap[c.id].logo = d.logo;
           }
         }
         const s = cd.summary;
@@ -227,16 +228,20 @@ function DeliveryPerformanceSection() {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
             {COURIERS.map((c) => {
-              const s = courierMap[c.id] || { total: 0, delivered: 0, cancelled: 0 };
+              const s = courierMap[c.id] || { total: 0, delivered: 0, cancelled: 0, logo: "" };
               const rate = s.total > 0 ? Math.round((s.delivered / s.total) * 100) : 0;
               const rc = s.total === 0 ? "text-muted-foreground" :
                 rate >= 80 ? "text-emerald-600" : rate >= 50 ? "text-amber-600" : "text-red-500";
               return (
                 <div key={c.id} className="rounded-xl border border-border/40 bg-card p-3.5 flex flex-col hover:border-border/80 hover:shadow-sm transition-all">
                   <div className="flex items-center gap-2 mb-3">
-                    <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", c.color)}>
-                      {c.icon}
-                    </div>
+                    {s.logo ? (
+                      <img src={s.logo} alt={c.name} className="w-8 h-8 rounded-lg object-contain" />
+                    ) : (
+                      <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", c.color)}>
+                        {c.icon}
+                      </div>
+                    )}
                     <p className="text-xs font-semibold">{c.name}</p>
                   </div>
                   <p className={cn("text-2xl font-bold tabular-nums leading-none mb-3", rc)}>
