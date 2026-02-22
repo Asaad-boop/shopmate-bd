@@ -19,6 +19,7 @@ import {
   CheckCircle2, Handshake, Rocket,
 } from "lucide-react";
 import { POPdfExport } from "@/components/purchase-orders/POPdfExport";
+import { POProductSearch } from "@/components/purchase-orders/POProductSearch";
 import { format, differenceInDays } from "date-fns";
 
 const AGENT_TIMELINE = [
@@ -611,11 +612,37 @@ export default function PurchaseOrderDetailPage() {
           {/* Products */}
           <section className="rounded-2xl border border-border bg-card p-5">
             <h2 className="text-sm font-bold text-foreground mb-3">Products Ordered</h2>
+
+            {/* Product Search */}
+            <div className="mb-4">
+              <POProductSearch
+                addedProductIds={items.map(it => it.product_id).filter(Boolean)}
+                isAgent={!!isAgent}
+                onSelect={(product) => {
+                  setItems(prev => [...prev, {
+                    product_id: product.id,
+                    product_name: product.name,
+                    image_url: product.image_url || "",
+                    unit: "pcs",
+                    quantity: 1,
+                    unit_price_cny: product.china_price_cny || 0,
+                    unit_price_bdt: product.landed_cost_bdt || product.selling_price || 0,
+                    variant_note: "",
+                    received_quantity: 0,
+                    condition: "good",
+                    _sku: product.sku,
+                    _stock: product.stock_quantity || 0,
+                  } as any]);
+                }}
+              />
+            </div>
+
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Product</TableHead>
+                    <TableHead className="min-w-[200px]">Product</TableHead>
+                    {!isAgent && <TableHead className="w-20">Unit</TableHead>}
                     <TableHead className="w-20">Qty</TableHead>
                     {isAgent ? (
                       <TableHead className="w-28">Price (৳)</TableHead>
@@ -623,6 +650,7 @@ export default function PurchaseOrderDetailPage() {
                       <>
                         <TableHead className="w-28">Price (CNY)</TableHead>
                         <TableHead className="w-28">Price (BDT)</TableHead>
+                        <TableHead className="w-28">Total CNY</TableHead>
                       </>
                     )}
                     <TableHead className="w-28">Total BDT</TableHead>
@@ -631,49 +659,97 @@ export default function PurchaseOrderDetailPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((item, i) => (
-                    <TableRow key={i}>
-                      <TableCell>
-                        <Input placeholder="Product name" value={item.product_name || ""} onChange={(e) => updateItem(i, "product_name", e.target.value)} className="h-8 text-sm" />
-                      </TableCell>
-                      <TableCell>
-                        <Input type="number" value={item.quantity} onChange={(e) => updateItem(i, "quantity", Number(e.target.value))} className="h-8 text-sm w-16" />
-                      </TableCell>
-                      {isAgent ? (
+                  {items.map((item, i) => {
+                    const totalCny = item.quantity * (item.unit_price_cny || 0);
+                    const totalBdt = isAgent
+                      ? item.quantity * (item.unit_price_bdt || 0)
+                      : totalCny * cnyRate;
+                    const stock = (item as any)._stock ?? null;
+                    const hasLowStock = stock !== null && item.quantity > stock;
+
+                    return (
+                      <TableRow key={i}>
                         <TableCell>
-                          <Input type="number" value={item.unit_price_bdt || ""} onChange={(e) => updateItem(i, "unit_price_bdt", Number(e.target.value))} className="h-8 text-sm" placeholder="৳" />
+                          <div className="flex items-center gap-2">
+                            {item.image_url ? (
+                              <img src={item.image_url} alt="" className="w-8 h-8 rounded-lg object-cover border border-border flex-shrink-0" />
+                            ) : item.product_id ? (
+                              <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                                <Package className="w-3.5 h-3.5 text-muted-foreground" />
+                              </div>
+                            ) : null}
+                            <div className="min-w-0">
+                              {item.product_id ? (
+                                <div>
+                                  <span className="text-sm font-medium truncate block">{item.product_name}</span>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    {(item as any)._sku && (
+                                      <Badge variant="secondary" className="text-[9px] font-mono h-3.5 px-1">{(item as any)._sku}</Badge>
+                                    )}
+                                    {hasLowStock && (
+                                      <Badge className="text-[9px] h-3.5 px-1 bg-warning/10 text-warning border-warning/30">Low Stock</Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
+                                <Input placeholder="Product name" value={item.product_name || ""} onChange={(e) => updateItem(i, "product_name", e.target.value)} className="h-8 text-sm" />
+                              )}
+                            </div>
+                          </div>
                         </TableCell>
-                      ) : (
-                        <>
+                        {!isAgent && (
                           <TableCell>
-                            <Input type="number" value={item.unit_price_cny || ""} onChange={(e) => updateItem(i, "unit_price_cny", Number(e.target.value))} className="h-8 text-sm" placeholder="¥" />
+                            <select value={item.unit || "pcs"} onChange={(e) => updateItem(i, "unit", e.target.value)} className="h-8 text-xs rounded-lg border border-input bg-background px-1.5 w-full">
+                              <option value="pcs">pcs</option>
+                              <option value="kg">kg</option>
+                              <option value="set">set</option>
+                              <option value="box">box</option>
+                            </select>
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground font-medium">
-                            ৳{((item.unit_price_cny || 0) * cnyRate).toFixed(0)}
+                        )}
+                        <TableCell>
+                          <Input type="number" value={item.quantity} onChange={(e) => updateItem(i, "quantity", Number(e.target.value))} className="h-8 text-sm w-16" min={1} />
+                        </TableCell>
+                        {isAgent ? (
+                          <TableCell>
+                            <Input type="number" value={item.unit_price_bdt || ""} onChange={(e) => updateItem(i, "unit_price_bdt", Number(e.target.value))} className="h-8 text-sm" placeholder="৳" />
                           </TableCell>
-                        </>
-                      )}
-                      <TableCell className="text-sm font-semibold">
-                        ৳{(isAgent ? (item.quantity * (item.unit_price_bdt || 0)) : (item.quantity * (item.unit_price_cny || 0) * cnyRate)).toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        <Input value={item.variant_note || ""} onChange={(e) => updateItem(i, "variant_note", e.target.value)} className="h-8 text-xs" placeholder="Color, size..." />
-                      </TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeItem(i)}>
-                          <X className="w-3.5 h-3.5" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        ) : (
+                          <>
+                            <TableCell>
+                              <Input type="number" value={item.unit_price_cny || ""} onChange={(e) => updateItem(i, "unit_price_cny", Number(e.target.value))} className="h-8 text-sm" placeholder="¥" />
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground font-medium">
+                              ৳{((item.unit_price_cny || 0) * cnyRate).toFixed(0)}
+                            </TableCell>
+                            <TableCell className="text-sm font-medium">
+                              ¥{totalCny.toLocaleString()}
+                            </TableCell>
+                          </>
+                        )}
+                        <TableCell className="text-sm font-semibold">
+                          ৳{totalBdt.toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          <Input value={item.variant_note || ""} onChange={(e) => updateItem(i, "variant_note", e.target.value)} className="h-8 text-xs" placeholder="Color, size..." />
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeItem(i)}>
+                            <X className="w-3.5 h-3.5" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
             <Button variant="ghost" size="sm" className="mt-2 gap-1.5" onClick={addItem}>
-              <Plus className="w-3.5 h-3.5" /> Add Product Row
+              <Plus className="w-3.5 h-3.5" /> Add Row Manually
             </Button>
             <div className="mt-3 p-3 rounded-xl bg-primary/5 flex justify-between text-sm font-semibold">
               <span>Total: {totalQty} units</span>
+              {!isAgent && <span>¥{productCostCny.toLocaleString()}</span>}
               <span>৳{productCostBdt.toLocaleString()}</span>
             </div>
           </section>
