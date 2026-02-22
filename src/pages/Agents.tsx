@@ -40,6 +40,16 @@ export default function AgentsPage() {
     }
   }, [form, editing]);
 
+  // Auto-save toast every 30 seconds when modal is open
+  useEffect(() => {
+    if (!modalOpen || editing) return;
+    const interval = setInterval(() => {
+      localStorage.setItem("agent-draft", JSON.stringify(form));
+      toast({ title: "💾 Draft auto-saved" });
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [modalOpen, editing, form]);
+
   // Restore modal open state if there was a draft with data
   useEffect(() => {
     try {
