@@ -2,23 +2,20 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Minus, X, Search, Package, Phone, Loader2,
-  Star, RefreshCw, Trash2, FileText, Link2, Mail, Tag, Save,
-  MessageCircle, ShieldCheck, AlertTriangle, AlertCircle, User,
+  Star, RefreshCw, Trash2, MessageCircle, ShieldCheck,
+  AlertTriangle, AlertCircle, User, ChevronRight, Zap, TrendingUp,
+  ArrowLeft, FileText,
 } from "lucide-react";
 import { formatBDT } from "@/lib/format";
 import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/use-pathao";
@@ -38,6 +35,15 @@ interface OrderItem {
   unit_cost: number;
 }
 
+interface CourierKpiData {
+  total: number;
+  delivered: number;
+  shipped: number;
+  returned: number;
+  cancelled: number;
+  successRate: number;
+}
+
 /* ═══ Constants ═══ */
 const COURIERS = [
   { id: "pathao", name: "Pathao", emoji: "🛵" },
@@ -50,121 +56,89 @@ const SOURCES = ["UNKNOWN", "Facebook", "Instagram", "Walk-in", "Referral"];
 const QUICK_NOTES = ["Call before delivery", "Fragile", "Gift wrap", "After 5 PM"];
 const DEFAULT_SHIPPING_NOTE = "🛡️ মার্চেন্টের অনুমতি ছাড়া প্রোডাক্ট খোলা সম্পূর্ণ নিষিদ্ধ। খোলা পণ্য গ্রহণযোগ্য নয়।";
 
-/* (time ranges removed — KPI shows all-time) */
+/* ═══ Micro Components ═══ */
 
-/* ═══ Sub Components ═══ */
-
-interface CourierKpiData {
-  total: number;
-  delivered: number;
-  shipped: number;
-  returned: number;
-  cancelled: number;
-  successRate: number;
-}
-
-function DeliveryStatCard({
-  name, emoji, data, isLoading, selected, onClick,
-}: { name: string; emoji: string; data: CourierKpiData | null; isLoading: boolean; selected?: boolean; onClick?: () => void }) {
-  if (isLoading) {
-    return (
-      <div className="rounded-[14px] border p-3 min-w-[160px] flex-1 bg-card shadow-sm">
-        <div className="space-y-2">
-          <Skeleton className="h-4 w-20" />
-          <Skeleton className="h-8 w-16" />
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-3/4" />
-          <Skeleton className="h-1.5 w-full rounded-full" />
-        </div>
-      </div>
-    );
-  }
-  const d = data || { total: 0, delivered: 0, shipped: 0, returned: 0, cancelled: 0, successRate: 0 };
-  const isZeroRate = d.total > 0 && d.successRate === 0;
+function SectionLabel({ children, icon }: { children: React.ReactNode; icon?: React.ReactNode }) {
   return (
-    <div
-      onClick={onClick}
-      className={cn(
-        "rounded-[14px] border p-3 min-w-[160px] flex-1 transition-all cursor-pointer shadow-sm hover:shadow-md",
-        selected
-          ? "border-[hsl(217,91%,60%)] bg-[hsl(217,91%,60%,0.06)] ring-1 ring-[hsl(217,91%,60%,0.3)]"
-          : "border-border/50 bg-card hover:border-border"
-      )}>
-      <div className="flex items-center gap-1.5 mb-1.5">
-        <span className="text-sm">{emoji}</span>
-        <span className={cn("text-[11px] font-bold", selected ? "text-[hsl(217,91%,60%)]" : "text-foreground")}>{name}</span>
-      </div>
-      <p className={cn("text-2xl font-extrabold tabular-nums leading-none mb-2")}
-        style={{ fontFamily: "'Syne', sans-serif", color: isZeroRate ? 'hsl(0, 84%, 60%)' : d.total === 0 ? 'hsl(var(--muted-foreground))' : d.successRate >= 80 ? 'hsl(160, 84%, 39%)' : d.successRate >= 50 ? 'hsl(38, 92%, 50%)' : 'hsl(0, 84%, 60%)' }}>
-        {d.total > 0 ? `${d.successRate}%` : "—"}
-      </p>
-      <div className="space-y-0.5 text-[10px]">
-        <div className="flex justify-between"><span className="text-muted-foreground">Total</span><span className="font-semibold">{d.total}</span></div>
-        <div className="flex justify-between"><span className="text-muted-foreground">Success</span><span className="font-semibold" style={{ color: 'hsl(160, 84%, 39%)' }}>{d.delivered}</span></div>
-        <div className="flex justify-between"><span className="text-muted-foreground">Cancelled</span><span className="font-semibold text-destructive">{d.cancelled}</span></div>
-      </div>
-      <Progress value={d.successRate} className="h-1 mt-2" />
+    <div className="flex items-center gap-2 mb-4">
+      {icon && <span className="text-muted-foreground">{icon}</span>}
+      <h2 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{children}</h2>
     </div>
   );
 }
 
-function OurRecordCard({
-  data, isLoading, selected, onClick,
-}: { data: (CourierKpiData & { webOrderCancel?: number }) | null; isLoading: boolean; selected?: boolean; onClick?: () => void }) {
+function KpiPill({ label, value, color }: { label: string; value: number; color?: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-[11px] text-muted-foreground">{label}</span>
+      <span className={cn("text-[11px] font-semibold tabular-nums", color)}>{value}</span>
+    </div>
+  );
+}
+
+function DeliveryKpiCard({
+  name, data, isLoading, selected, onClick, accent,
+}: {
+  name: string; data: CourierKpiData | null; isLoading: boolean;
+  selected?: boolean; onClick?: () => void; accent?: boolean;
+}) {
   if (isLoading) {
     return (
-      <div className="rounded-[14px] border p-3 min-w-[160px] flex-1 bg-card shadow-sm">
-        <div className="space-y-2">
-          <Skeleton className="h-4 w-20" />
-          <Skeleton className="h-8 w-16" />
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-3/4" />
-          <Skeleton className="h-1.5 w-full rounded-full" />
+      <div className="rounded-xl border border-border/40 bg-card p-3.5 flex-1 min-w-[140px]">
+        <Skeleton className="h-3 w-16 mb-2" />
+        <Skeleton className="h-7 w-12 mb-3" />
+        <div className="space-y-1.5">
+          <Skeleton className="h-2.5 w-full" />
+          <Skeleton className="h-2.5 w-3/4" />
         </div>
       </div>
     );
   }
 
-  const d = data || { total: 0, delivered: 0, shipped: 0, returned: 0, cancelled: 0, successRate: 0, webOrderCancel: 0 };
-  const isZeroRate = d.total > 0 && d.successRate === 0;
+  const d = data || { total: 0, delivered: 0, shipped: 0, returned: 0, cancelled: 0, successRate: 0 };
+  const rateColor = d.total === 0 ? "text-muted-foreground" :
+    d.successRate >= 80 ? "text-emerald-600" :
+    d.successRate >= 50 ? "text-amber-600" : "text-red-500";
 
   return (
-    <div
+    <button
       onClick={onClick}
       className={cn(
-        "rounded-[14px] border p-3 min-w-[160px] flex-1 transition-all cursor-pointer shadow-sm hover:shadow-md",
+        "rounded-xl border p-3.5 flex-1 min-w-[140px] text-left transition-all duration-200",
         selected
-          ? "border-[hsl(217,91%,60%)] bg-[hsl(217,91%,60%,0.06)] ring-1 ring-[hsl(217,91%,60%,0.3)]"
-          : "border-border/50 bg-card hover:border-border"
+          ? "border-primary/50 bg-primary/[0.04] shadow-[0_0_0_1px_hsl(var(--primary)/0.15)]"
+          : "border-border/40 bg-card hover:border-border/80 hover:shadow-sm",
+        accent && !selected && "border-primary/20 bg-primary/[0.02]"
       )}>
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-1.5">
-          <span className="text-sm">🏆</span>
-          <span className={cn("text-[11px] font-bold", selected ? "text-[hsl(217,91%,60%)]" : "text-foreground")}>Our Record</span>
-        </div>
-      </div>
-      <p className={cn("text-2xl font-extrabold tabular-nums leading-none mb-2")}
-        style={{ fontFamily: "'Syne', sans-serif", color: isZeroRate ? 'hsl(0, 84%, 60%)' : d.total === 0 ? 'hsl(var(--muted-foreground))' : d.successRate >= 80 ? 'hsl(160, 84%, 39%)' : d.successRate >= 50 ? 'hsl(38, 92%, 50%)' : 'hsl(0, 84%, 60%)' }}>
+      <p className={cn(
+        "text-[11px] font-medium mb-1.5 transition-colors",
+        selected ? "text-primary" : "text-muted-foreground"
+      )}>{name}</p>
+      <p className={cn("text-2xl font-bold tabular-nums leading-none mb-3", rateColor)}
+        style={{ fontFamily: "'Syne', sans-serif" }}>
         {d.total > 0 ? `${d.successRate}%` : "—"}
       </p>
-      <div className="space-y-0.5 text-[10px]">
-        <div className="flex justify-between"><span className="text-muted-foreground">Total</span><span className="font-semibold">{d.total}</span></div>
-        <div className="flex justify-between"><span className="text-muted-foreground">Shipped</span><span className="font-semibold" style={{ color: 'hsl(217, 91%, 60%)' }}>{d.shipped}</span></div>
-        <div className="flex justify-between"><span className="text-muted-foreground">Returned</span><span className="font-semibold" style={{ color: 'hsl(38, 92%, 50%)' }}>{d.returned}</span></div>
-        <div className="flex justify-between"><span className="text-muted-foreground">Cancelled</span><span className="font-semibold text-destructive">{d.cancelled}</span></div>
-        {(d.webOrderCancel ?? 0) > 0 && (
-          <div className="flex justify-between"><span className="text-muted-foreground">Web Cancel</span><span className="font-semibold" style={{ color: 'hsl(24, 95%, 53%)' }}>{d.webOrderCancel}</span></div>
-        )}
+      <div className="space-y-1">
+        <KpiPill label="Total" value={d.total} />
+        <KpiPill label="Success" value={d.delivered} color="text-emerald-600" />
+        <KpiPill label="Cancel" value={d.cancelled} color="text-red-500" />
       </div>
-      <Progress value={d.successRate} className="h-1 mt-2" />
-    </div>
+      {/* Minimal progress line */}
+      <div className="mt-3 h-[3px] rounded-full bg-muted overflow-hidden">
+        <div
+          className={cn("h-full rounded-full transition-all duration-500",
+            d.successRate >= 80 ? "bg-emerald-500" : d.successRate >= 50 ? "bg-amber-500" : "bg-red-500"
+          )}
+          style={{ width: `${d.total > 0 ? d.successRate : 0}%` }}
+        />
+      </div>
+    </button>
   );
 }
 
 function DeliveryPerformanceSection() {
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
 
-  // All-time data — no time filter
   const { data: allOrders, isLoading } = useQuery({
     queryKey: ["delivery-kpi-orders-alltime"],
     queryFn: async () => {
@@ -224,31 +198,28 @@ function DeliveryPerformanceSection() {
   }, [overallStats, allOrders]);
 
   const loading = isLoading || courierLoading;
+  const toggle = (key: string) => setSelectedCard(prev => prev === key ? null : key);
 
   return (
-    <Card className="rounded-[14px] border-border/50 shadow-sm overflow-hidden">
-      <CardContent className="p-4">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 mb-3">
-          📊 Delivery Performance
-        </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-          <DeliveryStatCard name="Overall" emoji="📊" data={overallStats} isLoading={loading}
-            selected={selectedCard === "overall"} onClick={() => setSelectedCard(selectedCard === "overall" ? null : "overall")} />
-          <DeliveryStatCard name="Pathao" emoji="🛵" data={courierStatsMap["pathao"] || null} isLoading={loading}
-            selected={selectedCard === "pathao"} onClick={() => setSelectedCard(selectedCard === "pathao" ? null : "pathao")} />
-          <DeliveryStatCard name="RedX" emoji="🔴" data={courierStatsMap["redx"] || null} isLoading={loading}
-            selected={selectedCard === "redx"} onClick={() => setSelectedCard(selectedCard === "redx" ? null : "redx")} />
-          <DeliveryStatCard name="Steadfast" emoji="⚡" data={courierStatsMap["steadfast"] || null} isLoading={loading}
-            selected={selectedCard === "steadfast"} onClick={() => setSelectedCard(selectedCard === "steadfast" ? null : "steadfast")} />
-          <OurRecordCard data={ourRecord} isLoading={loading}
-            selected={selectedCard === "our"} onClick={() => setSelectedCard(selectedCard === "our" ? null : "our")} />
-        </div>
-      </CardContent>
-    </Card>
+    <div className="space-y-3">
+      <SectionLabel icon={<TrendingUp className="w-3.5 h-3.5" />}>Delivery Performance</SectionLabel>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+        <DeliveryKpiCard name="Overall" data={overallStats} isLoading={loading}
+          selected={selectedCard === "overall"} onClick={() => toggle("overall")} accent />
+        <DeliveryKpiCard name="Pathao" data={courierStatsMap["pathao"] || null} isLoading={loading}
+          selected={selectedCard === "pathao"} onClick={() => toggle("pathao")} />
+        <DeliveryKpiCard name="RedX" data={courierStatsMap["redx"] || null} isLoading={loading}
+          selected={selectedCard === "redx"} onClick={() => toggle("redx")} />
+        <DeliveryKpiCard name="Steadfast" data={courierStatsMap["steadfast"] || null} isLoading={loading}
+          selected={selectedCard === "steadfast"} onClick={() => toggle("steadfast")} />
+        <DeliveryKpiCard name="Our Record" data={ourRecord} isLoading={loading}
+          selected={selectedCard === "our"} onClick={() => toggle("our")} />
+      </div>
+    </div>
   );
 }
 
-/* Order Health Card (replaces Delivery Method) */
+/* ─── Order Health Sidebar ─── */
 function OrderHealthCard({ phone, parseResult, grandTotal, advance }: {
   phone: string; parseResult: ParseAddressResult | null; grandTotal: number; advance: number;
 }) {
@@ -259,11 +230,9 @@ function OrderHealthCard({ phone, parseResult, grandTotal, advance }: {
     queryKey: ["customer-history", phone],
     queryFn: async () => {
       if (!phone || phone.length < 11) return null;
-      // Find customer by phone
       const { data: customer } = await supabase
         .from("customers").select("id, total_orders, total_spent").eq("phone", phone).maybeSingle();
       if (!customer) return null;
-      // Get order stats
       const { data: orders } = await supabase
         .from("orders").select("status").eq("customer_id", customer.id);
       if (!orders) return { total: customer.total_orders || 0, delivered: 0, returned: 0, cancelled: 0 };
@@ -282,95 +251,83 @@ function OrderHealthCard({ phone, parseResult, grandTotal, advance }: {
   const custSuccessRate = hasHistory ? Math.round((customerHistory.delivered / customerHistory.total) * 100) : 0;
 
   return (
-    <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
-      <CardContent className="p-5">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 mb-4">
-          🩺 Order Health
-        </h2>
+    <div className="rounded-xl border border-border/40 bg-card p-5 space-y-5">
+      <SectionLabel icon={<Zap className="w-3.5 h-3.5" />}>Order Health</SectionLabel>
 
-        {/* Customer History */}
-        <div className="rounded-xl bg-muted/20 border border-border/30 p-3 mb-3">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1">
-            <User className="w-3 h-3" /> Customer History
-          </p>
-          {phone.length < 11 ? (
-            <p className="text-xs text-muted-foreground/60 italic">Enter phone to see history</p>
-          ) : isLoading ? (
-            <div className="space-y-1.5">
-              <Skeleton className="h-4 w-full rounded" />
-              <Skeleton className="h-4 w-3/4 rounded" />
-            </div>
-          ) : !hasHistory ? (
-            <div className="flex items-center gap-2">
-              <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] rounded-full">🆕 New Customer</Badge>
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Total Orders</span>
-                <span className="text-xs font-bold">{customerHistory.total}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Delivered</span>
-                <span className="text-xs font-bold text-emerald-600">{customerHistory.delivered}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Returned</span>
-                <span className="text-xs font-bold text-amber-600">{customerHistory.returned}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Cancelled</span>
-                <span className="text-xs font-bold text-destructive">{customerHistory.cancelled}</span>
-              </div>
-              <Progress value={custSuccessRate} className="h-1.5 mt-1" />
-              <p className="text-[10px] text-muted-foreground">Success Rate: <span className={cn("font-bold", custSuccessRate >= 80 ? "text-emerald-600" : custSuccessRate >= 50 ? "text-amber-600" : "text-destructive")}>{custSuccessRate}%</span></p>
-            </div>
-          )}
-        </div>
-
-        {/* Address Confidence */}
-        <div className="rounded-xl bg-muted/20 border border-border/30 p-3 mb-3">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">📍 Address Mapping</p>
-          {confLevel ? (
-            <div className="flex items-center gap-2">
-              {confLevel.level === "high" ? (
-                <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              ) : confLevel.level === "medium" ? (
-                <AlertTriangle className="w-4 h-4 text-amber-500" />
-              ) : (
-                <AlertCircle className="w-4 h-4 text-destructive" />
-              )}
-              <Badge variant="outline" className={cn("text-[10px] rounded-full px-2", confLevel.color)}>
-                {confLevel.icon} {confLevel.label}
-              </Badge>
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground/60 italic">Enter address to detect</p>
-          )}
-        </div>
-
-        {/* COD Pending */}
-        <div className="rounded-xl bg-muted/20 border border-border/30 p-3">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">💰 COD Status</p>
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">COD Pending</span>
-            <span className={cn("text-sm font-extrabold tabular-nums", codPending > 0 ? "text-amber-600" : "text-emerald-600")}>
-              ৳{codPending.toLocaleString()}
-            </span>
+      {/* Customer History */}
+      <div className="space-y-2.5">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground flex items-center gap-1.5">
+          <User className="w-3 h-3" /> Customer History
+        </p>
+        {phone.length < 11 ? (
+          <p className="text-xs text-muted-foreground/50">Enter phone to see history</p>
+        ) : isLoading ? (
+          <div className="space-y-1.5"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-3/4" /></div>
+        ) : !hasHistory ? (
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary/5 text-primary text-[11px] font-medium">
+            <span>✦</span> New Customer
           </div>
-          {advance > 0 && (
-            <p className="text-[10px] text-emerald-600 mt-1">✓ Advance ৳{advance.toLocaleString()} received</p>
-          )}
+        ) : (
+          <div className="space-y-1.5">
+            <KpiPill label="Total Orders" value={customerHistory.total} />
+            <KpiPill label="Delivered" value={customerHistory.delivered} color="text-emerald-600" />
+            <KpiPill label="Returned" value={customerHistory.returned} color="text-amber-600" />
+            <KpiPill label="Cancelled" value={customerHistory.cancelled} color="text-red-500" />
+            <div className="pt-1">
+              <div className="h-[3px] rounded-full bg-muted overflow-hidden">
+                <div className={cn("h-full rounded-full",
+                  custSuccessRate >= 80 ? "bg-emerald-500" : custSuccessRate >= 50 ? "bg-amber-500" : "bg-red-500"
+                )} style={{ width: `${custSuccessRate}%` }} />
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Success: <span className={cn("font-semibold", custSuccessRate >= 80 ? "text-emerald-600" : custSuccessRate >= 50 ? "text-amber-600" : "text-red-500")}>{custSuccessRate}%</span>
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <Separator className="bg-border/30" />
+
+      {/* Address Mapping */}
+      <div className="space-y-2">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Address Mapping</p>
+        {confLevel ? (
+          <div className="flex items-center gap-2">
+            {confLevel.level === "high" ? <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> :
+             confLevel.level === "medium" ? <AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> :
+             <AlertCircle className="w-3.5 h-3.5 text-red-500" />}
+            <span className={cn("text-[11px] font-medium", confLevel.color)}>{confLevel.icon} {confLevel.label}</span>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground/50">Enter address to detect</p>
+        )}
+      </div>
+
+      <Separator className="bg-border/30" />
+
+      {/* COD Status */}
+      <div className="space-y-2">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">COD Status</p>
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-muted-foreground">COD Pending</span>
+          <span className={cn("text-sm font-bold tabular-nums", codPending > 0 ? "text-amber-600" : "text-emerald-600")}
+            style={{ fontFamily: "'Syne', sans-serif" }}>
+            ৳{codPending.toLocaleString()}
+          </span>
         </div>
-      </CardContent>
-    </Card>
+        {advance > 0 && (
+          <p className="text-[10px] text-emerald-600 font-medium">✓ Advance ৳{advance.toLocaleString()} received</p>
+        )}
+      </div>
+    </div>
   );
 }
 
 function StockBadge({ stock }: { stock: number }) {
-  if (stock <= 0) return <span className="text-[10px] font-bold text-destructive">Out of stock</span>;
-  if (stock < 10) return <span className="text-[10px] font-semibold text-orange-600">{stock} left</span>;
-  return <span className="text-[10px] text-muted-foreground">{stock} in stock</span>;
+  if (stock <= 0) return <span className="text-[10px] font-semibold text-red-500">Out</span>;
+  if (stock < 10) return <span className="text-[10px] font-medium text-amber-600">{stock}</span>;
+  return <span className="text-[10px] text-muted-foreground">{stock}</span>;
 }
 
 /* ═══ Main Component ═══ */
@@ -452,7 +409,6 @@ export default function NewOrder() {
   const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
   const total = subtotal - form.discount + form.delivery_charge;
   const grandTotal = total;
-  // Delivery performance is always visible (business-level, not phone-dependent)
 
   /* ── Address Parsing ── */
   const autoMapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -468,10 +424,7 @@ export default function NewOrder() {
   }, [selectedCityId, cities]);
 
   const runAutoMap = useCallback((address: string) => {
-    if (!address || address.length < 5) {
-      setParseResult(null);
-      return;
-    }
+    if (!address || address.length < 5) { setParseResult(null); return; }
     ensureCitySelected();
     const currentCity = cities?.find((c) => c.city_id === selectedCityId)?.city_name || "Dhaka";
     const parsed = parseAddress(address, currentCity);
@@ -479,10 +432,7 @@ export default function NewOrder() {
     const conf = getParseConfidenceLevel(parsed.confidence);
     if ((conf.level === "high" || conf.level === "medium") && zones) {
       const zoneMatch = zones.find((z) => z.zone_name.toLowerCase() === parsed.zone.toLowerCase());
-      if (zoneMatch) {
-        setSelectedZoneId(zoneMatch.zone_id);
-        setZoneName(zoneMatch.zone_name);
-      }
+      if (zoneMatch) { setSelectedZoneId(zoneMatch.zone_id); setZoneName(zoneMatch.zone_name); }
     }
   }, [cities, selectedCityId, zones, ensureCitySelected]);
 
@@ -495,10 +445,7 @@ export default function NewOrder() {
   useEffect(() => {
     if (parseResult?.area && areas) {
       const areaMatch = areas.find((a) => a.area_name.toLowerCase() === parseResult.area.toLowerCase());
-      if (areaMatch) {
-        setSelectedAreaId(areaMatch.area_id);
-        setAreaName(areaMatch.area_name);
-      }
+      if (areaMatch) { setSelectedAreaId(areaMatch.area_id); setAreaName(areaMatch.area_name); }
     }
   }, [areas, parseResult]);
 
@@ -512,41 +459,25 @@ export default function NewOrder() {
   const handleClearAddress = () => {
     updateForm({ delivery_address: "" });
     setParseResult(null);
-    setSelectedZoneId(null);
-    setSelectedAreaId(null);
-    setZoneName("");
-    setAreaName("");
+    setSelectedZoneId(null); setSelectedAreaId(null);
+    setZoneName(""); setAreaName("");
   };
 
   /* ── Customer Handlers ── */
   const selectCustomer = (c: any) => {
-    setForm((f) => ({
-      ...f,
-      customer_phone: c.phone,
-      customer_name: c.full_name,
-      delivery_address: c.address || "",
-    }));
+    setForm((f) => ({ ...f, customer_phone: c.phone, customer_name: c.full_name, delivery_address: c.address || "" }));
     setShowCustomerDropdown(false);
     setIsReturningCustomer(true);
     if (c.district && cities) {
       const match = cities.find((ct) => ct.city_name.toLowerCase() === c.district?.toLowerCase());
-      if (match) {
-        setSelectedCityId(match.city_id);
-        setCityName(match.city_name);
-      }
+      if (match) { setSelectedCityId(match.city_id); setCityName(match.city_name); }
     }
-    if (c.address) {
-      setTimeout(() => runAutoMap(c.address), 100);
-    }
+    if (c.address) setTimeout(() => runAutoMap(c.address), 100);
   };
 
   const handlePhoneBlur = useCallback(async () => {
     if (form.customer_phone.length < 11) return;
-    const { data } = await supabase
-      .from("customers")
-      .select("id, full_name, phone, address, district, thana")
-      .eq("phone", form.customer_phone)
-      .maybeSingle();
+    const { data } = await supabase.from("customers").select("id, full_name, phone, address, district, thana").eq("phone", form.customer_phone).maybeSingle();
     if (data) {
       setIsReturningCustomer(true);
       if (!form.customer_name) updateForm({ customer_name: data.full_name });
@@ -567,14 +498,11 @@ export default function NewOrder() {
     if (items.find((i) => i.product_id === p.id)) {
       setItems((prev) => prev.map((i) => (i.product_id === p.id ? { ...i, quantity: i.quantity + 1 } : i)));
     } else {
-      setItems((prev) => [
-        ...prev,
-        {
-          product_id: p.id, product_name: p.name, product_sku: p.sku,
-          product_image: p.image_url, stock_quantity: stock,
-          quantity: 1, unit_price: p.selling_price || 0, unit_cost: p.landed_cost_bdt || 0,
-        },
-      ]);
+      setItems((prev) => [...prev, {
+        product_id: p.id, product_name: p.name, product_sku: p.sku,
+        product_image: p.image_url, stock_quantity: stock,
+        quantity: 1, unit_price: p.selling_price || 0, unit_cost: p.landed_cost_bdt || 0,
+      }]);
     }
   };
 
@@ -583,42 +511,21 @@ export default function NewOrder() {
     setItems((prev) => prev.map((i) => (i.product_id === pid ? { ...i, [field]: Math.max(field === "quantity" ? 1 : 0, val) } : i)));
 
   const toggleFavorite = (pid: string) => {
-    setFavorites((prev) => {
-      const next = new Set(prev);
-      if (next.has(pid)) next.delete(pid); else next.add(pid);
-      return next;
-    });
+    setFavorites((prev) => { const next = new Set(prev); if (next.has(pid)) next.delete(pid); else next.add(pid); return next; });
   };
 
   /* ── City/Zone/Area handlers ── */
   const handleCitySelect = (cId: string) => {
     const city = cities?.find((c) => c.city_id === Number(cId));
-    if (city) {
-      setSelectedCityId(city.city_id);
-      setCityName(city.city_name);
-      setSelectedZoneId(null);
-      setSelectedAreaId(null);
-      setZoneName("");
-      setAreaName("");
-    }
+    if (city) { setSelectedCityId(city.city_id); setCityName(city.city_name); setSelectedZoneId(null); setSelectedAreaId(null); setZoneName(""); setAreaName(""); }
   };
-
   const handleZoneSelect = (zId: string) => {
     const zone = zones?.find((z) => z.zone_id === Number(zId));
-    if (zone) {
-      setSelectedZoneId(zone.zone_id);
-      setZoneName(zone.zone_name);
-      setSelectedAreaId(null);
-      setAreaName("");
-    }
+    if (zone) { setSelectedZoneId(zone.zone_id); setZoneName(zone.zone_name); setSelectedAreaId(null); setAreaName(""); }
   };
-
   const handleAreaSelect = (aId: string) => {
     const area = areas?.find((a) => a.area_id === Number(aId));
-    if (area) {
-      setSelectedAreaId(area.area_id);
-      setAreaName(area.area_name);
-    }
+    if (area) { setSelectedAreaId(area.area_id); setAreaName(area.area_name); }
   };
 
   /* ── Create Order Mutation ── */
@@ -626,54 +533,32 @@ export default function NewOrder() {
     mutationFn: async () => {
       let customer_id: string | null = null;
       if (form.customer_phone) {
-        const { data: existing } = await supabase
-          .from("customers").select("id").eq("phone", form.customer_phone).maybeSingle();
+        const { data: existing } = await supabase.from("customers").select("id").eq("phone", form.customer_phone).maybeSingle();
         if (existing) {
           customer_id = existing.id;
-          await supabase.from("customers").update({
-            full_name: form.customer_name, address: form.delivery_address,
-            district: cityName, thana: zoneName,
-          }).eq("id", existing.id);
+          await supabase.from("customers").update({ full_name: form.customer_name, address: form.delivery_address, district: cityName, thana: zoneName }).eq("id", existing.id);
         } else if (form.customer_name) {
-          const { data: newC, error } = await supabase
-            .from("customers")
-            .insert({
-              phone: form.customer_phone,
-              full_name: form.customer_name, address: form.delivery_address,
-              district: cityName, thana: zoneName,
-            })
-            .select("id").single();
+          const { data: newC, error } = await supabase.from("customers").insert({ phone: form.customer_phone, full_name: form.customer_name, address: form.delivery_address, district: cityName, thana: zoneName }).select("id").single();
           if (error) throw error;
           customer_id = newC.id;
         }
       }
-
       const orderNum = `ORD-${Date.now().toString(36).toUpperCase()}`;
       const costOfGoods = items.reduce((s, i) => s + i.quantity * i.unit_cost, 0);
       const notesArr = [form.notes, form.shipping_note].filter(Boolean);
       if (form.is_preorder) notesArr.push("[Preorder]");
       if (form.is_cross_sale) notesArr.push("[Cross Sale]");
-
-      const { data: order, error: orderErr } = await supabase
-        .from("orders")
-        .insert({
-          order_number: orderNum, channel: form.source.toLowerCase(),
-          customer_id,
-          delivery_address: form.delivery_address,
-          delivery_district: cityName,
-          delivery_thana: zoneName,
-          payment_method: "cod",
-          payment_status: "pending",
-          subtotal, discount: form.discount,
-          delivery_charge: form.delivery_charge, total_amount: grandTotal,
-          cost_of_goods: costOfGoods, gross_profit: grandTotal - costOfGoods - form.delivery_charge,
-          cod_amount: grandTotal - form.advance,
-          notes: notesArr.join("\n"), status: "pending",
-          tags: [form.is_preorder && "preorder", form.is_cross_sale && "cross_sale"].filter(Boolean) as string[],
-        })
-        .select("id").single();
+      const { data: order, error: orderErr } = await supabase.from("orders").insert({
+        order_number: orderNum, channel: form.source.toLowerCase(), customer_id,
+        delivery_address: form.delivery_address, delivery_district: cityName, delivery_thana: zoneName,
+        payment_method: "cod", payment_status: "pending",
+        subtotal, discount: form.discount, delivery_charge: form.delivery_charge, total_amount: grandTotal,
+        cost_of_goods: costOfGoods, gross_profit: grandTotal - costOfGoods - form.delivery_charge,
+        cod_amount: grandTotal - form.advance,
+        notes: notesArr.join("\n"), status: "pending",
+        tags: [form.is_preorder && "preorder", form.is_cross_sale && "cross_sale"].filter(Boolean) as string[],
+      }).select("id").single();
       if (orderErr) throw orderErr;
-
       const orderItems = items.map((i) => ({
         order_id: order.id, product_id: i.product_id, quantity: i.quantity,
         unit_price: i.unit_price, unit_cost: i.unit_cost,
@@ -681,19 +566,11 @@ export default function NewOrder() {
       }));
       const { error: itemsErr } = await supabase.from("order_items").insert(orderItems);
       if (itemsErr) throw itemsErr;
-
       for (const item of items) {
         const product = products?.find((p) => p.id === item.product_id);
         if (!product) continue;
-        await supabase.from("products").update({
-          stock_quantity: (product.stock_quantity || 0) - item.quantity,
-          updated_at: new Date().toISOString(),
-        }).eq("id", item.product_id);
-        await supabase.from("inventory_movements").insert({
-          product_id: item.product_id, movement_type: "order_pending",
-          quantity: -item.quantity, reference_type: "order", reference_id: order.id,
-          notes: `Order created via ${form.delivery_method}`,
-        });
+        await supabase.from("products").update({ stock_quantity: (product.stock_quantity || 0) - item.quantity, updated_at: new Date().toISOString() }).eq("id", item.product_id);
+        await supabase.from("inventory_movements").insert({ product_id: item.product_id, movement_type: "order_pending", quantity: -item.quantity, reference_type: "order", reference_id: order.id, notes: `Order created via ${form.delivery_method}` });
       }
       return order;
     },
@@ -739,556 +616,433 @@ export default function NewOrder() {
 
   /* ═══ RENDER ═══ */
   return (
-    <div className="animate-fade-in pb-24">
-      {/* ── STICKY HEADER ── */}
-      <div className="sticky top-0 z-30 -mx-4 px-4 sm:-mx-6 sm:px-6 py-3 bg-background/80 backdrop-blur-md border-b border-border/40 mb-6 flex items-center justify-between"
-        style={{ height: 52 }}>
-        <div className="flex items-center gap-3">
-          <h1 className="text-lg font-bold tracking-tight">✨ New Order</h1>
-          <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] font-semibold rounded-full px-2.5">
-            Manual
-          </Badge>
+    <div className="animate-fade-in pb-24 max-w-[1440px] mx-auto">
+
+      {/* ═══ PAGE HEADER ═══ */}
+      <header className="flex items-center justify-between py-5 mb-6 border-b border-border/30">
+        <div className="flex items-center gap-4">
+          <button onClick={() => navigate(-1)} className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-lg font-bold tracking-tight text-foreground" style={{ fontFamily: "'Syne', sans-serif" }}>
+                New Order
+              </h1>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 text-[10px] font-semibold tracking-wide uppercase">
+                Draft
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">Create a new customer order</p>
+          </div>
         </div>
-        <Button variant="outline" size="sm"
-          className="text-xs text-primary border-primary/30 hover:bg-primary/5 rounded-lg gap-1.5">
-          📖 How to Take New Order?
-        </Button>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground/50 hidden sm:block">⌘+Enter to submit</span>
+        </div>
+      </header>
+
+      {/* ═══ DELIVERY INSIGHTS ═══ */}
+      <div className="mb-8">
+        <DeliveryPerformanceSection />
       </div>
 
-      {/* ═══ 2-Column Layout ═══ */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
+      {/* ═══ 2-COLUMN LAYOUT ═══ */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
 
         {/* ══ LEFT COLUMN ══ */}
-        <div className="space-y-6">
+        <div className="space-y-8">
 
-          {/* ── Card 1: Delivery Performance (always visible, real data) ── */}
-          <DeliveryPerformanceSection />
+          {/* ── CUSTOMER BLOCK ── */}
+          <section className="rounded-xl border border-border/40 bg-card p-6">
+            <SectionLabel icon={<User className="w-3.5 h-3.5" />}>Customer</SectionLabel>
 
-          {/* ── Card 2: Customer Information ── */}
-          <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
-            <CardContent className="p-5">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 mb-4">
-                👤 Customer Information
-              </h2>
-
-              {/* Row 1: Mobile, Name, Delivery Method */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+            {/* Row 1 */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+              <div className="relative">
+                <Label className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground mb-1.5 block">Mobile *</Label>
                 <div className="relative">
-                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">
-                    Mobile Number *
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      value={form.customer_phone}
-                      onChange={(e) => { updateForm({ customer_phone: e.target.value }); setShowCustomerDropdown(true); setIsReturningCustomer(false); }}
-                      onFocus={() => setShowCustomerDropdown(true)}
-                      onBlur={() => { setTimeout(() => setShowCustomerDropdown(false), 200); handlePhoneBlur(); }}
-                      placeholder="01XXXXXXXXX"
-                      className="h-10 rounded-xl bg-muted/30 border-border/60 pr-20 focus:bg-card transition-colors"
-                    />
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                      <button className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center hover:bg-primary/20 transition-colors"
-                        onClick={() => form.customer_phone && window.open(`tel:${form.customer_phone}`)}>
-                        <Phone className="w-3.5 h-3.5" />
-                      </button>
-                      <button className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center hover:bg-emerald-500/20 transition-colors"
-                        onClick={() => form.customer_phone && window.open(`https://wa.me/88${form.customer_phone}`)}>
-                        <MessageCircle className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                  {isReturningCustomer && (
-                    <Badge className="mt-1 bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] rounded-full">
-                      ✓ Returning Customer
-                    </Badge>
-                  )}
-                  {showCustomerDropdown && customers && customers.length > 0 && (
-                    <div className="absolute z-40 w-full bg-card border border-border/60 rounded-xl mt-1 shadow-lg overflow-hidden">
-                      {customers.map((c) => (
-                        <button key={c.id}
-                          className="w-full text-left px-3 py-2 hover:bg-muted/60 text-sm flex items-center gap-2 transition-colors"
-                          onMouseDown={() => selectCustomer(c)}>
-                          <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
-                            {c.full_name?.[0]?.toUpperCase() || "?"}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium text-xs truncate">{c.full_name}</p>
-                            <p className="text-[10px] text-muted-foreground font-mono">{c.phone}</p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">
-                    Customer Name *
-                  </Label>
                   <Input
-                    value={form.customer_name}
-                    onChange={(e) => updateForm({ customer_name: e.target.value })}
-                    placeholder="Customer name"
-                    className="h-10 rounded-xl bg-muted/30 border-border/60 focus:bg-card transition-colors"
+                    value={form.customer_phone}
+                    onChange={(e) => { updateForm({ customer_phone: e.target.value }); setShowCustomerDropdown(true); setIsReturningCustomer(false); }}
+                    onFocus={() => setShowCustomerDropdown(true)}
+                    onBlur={() => { setTimeout(() => setShowCustomerDropdown(false), 200); handlePhoneBlur(); }}
+                    placeholder="01XXXXXXXXX"
+                    className="h-9 rounded-lg bg-background border-border/60 pr-20 text-sm transition-all focus:border-primary/50 focus:shadow-[0_0_0_3px_hsl(var(--primary)/0.06)]"
                   />
-                </div>
-
-                <div>
-                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">
-                    Delivery Method *
-                  </Label>
-                  <Select value={form.delivery_method} onValueChange={(v) => updateForm({ delivery_method: v })}>
-                    <SelectTrigger className="h-10 rounded-xl bg-muted/30 border-border/60">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-card">
-                      {COURIERS.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.emoji} {c.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Row 2: Address + Shipping Note */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">
-                    Address
-                  </Label>
-                  <Input
-                    value={form.delivery_address}
-                    onChange={(e) => handleAddressChange(e.target.value)}
-                    placeholder="Full delivery address..."
-                    className="h-10 rounded-xl bg-muted/30 border-border/60 focus:bg-card transition-colors"
-                  />
-                </div>
-                <div>
-                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">
-                    Shipping Note
-                  </Label>
-                  <Textarea
-                    value={form.shipping_note}
-                    onChange={(e) => updateForm({ shipping_note: e.target.value })}
-                    rows={2}
-                    className="resize-none text-xs rounded-xl bg-muted/30 border-border/60 focus:bg-card transition-colors"
-                  />
-                </div>
-              </div>
-
-              {/* Address Auto-detect Banner */}
-              <div className="flex items-center justify-between gap-3 mb-4 px-4 py-2.5 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/15">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-xs">🔮</span>
-                  <span className="text-[11px] text-primary font-medium truncate">
-                    Address এ লিখলে এই field গুলো অটোমেটিক fill হবে
-                  </span>
-                  {confLevel && (
-                    <Badge variant="outline" className={cn("text-[9px] shrink-0 rounded-full px-2 py-0", confLevel.color)}>
-                      {confLevel.icon} {confLevel.label}
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={() => runAutoMap(form.delivery_address)}
-                    className="w-7 h-7 rounded-lg border border-primary/20 flex items-center justify-center text-primary hover:bg-primary/10 transition-colors">
-                    <RefreshCw className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={handleClearAddress}
-                    className="w-7 h-7 rounded-lg border border-primary/20 flex items-center justify-center text-primary hover:bg-primary/10 transition-colors">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* City / Zone / Area */}
-              <div className="grid grid-cols-3 gap-4 mb-5">
-                <div>
-                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">City</Label>
-                  <Select value={selectedCityId?.toString() || ""} onValueChange={handleCitySelect}>
-                    <SelectTrigger className="h-10 rounded-xl bg-muted/30 border-border/60">
-                      <SelectValue placeholder="Select city" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-card max-h-64">
-                      {cities?.map((c) => (<SelectItem key={c.city_id} value={c.city_id.toString()}>{c.city_name}</SelectItem>))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Zone</Label>
-                  <Select value={selectedZoneId?.toString() || ""} onValueChange={handleZoneSelect}>
-                    <SelectTrigger className="h-10 rounded-xl bg-muted/30 border-border/60">
-                      <SelectValue placeholder="Select zone" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-card max-h-64">
-                      {zones?.map((z) => (<SelectItem key={z.zone_id} value={z.zone_id.toString()}>{z.zone_name}</SelectItem>))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Area</Label>
-                  <Select value={selectedAreaId?.toString() || ""} onValueChange={handleAreaSelect}>
-                    <SelectTrigger className="h-10 rounded-xl bg-muted/30 border-border/60">
-                      <SelectValue placeholder="Select an area" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-card max-h-64">
-                      {areas?.map((a) => (<SelectItem key={a.area_id} value={a.area_id.toString()}>{a.area_name}</SelectItem>))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <Separator className="mb-4" />
-
-              {/* Extra Options */}
-              <div className="flex items-center flex-wrap gap-3">
-                <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Extra Options</Label>
-                <div className="flex items-center gap-1.5">
-                  {[FileText, Link2, Mail, Tag, Save].map((Icon, idx) => (
-                    <button key={idx} className="w-8 h-8 rounded-lg border border-border/60 flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors">
-                      <Icon className="w-3.5 h-3.5" />
+                  <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                    <button className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors"
+                      onClick={() => form.customer_phone && window.open(`tel:${form.customer_phone}`)}>
+                      <Phone className="w-3 h-3" />
                     </button>
-                  ))}
+                    <button className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                      onClick={() => form.customer_phone && window.open(`https://wa.me/88${form.customer_phone}`)}>
+                      <MessageCircle className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Switch checked={form.is_preorder} onCheckedChange={(v) => updateForm({ is_preorder: v })} />
-                  <span className="text-xs font-medium">Preorder</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch checked={form.is_cross_sale} onCheckedChange={(v) => updateForm({ is_cross_sale: v })} />
-                  <span className="text-xs font-medium">Cross Sale</span>
-                </div>
-                <Select value={form.source} onValueChange={(v) => updateForm({ source: v })}>
-                  <SelectTrigger className="h-8 w-[130px] text-xs rounded-lg border-border/60">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card">
-                    {SOURCES.map((s) => (<SelectItem key={s} value={s}>{s}</SelectItem>))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* ── Card 3: Order Items ── */}
-          <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                  🛒 Order Items
-                </h2>
-                {items.length > 0 && (
-                  <Badge variant="secondary" className="rounded-full text-[10px] font-semibold">
-                    {items.length} item{items.length > 1 ? "s" : ""} added
-                  </Badge>
+                {isReturningCustomer && (
+                  <span className="inline-flex items-center gap-1 mt-1.5 text-[10px] font-medium text-emerald-600">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Returning
+                  </span>
+                )}
+                {showCustomerDropdown && customers && customers.length > 0 && (
+                  <div className="absolute z-40 w-full bg-card border border-border/60 rounded-lg mt-1 shadow-lg overflow-hidden">
+                    {customers.map((c) => (
+                      <button key={c.id}
+                        className="w-full text-left px-3 py-2.5 hover:bg-muted/40 text-sm flex items-center gap-2.5 transition-colors"
+                        onMouseDown={() => selectCustomer(c)}>
+                        <div className="w-6 h-6 rounded-md bg-primary/5 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
+                          {c.full_name?.[0]?.toUpperCase() || "?"}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-xs truncate">{c.full_name}</p>
+                          <p className="text-[10px] text-muted-foreground font-mono">{c.phone}</p>
+                        </div>
+                        <ChevronRight className="w-3 h-3 text-muted-foreground/30" />
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* LEFT: Ordered Products */}
-                <div>
-                  <h3 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3">
-                    Ordered Products
-                  </h3>
-                  {items.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-10 text-muted-foreground/40">
-                      <Package className="w-12 h-12 mb-2" />
-                      <p className="text-xs">No products added yet</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {items.map((item) => (
-                        <div key={item.product_id} className="relative flex items-start gap-3 p-3 bg-muted/30 rounded-xl border border-border/40 animate-fade-in">
-                          <button
-                            className="absolute top-1.5 right-1.5 w-5 h-5 rounded-md flex items-center justify-center text-destructive/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
-                            onClick={() => removeItem(item.product_id)}>
-                            <X className="w-3 h-3" />
-                          </button>
-                          {item.product_image ? (
-                            <img src={item.product_image} alt="" className="w-10 h-10 rounded-lg object-cover border border-border/30 shrink-0" />
-                          ) : (
-                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                              <Package className="w-5 h-5 text-muted-foreground/40" />
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-mono text-muted-foreground">{item.product_sku}</p>
-                            <p className="text-xs font-semibold text-primary truncate">{item.product_name}</p>
-                            <p className="text-[10px] text-muted-foreground">৳{item.unit_price} · Stock: {item.stock_quantity}</p>
-                            <div className="flex items-center gap-3 mt-2">
-                              <div className="flex items-center gap-0.5 bg-card border border-border/60 rounded-full px-1 py-0.5">
-                                <button className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-muted transition-colors"
-                                  onClick={() => updateItem(item.product_id, "quantity", item.quantity - 1)}>
-                                  <Minus className="w-2.5 h-2.5" />
-                                </button>
-                                <Input type="number" value={item.quantity}
-                                  onChange={(e) => updateItem(item.product_id, "quantity", parseInt(e.target.value) || 1)}
-                                  className="w-8 h-5 text-center text-[11px] font-bold px-0 border-0 bg-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                                <button className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-muted transition-colors"
-                                  onClick={() => updateItem(item.product_id, "quantity", item.quantity + 1)}>
-                                  <Plus className="w-2.5 h-2.5" />
-                                </button>
-                              </div>
-                              <div className="flex items-center gap-0.5 bg-card border border-border/60 rounded-full px-1 py-0.5">
-                                <button className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-muted transition-colors"
-                                  onClick={() => updateItem(item.product_id, "unit_price", item.unit_price - 10)}>
-                                  <Minus className="w-2.5 h-2.5" />
-                                </button>
-                                <Input type="number" value={item.unit_price}
-                                  onChange={(e) => updateItem(item.product_id, "unit_price", parseFloat(e.target.value) || 0)}
-                                  className="w-14 h-5 text-center text-[11px] font-mono px-0 border-0 bg-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                                <button className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-muted transition-colors"
-                                  onClick={() => updateItem(item.product_id, "unit_price", item.unit_price + 10)}>
-                                  <Plus className="w-2.5 h-2.5" />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* RIGHT: Click To Add Products */}
-                <div>
-                  <h3 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3">
-                    Click To Add Products
-                  </h3>
-                  <div className="grid grid-cols-2 gap-2 mb-3">
-                    <div className="relative">
-                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/40" />
-                      <Input ref={codeSearchRef} value={codeSearch}
-                        onChange={(e) => setCodeSearch(e.target.value)}
-                        placeholder="Code/SKU..."
-                        className="pl-8 h-9 text-xs rounded-xl bg-muted/30 border-border/60" />
-                    </div>
-                    <div className="relative">
-                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/40" />
-                      <Input ref={nameSearchRef} value={nameSearch}
-                        onChange={(e) => setNameSearch(e.target.value)}
-                        placeholder="Product name..."
-                        className="pl-8 h-9 text-xs rounded-xl bg-muted/30 border-border/60" />
-                    </div>
-                  </div>
-
-                  <div className="max-h-[320px] overflow-y-auto space-y-1 pr-0.5">
-                    {(filteredProducts || []).slice(0, 30).map((p) => {
-                      const stock = p.stock_quantity || 0;
-                      const outOfStock = stock <= 0;
-                      const inCart = items.find((i) => i.product_id === p.id);
-                      const isFav = favorites.has(p.id);
-                      return (
-                        <div key={p.id}
-                          className={cn(
-                            "flex items-center gap-2.5 px-3 py-2 rounded-xl border cursor-pointer transition-all",
-                            outOfStock ? "opacity-40 cursor-not-allowed" :
-                            inCart ? "border-primary/40 bg-primary/[0.03]" :
-                            "border-border/30 hover:border-border hover:bg-muted/30"
-                          )}
-                          onClick={() => !outOfStock && addProduct(p)}>
-                          {p.image_url ? (
-                            <img src={p.image_url} alt="" className="w-9 h-9 rounded-lg object-cover border border-border/30 shrink-0" />
-                          ) : (
-                            <div className="w-9 h-9 rounded-lg bg-muted/60 flex items-center justify-center shrink-0">
-                              <Package className="w-4 h-4 text-muted-foreground/40" />
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium truncate">{p.name}</p>
-                            <p className="text-[10px] text-muted-foreground font-mono">{p.sku} · {formatBDT(p.selling_price)}</p>
-                          </div>
-                          <StockBadge stock={stock} />
-                          {inCart && <span className="text-emerald-500 text-xs">✓</span>}
-                          <button
-                            onClick={(e) => { e.stopPropagation(); toggleFavorite(p.id); }}
-                            className={cn("w-6 h-6 flex items-center justify-center rounded-md transition-colors",
-                              isFav ? "text-amber-400" : "text-muted-foreground/30 hover:text-amber-400"
-                            )}>
-                            <Star className={cn("w-3.5 h-3.5", isFav && "fill-current")} />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+              <div>
+                <Label className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground mb-1.5 block">Name *</Label>
+                <Input value={form.customer_name} onChange={(e) => updateForm({ customer_name: e.target.value })}
+                  placeholder="Customer name"
+                  className="h-9 rounded-lg bg-background border-border/60 text-sm transition-all focus:border-primary/50 focus:shadow-[0_0_0_3px_hsl(var(--primary)/0.06)]" />
               </div>
-            </CardContent>
-          </Card>
-        </div>
 
-        {/* ══ RIGHT COLUMN ══ */}
-        <div className="space-y-5 lg:sticky lg:top-16 lg:self-start">
-
-          {/* ── Order Health (replaces Delivery Method) ── */}
-          <OrderHealthCard
-            phone={form.customer_phone}
-            parseResult={parseResult}
-            grandTotal={grandTotal}
-            advance={form.advance}
-          />
-
-          {/* ── Order Summary ── */}
-          <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
-            <CardContent className="p-5">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 mb-4">
-                🔥 Order Summary
-              </h2>
-              <div className="rounded-xl bg-gradient-to-br from-primary/5 to-primary/[0.02] border border-primary/10 p-4 space-y-3">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-primary flex items-center gap-1">
-                  📊 Pricing
-                </p>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span className="font-semibold tabular-nums">৳{subtotal.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-sm items-center">
-                  <span className="text-muted-foreground">Discount</span>
-                  <Input type="number" value={form.discount || ""}
-                    onChange={(e) => updateForm({ discount: parseFloat(e.target.value) || 0 })}
-                    placeholder="0"
-                    className="w-20 text-right h-7 text-sm font-mono rounded-lg border-border/60 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                </div>
-                <div className="flex justify-between text-sm items-center">
-                  <span className="text-muted-foreground">Advance</span>
-                  <Input type="number" value={form.advance || ""}
-                    onChange={(e) => updateForm({ advance: parseFloat(e.target.value) || 0 })}
-                    placeholder="0"
-                    className="w-20 text-right h-7 text-sm font-mono rounded-lg border-border/60 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                </div>
-                <div className="flex justify-between text-sm items-center">
-                  <span className="text-muted-foreground">Delivery Charge</span>
-                  <Input type="number" value={form.delivery_charge}
-                    onChange={(e) => updateForm({ delivery_charge: parseFloat(e.target.value) || 0 })}
-                    className="w-20 text-right h-7 text-sm font-mono rounded-lg border-border/60 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                </div>
-                <Separator />
-                <div className="flex justify-between items-baseline pt-1">
-                  <span className="text-base font-bold text-primary">Grand Total</span>
-                  <span className="text-xl font-extrabold text-primary tabular-nums">৳{grandTotal.toLocaleString()}</span>
-                </div>
+              <div>
+                <Label className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground mb-1.5 block">Courier *</Label>
+                <Select value={form.delivery_method} onValueChange={(v) => updateForm({ delivery_method: v })}>
+                  <SelectTrigger className="h-9 rounded-lg bg-background border-border/60 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card">
+                    {COURIERS.map((c) => (<SelectItem key={c.id} value={c.id}>{c.emoji} {c.name}</SelectItem>))}
+                  </SelectContent>
+                </Select>
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* ── Note ── */}
-          <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
-            <CardContent className="p-5">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 mb-3">
-                ✏️ Note
-              </h2>
-              <Textarea
-                value={form.notes}
-                onChange={(e) => updateForm({ notes: e.target.value })}
-                placeholder="Add order note..."
-                rows={3}
-                className="resize-none text-sm rounded-xl bg-muted/30 border-border/60 focus:bg-card transition-colors mb-3"
-              />
-              <div className="flex flex-wrap gap-1.5">
-                {QUICK_NOTES.map((note) => (
-                  <button key={note}
-                    onClick={() => updateForm({ notes: form.notes ? `${form.notes}\n${note}` : note })}
-                    className="px-2.5 py-1 rounded-lg border border-border/60 text-[10px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors">
-                    {note}
+            {/* Row 2: Address */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+              <div>
+                <Label className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground mb-1.5 block">Address</Label>
+                <Input value={form.delivery_address} onChange={(e) => handleAddressChange(e.target.value)}
+                  placeholder="Full delivery address"
+                  className="h-9 rounded-lg bg-background border-border/60 text-sm transition-all focus:border-primary/50 focus:shadow-[0_0_0_3px_hsl(var(--primary)/0.06)]" />
+              </div>
+              <div>
+                <Label className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground mb-1.5 block">Shipping Note</Label>
+                <Textarea value={form.shipping_note} onChange={(e) => updateForm({ shipping_note: e.target.value })}
+                  rows={1} className="resize-none text-xs rounded-lg bg-background border-border/60 min-h-[36px] transition-all focus:border-primary/50 focus:shadow-[0_0_0_3px_hsl(var(--primary)/0.06)]" />
+              </div>
+            </div>
+
+            {/* Address auto-detect hint */}
+            {form.delivery_address && (
+              <div className="flex items-center gap-2 mb-5 px-3 py-2 rounded-lg bg-primary/[0.03] border border-primary/10">
+                <span className="text-[11px] text-primary/70">Auto-mapping address fields</span>
+                {confLevel && (
+                  <span className={cn("text-[10px] font-medium", confLevel.color)}>{confLevel.icon} {confLevel.label}</span>
+                )}
+                <div className="ml-auto flex items-center gap-1">
+                  <button onClick={() => runAutoMap(form.delivery_address)}
+                    className="w-6 h-6 rounded-md flex items-center justify-center text-primary/60 hover:text-primary hover:bg-primary/5 transition-colors">
+                    <RefreshCw className="w-3 h-3" />
                   </button>
-                ))}
+                  <button onClick={handleClearAddress}
+                    className="w-6 h-6 rounded-md flex items-center justify-center text-primary/60 hover:text-primary hover:bg-primary/5 transition-colors">
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            )}
 
-      {/* ═══ BOTTOM STICKY BAR ═══ */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 h-[62px] flex items-center px-4 sm:px-6"
-        style={{
-          background: "linear-gradient(135deg, #0d0f1a 0%, #161830 100%)",
-          animation: "slideUp 0.4s ease-out",
-        }}>
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute inset-0 opacity-[0.03]"
-            style={{
-              background: "linear-gradient(90deg, transparent 0%, white 50%, transparent 100%)",
-              animation: "shimmer 3s infinite linear",
-              backgroundSize: "200% 100%",
-            }} />
-        </div>
+            {/* City / Zone / Area */}
+            <div className="grid grid-cols-3 gap-3 mb-5">
+              <div>
+                <Label className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground mb-1.5 block">City</Label>
+                <Select value={selectedCityId?.toString() || ""} onValueChange={handleCitySelect}>
+                  <SelectTrigger className="h-9 rounded-lg bg-background border-border/60 text-sm"><SelectValue placeholder="City" /></SelectTrigger>
+                  <SelectContent className="bg-card max-h-64">{cities?.map((c) => (<SelectItem key={c.city_id} value={c.city_id.toString()}>{c.city_name}</SelectItem>))}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground mb-1.5 block">Zone</Label>
+                <Select value={selectedZoneId?.toString() || ""} onValueChange={handleZoneSelect}>
+                  <SelectTrigger className="h-9 rounded-lg bg-background border-border/60 text-sm"><SelectValue placeholder="Zone" /></SelectTrigger>
+                  <SelectContent className="bg-card max-h-64">{zones?.map((z) => (<SelectItem key={z.zone_id} value={z.zone_id.toString()}>{z.zone_name}</SelectItem>))}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground mb-1.5 block">Area</Label>
+                <Select value={selectedAreaId?.toString() || ""} onValueChange={handleAreaSelect}>
+                  <SelectTrigger className="h-9 rounded-lg bg-background border-border/60 text-sm"><SelectValue placeholder="Area" /></SelectTrigger>
+                  <SelectContent className="bg-card max-h-64">{areas?.map((a) => (<SelectItem key={a.area_id} value={a.area_id.toString()}>{a.area_name}</SelectItem>))}</SelectContent>
+                </Select>
+              </div>
+            </div>
 
-        <div className="flex-1 flex items-center gap-3 min-w-0">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0" style={{ animation: "pulse-subtle 2s infinite" }} />
-          <div className="min-w-0">
-            <p className="text-white font-bold text-sm truncate">
-              {form.customer_name || "Customer"} — {form.customer_phone || "No phone"}
-            </p>
-            <div className="flex items-center gap-1.5 mt-0.5">
+            <Separator className="bg-border/20 mb-4" />
+
+            {/* Order Configuration */}
+            <div className="flex items-center flex-wrap gap-x-5 gap-y-2">
+              <div className="flex items-center gap-2">
+                <Switch checked={form.is_preorder} onCheckedChange={(v) => updateForm({ is_preorder: v })} className="scale-90" />
+                <span className="text-xs text-muted-foreground">Preorder</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch checked={form.is_cross_sale} onCheckedChange={(v) => updateForm({ is_cross_sale: v })} className="scale-90" />
+                <span className="text-xs text-muted-foreground">Cross Sale</span>
+              </div>
+              <Select value={form.source} onValueChange={(v) => updateForm({ source: v })}>
+                <SelectTrigger className="h-7 w-[110px] text-[11px] rounded-md border-border/50 bg-background">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-card">{SOURCES.map((s) => (<SelectItem key={s} value={s}>{s}</SelectItem>))}</SelectContent>
+              </Select>
+            </div>
+          </section>
+
+          {/* ── ORDER ITEMS ── */}
+          <section className="rounded-xl border border-border/40 bg-card p-6">
+            <div className="flex items-center justify-between mb-5">
+              <SectionLabel icon={<Package className="w-3.5 h-3.5" />}>Order Items</SectionLabel>
               {items.length > 0 && (
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-white/70 font-medium">
+                <span className="text-[10px] font-semibold text-primary bg-primary/5 px-2 py-0.5 rounded-md">
                   {items.length} item{items.length > 1 ? "s" : ""}
                 </span>
               )}
-              {form.delivery_method && (
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-white/70 font-medium">
-                  🛵 {COURIERS.find((c) => c.id === form.delivery_method)?.name}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* LEFT: Cart */}
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground mb-3">Cart</p>
+                {items.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-14 rounded-lg border border-dashed border-border/40">
+                    <Package className="w-8 h-8 text-muted-foreground/20 mb-2" />
+                    <p className="text-xs text-muted-foreground/40">No products added</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {items.map((item) => (
+                      <div key={item.product_id} className="group relative flex items-start gap-3 p-3 rounded-lg border border-border/30 bg-background hover:border-border/60 transition-all">
+                        <button className="absolute top-2 right-2 w-5 h-5 rounded flex items-center justify-center text-muted-foreground/30 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                          onClick={() => removeItem(item.product_id)}>
+                          <X className="w-3 h-3" />
+                        </button>
+                        {item.product_image ? (
+                          <img src={item.product_image} alt="" className="w-9 h-9 rounded-md object-cover border border-border/20 shrink-0" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-md bg-muted/40 flex items-center justify-center shrink-0">
+                            <Package className="w-4 h-4 text-muted-foreground/30" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-mono text-muted-foreground/60">{item.product_sku}</p>
+                          <p className="text-xs font-medium text-foreground truncate">{item.product_name}</p>
+                          <div className="flex items-center gap-3 mt-2">
+                            {/* Qty control */}
+                            <div className="flex items-center gap-0 bg-muted/30 border border-border/40 rounded-md">
+                              <button className="w-6 h-6 flex items-center justify-center hover:bg-muted transition-colors rounded-l-md"
+                                onClick={() => updateItem(item.product_id, "quantity", item.quantity - 1)}>
+                                <Minus className="w-2.5 h-2.5" />
+                              </button>
+                              <Input type="number" value={item.quantity}
+                                onChange={(e) => updateItem(item.product_id, "quantity", parseInt(e.target.value) || 1)}
+                                className="w-7 h-6 text-center text-[11px] font-semibold px-0 border-0 bg-transparent rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                              <button className="w-6 h-6 flex items-center justify-center hover:bg-muted transition-colors rounded-r-md"
+                                onClick={() => updateItem(item.product_id, "quantity", item.quantity + 1)}>
+                                <Plus className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
+                            {/* Price */}
+                            <div className="flex items-center text-[11px] text-muted-foreground">
+                              <span>৳</span>
+                              <Input type="number" value={item.unit_price}
+                                onChange={(e) => updateItem(item.product_id, "unit_price", parseFloat(e.target.value) || 0)}
+                                className="w-14 h-6 text-[11px] font-mono px-1 border-0 bg-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                            </div>
+                            {/* Line total */}
+                            <span className="text-[11px] font-semibold tabular-nums ml-auto">
+                              ৳{(item.quantity * item.unit_price).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* RIGHT: Product catalog */}
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground mb-3">Products</p>
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground/40" />
+                    <Input ref={codeSearchRef} value={codeSearch} onChange={(e) => setCodeSearch(e.target.value)}
+                      placeholder="SKU" className="pl-7 h-8 text-xs rounded-md bg-background border-border/50" />
+                  </div>
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground/40" />
+                    <Input ref={nameSearchRef} value={nameSearch} onChange={(e) => setNameSearch(e.target.value)}
+                      placeholder="Name" className="pl-7 h-8 text-xs rounded-md bg-background border-border/50" />
+                  </div>
+                </div>
+                <div className="max-h-[360px] overflow-y-auto space-y-0.5 pr-0.5">
+                  {(filteredProducts || []).slice(0, 30).map((p) => {
+                    const stock = p.stock_quantity || 0;
+                    const outOfStock = stock <= 0;
+                    const inCart = items.find((i) => i.product_id === p.id);
+                    const isFav = favorites.has(p.id);
+                    return (
+                      <div key={p.id}
+                        className={cn(
+                          "flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer transition-all",
+                          outOfStock ? "opacity-30 cursor-not-allowed" :
+                          inCart ? "bg-primary/[0.04]" :
+                          "hover:bg-muted/30"
+                        )}
+                        onClick={() => !outOfStock && addProduct(p)}>
+                        {p.image_url ? (
+                          <img src={p.image_url} alt="" className="w-8 h-8 rounded-md object-cover border border-border/20 shrink-0" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-md bg-muted/30 flex items-center justify-center shrink-0">
+                            <Package className="w-3.5 h-3.5 text-muted-foreground/30" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium truncate">{p.name}</p>
+                          <p className="text-[10px] text-muted-foreground font-mono">{p.sku} · {formatBDT(p.selling_price)}</p>
+                        </div>
+                        <StockBadge stock={stock} />
+                        {inCart && <span className="text-emerald-500 text-[10px] font-semibold">✓</span>}
+                        <button onClick={(e) => { e.stopPropagation(); toggleFavorite(p.id); }}
+                          className={cn("w-5 h-5 flex items-center justify-center rounded transition-colors",
+                            isFav ? "text-amber-400" : "text-muted-foreground/20 hover:text-amber-400")}>
+                          <Star className={cn("w-3 h-3", isFav && "fill-current")} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        {/* ══ RIGHT COLUMN ══ */}
+        <div className="space-y-5 lg:sticky lg:top-4 lg:self-start">
+
+          {/* Order Health */}
+          <OrderHealthCard phone={form.customer_phone} parseResult={parseResult} grandTotal={grandTotal} advance={form.advance} />
+
+          {/* Order Summary */}
+          <div className="rounded-xl border border-border/40 bg-card p-5">
+            <SectionLabel icon={<FileText className="w-3.5 h-3.5" />}>Summary</SectionLabel>
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span className="font-medium tabular-nums">৳{subtotal.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm items-center">
+                <span className="text-muted-foreground">Discount</span>
+                <Input type="number" value={form.discount || ""} onChange={(e) => updateForm({ discount: parseFloat(e.target.value) || 0 })}
+                  placeholder="0" className="w-20 text-right h-7 text-sm font-mono rounded-md border-border/40 bg-background [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+              </div>
+              <div className="flex justify-between text-sm items-center">
+                <span className="text-muted-foreground">Advance</span>
+                <Input type="number" value={form.advance || ""} onChange={(e) => updateForm({ advance: parseFloat(e.target.value) || 0 })}
+                  placeholder="0" className="w-20 text-right h-7 text-sm font-mono rounded-md border-border/40 bg-background [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+              </div>
+              <div className="flex justify-between text-sm items-center">
+                <span className="text-muted-foreground">Delivery</span>
+                <Input type="number" value={form.delivery_charge} onChange={(e) => updateForm({ delivery_charge: parseFloat(e.target.value) || 0 })}
+                  className="w-20 text-right h-7 text-sm font-mono rounded-md border-border/40 bg-background [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+              </div>
+              <Separator className="bg-border/20" />
+              <div className="flex justify-between items-baseline pt-1">
+                <span className="text-sm font-semibold text-foreground">Total</span>
+                <span className="text-xl font-bold text-primary tabular-nums" style={{ fontFamily: "'Syne', sans-serif" }}>
+                  ৳{grandTotal.toLocaleString()}
                 </span>
-              )}
-              {cityName && (
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-white/70 font-medium">
-                  {cityName}
-                </span>
-              )}
+              </div>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="rounded-xl border border-border/40 bg-card p-5">
+            <SectionLabel>Note</SectionLabel>
+            <Textarea value={form.notes} onChange={(e) => updateForm({ notes: e.target.value })}
+              placeholder="Add order note..." rows={2}
+              className="resize-none text-sm rounded-lg bg-background border-border/40 mb-3 transition-all focus:border-primary/50 focus:shadow-[0_0_0_3px_hsl(var(--primary)/0.06)]" />
+            <div className="flex flex-wrap gap-1.5">
+              {QUICK_NOTES.map((note) => (
+                <button key={note}
+                  onClick={() => updateForm({ notes: form.notes ? `${form.notes}\n${note}` : note })}
+                  className="px-2 py-1 rounded-md text-[10px] font-medium text-muted-foreground bg-muted/30 hover:bg-primary/5 hover:text-primary border border-transparent hover:border-primary/10 transition-all">
+                  {note}
+                </button>
+              ))}
             </div>
           </div>
         </div>
+      </div>
 
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:flex flex-col items-end px-4 py-1.5 rounded-xl bg-white/5 border border-white/10">
-            <span className="text-[9px] uppercase tracking-wider text-white/50 font-medium">Grand Total</span>
-            <span className="text-xl font-extrabold text-white tabular-nums">৳{grandTotal.toLocaleString()}</span>
+      {/* ═══ BOTTOM ACTION BAR ═══ */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/10 bg-foreground/[0.97] backdrop-blur-xl"
+        style={{ height: 60 }}>
+        <div className="h-full max-w-[1440px] mx-auto px-4 sm:px-6 flex items-center justify-between">
+          {/* Left: Context */}
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 animate-pulse" />
+            <div className="min-w-0">
+              <p className="text-white text-sm font-medium truncate">
+                {form.customer_name || "Untitled"} <span className="text-white/40 font-normal">· {form.customer_phone || "—"}</span>
+              </p>
+              <div className="flex items-center gap-2 mt-0.5">
+                {items.length > 0 && <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-white/50">{items.length} items</span>}
+                {form.delivery_method && <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-white/50">{COURIERS.find((c) => c.id === form.delivery_method)?.name}</span>}
+              </div>
+            </div>
           </div>
-          <Button
-            className={cn(
-              "h-10 px-6 text-sm font-bold rounded-xl transition-all",
-              "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500",
-              "text-white shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)]",
-              "hover:-translate-y-0.5 active:scale-95",
-            )}
-            onClick={() => mutation.mutate()}
-            disabled={!canCreate || mutation.isPending}>
-            {mutation.isPending ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" />Creating...
-              </span>
-            ) : (
-              <>✅ Create Order</>
-            )}
-          </Button>
-        </div>
 
-        <div className="flex-1 flex items-center justify-end gap-2">
-          <Button variant="ghost" size="sm"
-            className="text-white/60 hover:text-white hover:bg-white/10 text-xs gap-1.5 rounded-lg">
-            💾 Draft
-          </Button>
-          <Button variant="ghost" size="sm"
-            className="text-white/60 hover:text-white hover:bg-white/10 text-xs gap-1.5 rounded-lg"
-            onClick={() => {
-              setForm({
-                customer_phone: "", customer_name: "", delivery_address: "",
-                delivery_method: "pathao", shipping_note: DEFAULT_SHIPPING_NOTE,
-                discount: 0, advance: 0, delivery_charge: 80, notes: "",
-                source: "UNKNOWN", is_preorder: false, is_cross_sale: false,
-              });
-              setItems([]);
-              setParseResult(null);
-              setSelectedCityId(null);
-              setSelectedZoneId(null);
-              setSelectedAreaId(null);
-              setCityName("");
-              setZoneName("");
-              setAreaName("");
-              setIsReturningCustomer(false);
-            }}>
-            🗑️ Clear
-          </Button>
+          {/* Center: Total */}
+          <div className="hidden sm:flex flex-col items-center px-6">
+            <span className="text-[9px] uppercase tracking-wider text-white/30 font-medium">Total</span>
+            <span className="text-xl font-bold text-white tabular-nums" style={{ fontFamily: "'Syne', sans-serif" }}>
+              ৳{grandTotal.toLocaleString()}
+            </span>
+          </div>
+
+          {/* Right: Actions */}
+          <div className="flex items-center gap-2 flex-1 justify-end">
+            <Button variant="ghost" size="sm"
+              className="text-white/40 hover:text-white hover:bg-white/5 text-xs rounded-lg"
+              onClick={() => {
+                setForm({ customer_phone: "", customer_name: "", delivery_address: "", delivery_method: "pathao", shipping_note: DEFAULT_SHIPPING_NOTE, discount: 0, advance: 0, delivery_charge: 80, notes: "", source: "UNKNOWN", is_preorder: false, is_cross_sale: false });
+                setItems([]); setParseResult(null); setSelectedCityId(null); setSelectedZoneId(null); setSelectedAreaId(null); setCityName(""); setZoneName(""); setAreaName(""); setIsReturningCustomer(false);
+              }}>
+              Clear
+            </Button>
+            <Button variant="ghost" size="sm" className="text-white/50 hover:text-white hover:bg-white/5 text-xs rounded-lg">
+              Draft
+            </Button>
+            <Button
+              className="h-9 px-5 text-sm font-semibold rounded-lg bg-white text-foreground hover:bg-white/90 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]"
+              onClick={() => mutation.mutate()}
+              disabled={!canCreate || mutation.isPending}>
+              {mutation.isPending ? (
+                <span className="flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />Creating...</span>
+              ) : (
+                "Create Order"
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
