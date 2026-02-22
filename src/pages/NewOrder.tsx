@@ -18,8 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Minus, X, Search, Package, Phone, Loader2,
   Star, RefreshCw, Trash2, FileText, Link2, Mail, Tag, Save,
-  MessageCircle, TrendingUp, TrendingDown, Truck, RotateCcw, XCircle, Clock,
-  ShieldCheck, AlertTriangle, AlertCircle, User,
+  MessageCircle, ShieldCheck, AlertTriangle, AlertCircle, User,
 } from "lucide-react";
 import { formatBDT } from "@/lib/format";
 import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/use-pathao";
@@ -70,44 +69,124 @@ function getTimeRangeDate(range: string): Date {
 
 /* ═══ Sub Components ═══ */
 
-function KpiMini({ icon, label, value, sub, color }: { icon: React.ReactNode; label: string; value: string; sub?: string; color?: string }) {
+interface CourierKpiData {
+  total: number;
+  delivered: number;
+  shipped: number;
+  returned: number;
+  cancelled: number;
+  successRate: number;
+}
+
+function DeliveryStatCard({
+  name, emoji, data, isLoading, accent = false,
+}: { name: string; emoji: string; data: CourierKpiData | null; isLoading: boolean; accent?: boolean }) {
+  if (isLoading) {
+    return (
+      <div className={cn("rounded-xl border p-3 min-w-[170px] flex-1", accent ? "border-primary/30 bg-primary/[0.04]" : "border-border/50 bg-card")}>
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-7 w-16" />
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-3/4" />
+          <Skeleton className="h-1.5 w-full rounded-full" />
+        </div>
+      </div>
+    );
+  }
+  const d = data || { total: 0, delivered: 0, shipped: 0, returned: 0, cancelled: 0, successRate: 0 };
   return (
-    <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-card border border-border/50 min-w-[140px] flex-1">
-      <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", color || "bg-primary/10 text-primary")}>
-        {icon}
+    <div className={cn(
+      "rounded-xl border p-3 min-w-[170px] flex-1 transition-all hover:-translate-y-0.5 hover:shadow-md cursor-default",
+      accent ? "border-primary/40 bg-primary/[0.04] hover:border-primary/60" : "border-border/50 bg-card hover:border-primary/30"
+    )}>
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-1.5">
+          <span className="text-base">{emoji}</span>
+          <span className={cn("text-[11px] font-bold", accent ? "text-primary" : "text-foreground")}>{name}</span>
+        </div>
       </div>
-      <div className="min-w-0">
-        <p className="text-base font-extrabold tabular-nums leading-tight">{value}</p>
-        <p className="text-[10px] text-muted-foreground font-medium truncate">{label}</p>
-        {sub && <p className="text-[9px] text-muted-foreground/70">{sub}</p>}
+      <p className={cn("text-2xl font-extrabold tabular-nums leading-none mb-2",
+        d.successRate >= 80 ? "text-emerald-600" : d.successRate >= 50 ? "text-amber-600" : d.total === 0 ? "text-muted-foreground" : "text-destructive"
+      )}>
+        {d.total > 0 ? `${d.successRate}%` : "—"}
+      </p>
+      <div className="space-y-0.5 text-[10px]">
+        <div className="flex justify-between"><span className="text-muted-foreground">Total</span><span className="font-semibold">{d.total}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Success</span><span className="font-semibold text-emerald-600">{d.delivered}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Cancelled</span><span className="font-semibold text-destructive">{d.cancelled}</span></div>
       </div>
+      <Progress value={d.successRate} className="h-1 mt-2" />
     </div>
   );
 }
 
-function CourierBreakdownRow({ name, emoji, delivered, inTransit, returned, cancelled, successRate }: {
-  name: string; emoji: string; delivered: number; inTransit: number; returned: number; cancelled: number; successRate: number;
-}) {
-  const total = delivered + inTransit + returned + cancelled;
-  return (
-    <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-muted/20 border border-border/30 hover:border-primary/20 transition-colors">
-      <span className="text-lg shrink-0">{emoji}</span>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-xs font-bold">{name}</span>
-          <span className={cn("text-xs font-extrabold tabular-nums", successRate >= 80 ? "text-emerald-600" : successRate >= 50 ? "text-amber-600" : "text-destructive")}>
-            {successRate}%
-          </span>
+function OurRecordCard({
+  data, isLoading, timeRange, setTimeRange,
+}: { data: CourierKpiData & { webOrderCancel?: number } | null; isLoading: boolean; timeRange: string; setTimeRange: (v: string) => void }) {
+  const [filterOpen, setFilterOpen] = useState(false);
+
+  if (isLoading) {
+    return (
+      <div className="rounded-xl border border-primary/30 bg-primary/[0.04] p-3 min-w-[170px] flex-1">
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-7 w-16" />
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-3/4" />
+          <Skeleton className="h-1.5 w-full rounded-full" />
         </div>
-        <div className="flex gap-3 text-[10px] text-muted-foreground">
-          <span>✅ {delivered}</span>
-          <span>🚚 {inTransit}</span>
-          <span className="text-amber-600">↩ {returned}</span>
-          <span className="text-destructive">✕ {cancelled}</span>
-          <span className="ml-auto font-medium">{total} total</span>
-        </div>
-        <Progress value={successRate} className="h-1 mt-1.5" />
       </div>
+    );
+  }
+
+  const d = data || { total: 0, delivered: 0, shipped: 0, returned: 0, cancelled: 0, successRate: 0, webOrderCancel: 0 };
+
+  return (
+    <div className="rounded-xl border border-primary/40 bg-primary/[0.04] p-3 min-w-[170px] flex-1 transition-all hover:-translate-y-0.5 hover:shadow-md cursor-default relative">
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-1.5">
+          <span className="text-base">🏆</span>
+          <span className="text-[11px] font-bold text-primary">Our Record</span>
+        </div>
+        <div className="relative">
+          <button
+            onClick={() => setFilterOpen(!filterOpen)}
+            className="px-1.5 py-0.5 rounded-md text-[9px] font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+          >
+            Filter
+          </button>
+          {filterOpen && (
+            <div className="absolute right-0 top-full mt-1 z-50 bg-card border border-border rounded-xl shadow-lg py-1 min-w-[120px]">
+              {TIME_RANGES.map((tr) => (
+                <button key={tr.value}
+                  onClick={() => { setTimeRange(tr.value); setFilterOpen(false); }}
+                  className={cn(
+                    "w-full text-left px-3 py-1.5 text-[11px] font-medium transition-colors",
+                    timeRange === tr.value ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"
+                  )}>
+                  {tr.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      <p className={cn("text-2xl font-extrabold tabular-nums leading-none mb-2",
+        d.successRate >= 80 ? "text-emerald-600" : d.successRate >= 50 ? "text-amber-600" : d.total === 0 ? "text-muted-foreground" : "text-destructive"
+      )}>
+        {d.total > 0 ? `${d.successRate}%` : "—"}
+      </p>
+      <div className="space-y-0.5 text-[10px]">
+        <div className="flex justify-between"><span className="text-muted-foreground">Total</span><span className="font-semibold">{d.total}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Shipped</span><span className="font-semibold text-blue-600">{d.shipped}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Returned</span><span className="font-semibold text-amber-600">{d.returned}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Cancelled</span><span className="font-semibold text-destructive">{d.cancelled}</span></div>
+        {(d.webOrderCancel ?? 0) > 0 && (
+          <div className="flex justify-between"><span className="text-muted-foreground">Web Cancel</span><span className="font-semibold text-orange-600">{d.webOrderCancel}</span></div>
+        )}
+      </div>
+      <Progress value={d.successRate} className="h-1 mt-2" />
     </div>
   );
 }
@@ -115,179 +194,95 @@ function CourierBreakdownRow({ name, emoji, delivered, inTransit, returned, canc
 function DeliveryPerformanceSection({ timeRange, setTimeRange }: { timeRange: string; setTimeRange: (v: string) => void }) {
   const fromDate = getTimeRangeDate(timeRange);
 
-  const { data: kpis, isLoading } = useQuery({
-    queryKey: ["delivery-kpis", timeRange],
+  const { data: allOrders, isLoading } = useQuery({
+    queryKey: ["delivery-kpi-orders", timeRange],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
-        .select("status, created_at, order_date")
+        .select("status, delivery_thana, notes, tags, channel, web_order_status")
         .gte("order_date", fromDate.toISOString());
       if (error) throw error;
-      const total = data.length;
-      const delivered = data.filter((o) => o.status === "delivered").length;
-      const shipped = data.filter((o) => ["shipped", "in_transit"].includes(o.status || "")).length;
-      const returned = data.filter((o) => o.status === "returned").length;
-      const cancelled = data.filter((o) => o.status === "cancelled").length;
-      const inTransit = shipped;
-      const dispatchedTotal = delivered + returned + cancelled + inTransit;
-      const deliveredPct = dispatchedTotal > 0 ? Math.round((delivered / dispatchedTotal) * 100) : 0;
-      const rtoPct = (delivered + returned) > 0 ? Math.round((returned / (delivered + returned)) * 100) : 0;
-      const cancelPct = total > 0 ? Math.round((cancelled / total) * 100) : 0;
-      return { total, delivered, shipped: inTransit, returned, cancelled, deliveredPct, rtoPct, cancelPct, inTransit };
+      return data;
     },
-    staleTime: 2 * 60 * 1000,
+    staleTime: 60 * 1000,
   });
 
-  const { data: courierData, isLoading: courierLoading } = useQuery({
-    queryKey: ["courier-breakdown", timeRange],
+  const { data: courierRows, isLoading: courierLoading } = useQuery({
+    queryKey: ["delivery-kpi-couriers", timeRange],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("courier_history")
         .select("courier_name, status")
         .gte("created_at", fromDate.toISOString());
       if (error) throw error;
-      const grouped: Record<string, { delivered: number; inTransit: number; returned: number; cancelled: number }> = {};
-      for (const row of data) {
-        const name = row.courier_name?.toLowerCase() || "unknown";
-        if (!grouped[name]) grouped[name] = { delivered: 0, inTransit: 0, returned: 0, cancelled: 0 };
-        const s = row.status?.toLowerCase() || "";
-        if (s === "delivered") grouped[name].delivered++;
-        else if (s === "in_transit" || s === "shipped" || s === "pending") grouped[name].inTransit++;
-        else if (s === "returned") grouped[name].returned++;
-        else if (s === "cancelled") grouped[name].cancelled++;
-      }
-      return grouped;
+      return data;
     },
-    staleTime: 2 * 60 * 1000,
+    staleTime: 60 * 1000,
   });
 
-  const [courierTab, setCourierTab] = useState("all");
+  const computeStats = useCallback((rows: { status: string | null }[]): CourierKpiData => {
+    const total = rows.length;
+    const delivered = rows.filter((r) => r.status === "delivered").length;
+    const shipped = rows.filter((r) => ["shipped", "in_transit"].includes(r.status || "")).length;
+    const returned = rows.filter((r) => ["returned", "pending_return", "damage_return"].includes(r.status || "")).length;
+    const cancelled = rows.filter((r) => r.status === "cancelled").length;
+    const denom = delivered + returned + cancelled;
+    const successRate = denom > 0 ? Math.round((delivered / denom) * 100) : 0;
+    return { total, delivered, shipped, returned, cancelled, successRate };
+  }, []);
 
-  const getCourierStats = (name: string) => {
-    const d = courierData?.[name.toLowerCase()] || { delivered: 0, inTransit: 0, returned: 0, cancelled: 0 };
-    const total = d.delivered + d.inTransit + d.returned + d.cancelled;
-    const successRate = total > 0 ? Math.round((d.delivered / total) * 100) : 0;
-    return { ...d, total, successRate };
-  };
+  const overallStats = useMemo(() => allOrders ? computeStats(allOrders) : null, [allOrders, computeStats]);
 
-  const allCourierStats = COURIERS.map((c) => ({ ...c, ...getCourierStats(c.name) }));
-  const allTotal = allCourierStats.reduce((s, c) => ({
-    delivered: s.delivered + c.delivered, inTransit: s.inTransit + c.inTransit,
-    returned: s.returned + c.returned, cancelled: s.cancelled + c.cancelled,
-  }), { delivered: 0, inTransit: 0, returned: 0, cancelled: 0 });
-  const allTotalCount = allTotal.delivered + allTotal.inTransit + allTotal.returned + allTotal.cancelled;
-  const allSuccessRate = allTotalCount > 0 ? Math.round((allTotal.delivered / allTotalCount) * 100) : 0;
+  const courierStatsMap = useMemo(() => {
+    if (!courierRows) return {};
+    const grouped: Record<string, { status: string | null }[]> = {};
+    for (const row of courierRows) {
+      const name = row.courier_name?.toLowerCase() || "unknown";
+      if (!grouped[name]) grouped[name] = [];
+      grouped[name].push({ status: row.status });
+    }
+    const result: Record<string, CourierKpiData> = {};
+    for (const [key, rows] of Object.entries(grouped)) {
+      result[key] = computeStats(rows);
+    }
+    return result;
+  }, [courierRows, computeStats]);
 
-  const isEmpty = !isLoading && (kpis?.total ?? 0) === 0;
+  const ourRecord = useMemo(() => {
+    if (!overallStats) return null;
+    const webOrderCancel = allOrders?.filter((o) => o.web_order_status === "cancelled").length ?? 0;
+    return { ...overallStats, webOrderCancel };
+  }, [overallStats, allOrders]);
+
+  const loading = isLoading || courierLoading;
 
   return (
-    <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
-      <CardContent className="p-4">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            📊 Delivery Performance
-          </h2>
-          <div className="flex items-center gap-1">
-            {TIME_RANGES.map((tr) => (
-              <button key={tr.value}
-                onClick={() => setTimeRange(tr.value)}
-                className={cn(
-                  "px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors",
-                  timeRange === tr.value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
-                )}>
-                {tr.label}
-              </button>
-            ))}
-          </div>
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+          📊 Delivery Performance
+        </h2>
+        <div className="flex items-center gap-1">
+          {TIME_RANGES.map((tr) => (
+            <button key={tr.value}
+              onClick={() => setTimeRange(tr.value)}
+              className={cn(
+                "px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors",
+                timeRange === tr.value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+              )}>
+              {tr.label}
+            </button>
+          ))}
         </div>
-
-        {/* KPI Row */}
-        {isLoading ? (
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-[68px] min-w-[140px] flex-1 rounded-xl" />
-            ))}
-          </div>
-        ) : isEmpty ? (
-          <div className="flex flex-col items-center justify-center py-8 text-muted-foreground/50">
-            <Truck className="w-10 h-10 mb-2" />
-            <p className="text-xs font-medium">No orders found in this time range</p>
-          </div>
-        ) : (
-          <>
-            <div className="flex gap-2 overflow-x-auto pb-3">
-              <KpiMini icon={<TrendingUp className="w-4 h-4" />} label="Delivered %" value={`${kpis?.deliveredPct ?? 0}%`}
-                sub={`${kpis?.delivered ?? 0} orders`} color="bg-emerald-500/10 text-emerald-600" />
-              <KpiMini icon={<RotateCcw className="w-4 h-4" />} label="RTO/Return %" value={`${kpis?.rtoPct ?? 0}%`}
-                sub={`${kpis?.returned ?? 0} returned`} color="bg-amber-500/10 text-amber-600" />
-              <KpiMini icon={<XCircle className="w-4 h-4" />} label="Cancel %" value={`${kpis?.cancelPct ?? 0}%`}
-                sub={`${kpis?.cancelled ?? 0} cancelled`} color="bg-destructive/10 text-destructive" />
-              <KpiMini icon={<Truck className="w-4 h-4" />} label="In Transit" value={`${kpis?.inTransit ?? 0}`}
-                sub="active shipments" color="bg-blue-500/10 text-blue-600" />
-              <KpiMini icon={<Package className="w-4 h-4" />} label="Total Orders" value={`${kpis?.total ?? 0}`}
-                color="bg-primary/10 text-primary" />
-            </div>
-
-            {/* Courier Breakdown Tabs */}
-            <Tabs value={courierTab} onValueChange={setCourierTab} className="mt-1">
-              <TabsList className="w-full justify-start gap-0 bg-transparent border-b border-border/40 h-8">
-                <TabsTrigger value="all" className="text-[10px] px-3 py-1 h-7 data-[state=active]:border-primary">All</TabsTrigger>
-                {COURIERS.map((c) => (
-                  <TabsTrigger key={c.id} value={c.id} className="text-[10px] px-3 py-1 h-7 data-[state=active]:border-primary">
-                    {c.emoji} {c.name}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-
-              <TabsContent value="all" className="mt-2 space-y-1.5">
-                {courierLoading ? (
-                  <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-xl" />)}</div>
-                ) : (
-                  <>
-                    {/* All summary */}
-                    <CourierBreakdownRow name="All Couriers" emoji="📊"
-                      delivered={allTotal.delivered} inTransit={allTotal.inTransit}
-                      returned={allTotal.returned} cancelled={allTotal.cancelled}
-                      successRate={allSuccessRate} />
-                    {allCourierStats.filter((c) => c.total > 0).map((c) => (
-                      <CourierBreakdownRow key={c.id} name={c.name} emoji={c.emoji}
-                        delivered={c.delivered} inTransit={c.inTransit}
-                        returned={c.returned} cancelled={c.cancelled}
-                        successRate={c.successRate} />
-                    ))}
-                    {allTotalCount === 0 && (
-                      <p className="text-xs text-muted-foreground text-center py-4">No courier data available</p>
-                    )}
-                  </>
-                )}
-              </TabsContent>
-
-              {COURIERS.map((c) => {
-                const stats = getCourierStats(c.name);
-                return (
-                  <TabsContent key={c.id} value={c.id} className="mt-2">
-                    {courierLoading ? (
-                      <Skeleton className="h-14 rounded-xl" />
-                    ) : stats.total === 0 ? (
-                      <div className="flex flex-col items-center py-6 text-muted-foreground/50">
-                        <span className="text-2xl mb-1">{c.emoji}</span>
-                        <p className="text-xs">No {c.name} orders in this period</p>
-                      </div>
-                    ) : (
-                      <CourierBreakdownRow name={c.name} emoji={c.emoji}
-                        delivered={stats.delivered} inTransit={stats.inTransit}
-                        returned={stats.returned} cancelled={stats.cancelled}
-                        successRate={stats.successRate} />
-                    )}
-                  </TabsContent>
-                );
-              })}
-            </Tabs>
-          </>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+      <div className="flex gap-2.5 overflow-x-auto pb-1">
+        <DeliveryStatCard name="Overall" emoji="📊" data={overallStats} isLoading={loading} />
+        <DeliveryStatCard name="Pathao" emoji="🛵" data={courierStatsMap["pathao"] || null} isLoading={loading} />
+        <DeliveryStatCard name="RedX" emoji="🔴" data={courierStatsMap["redx"] || null} isLoading={loading} />
+        <DeliveryStatCard name="Steadfast" emoji="⚡" data={courierStatsMap["steadfast"] || null} isLoading={loading} />
+        <OurRecordCard data={ourRecord} isLoading={loading} timeRange={timeRange} setTimeRange={setTimeRange} />
+      </div>
+    </div>
   );
 }
 
@@ -496,7 +491,7 @@ export default function NewOrder() {
   const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
   const total = subtotal - form.discount + form.delivery_charge;
   const grandTotal = total;
-  const showDeliveryPerformance = form.customer_phone.length >= 11;
+  // Delivery performance is always visible (business-level, not phone-dependent)
 
   /* ── Address Parsing ── */
   const autoMapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
