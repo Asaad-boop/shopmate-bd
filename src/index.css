@@ -282,3 +282,37 @@ tbody tr {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* ─── Print Checklist Styles ─── */
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  .print-sheet, .print-sheet * {
+    visibility: visible !important;
+  }
+  .print-sheet {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-header {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .print-input {
+    border: 1px solid #ccc !important;
+    padding: 2px 4px !important;
+  }
+  .print-modal-content {
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}
