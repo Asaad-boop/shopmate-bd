@@ -55,6 +55,7 @@ const navItems: NavItem[] = [
     icon: Ship,
     children: [
       { label: "Purchase Orders", path: "/purchase-orders", icon: List },
+      { label: "Agents", path: "/agents", icon: Handshake },
       { label: "Suppliers", path: "/suppliers", icon: Users },
     ],
   },
