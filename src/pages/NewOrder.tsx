@@ -17,8 +17,9 @@ import {
   AlertTriangle, AlertCircle, User, ChevronRight, Zap, TrendingUp,
   ArrowLeft, FileText,
 } from "lucide-react";
-import { formatBDT } from "@/lib/format";
+import { formatBDT, formatDate } from "@/lib/format";
 import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/use-pathao";
+import { useBDCourierSingle, getRiskLevel } from "@/hooks/use-bd-courier";
 import { cn } from "@/lib/utils";
 import { parseAddress, getParseConfidenceLevel } from "@/lib/pathao-address-parser";
 import type { ParseAddressResult } from "@/lib/pathao-address-parser";
@@ -226,6 +227,11 @@ function OrderHealthCard({ phone, parseResult, grandTotal, advance }: {
   const confLevel = parseResult ? getParseConfidenceLevel(parseResult.confidence) : null;
   const codPending = grandTotal - advance;
 
+  // BD Courier check
+  const { data: bdCourier, isLoading: bdLoading } = useBDCourierSingle(phone, phone.length >= 11);
+  const riskInfo = bdCourier ? getRiskLevel(bdCourier.success_rate) : null;
+
+  // Customer history from our DB
   const { data: customerHistory, isLoading } = useQuery({
     queryKey: ["customer-history", phone],
     queryFn: async () => {
@@ -234,14 +240,37 @@ function OrderHealthCard({ phone, parseResult, grandTotal, advance }: {
         .from("customers").select("id, total_orders, total_spent").eq("phone", phone).maybeSingle();
       if (!customer) return null;
       const { data: orders } = await supabase
-        .from("orders").select("status").eq("customer_id", customer.id);
-      if (!orders) return { total: customer.total_orders || 0, delivered: 0, returned: 0, cancelled: 0 };
+        .from("orders").select("id, order_number, status, total_amount, created_at")
+        .eq("customer_id", customer.id)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (!orders) return { total: customer.total_orders || 0, delivered: 0, returned: 0, cancelled: 0, totalSpent: customer.total_spent || 0, recentOrders: [] };
       return {
         total: orders.length,
         delivered: orders.filter((o) => o.status === "delivered").length,
         returned: orders.filter((o) => o.status === "returned").length,
         cancelled: orders.filter((o) => o.status === "cancelled").length,
+        totalSpent: customer.total_spent || 0,
+        recentOrders: orders,
       };
+    },
+    enabled: phone.length >= 11,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Courier history from courier_history table
+  const { data: courierHistory, isLoading: courierHistLoading } = useQuery({
+    queryKey: ["courier-history-phone", phone],
+    queryFn: async () => {
+      if (!phone || phone.length < 11) return [];
+      const { data, error } = await supabase
+        .from("courier_history")
+        .select("*")
+        .eq("phone", phone)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data || [];
     },
     enabled: phone.length >= 11,
     staleTime: 5 * 60 * 1000,
@@ -250,14 +279,100 @@ function OrderHealthCard({ phone, parseResult, grandTotal, advance }: {
   const hasHistory = customerHistory && customerHistory.total > 0;
   const custSuccessRate = hasHistory ? Math.round((customerHistory.delivered / customerHistory.total) * 100) : 0;
 
+  const statusColor = (s: string | null) => {
+    if (s === "delivered") return "text-emerald-600 bg-emerald-50";
+    if (s === "cancelled") return "text-red-600 bg-red-50";
+    if (s === "returned") return "text-amber-600 bg-amber-50";
+    if (s === "shipped") return "text-blue-600 bg-blue-50";
+    return "text-muted-foreground bg-muted";
+  };
+
   return (
     <div className="rounded-xl border border-border/40 bg-card p-5 space-y-5">
       <SectionLabel icon={<Zap className="w-3.5 h-3.5" />}>Order Health</SectionLabel>
 
-      {/* Customer History */}
+      {/* BD Courier Check */}
       <div className="space-y-2.5">
         <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground flex items-center gap-1.5">
-          <User className="w-3 h-3" /> Customer History
+          <ShieldCheck className="w-3 h-3" /> BD Courier Check
+        </p>
+        {phone.length < 11 ? (
+          <p className="text-xs text-muted-foreground/50">Enter phone to check</p>
+        ) : bdLoading ? (
+          <div className="space-y-1.5"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-3/4" /></div>
+        ) : bdCourier && bdCourier.total_orders > 0 ? (
+          <div className="space-y-2">
+            <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold", riskInfo?.bg, riskInfo?.color)}>
+              {riskInfo?.label}
+            </div>
+            <KpiPill label="Total Orders" value={bdCourier.total_orders} />
+            <KpiPill label="Successful" value={bdCourier.successful_orders} color="text-emerald-600" />
+            <KpiPill label="Returned" value={bdCourier.returned_orders} color="text-amber-600" />
+            <KpiPill label="Cancelled" value={bdCourier.cancelled_orders} color="text-red-500" />
+            <div className="pt-1">
+              <div className="h-[3px] rounded-full bg-muted overflow-hidden">
+                <div className={cn("h-full rounded-full",
+                  bdCourier.success_rate >= 80 ? "bg-emerald-500" : bdCourier.success_rate >= 50 ? "bg-amber-500" : "bg-red-500"
+                )} style={{ width: `${bdCourier.success_rate}%` }} />
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Success: <span className={cn("font-semibold",
+                  bdCourier.success_rate >= 80 ? "text-emerald-600" : bdCourier.success_rate >= 50 ? "text-amber-600" : "text-red-500"
+                )}>{bdCourier.success_rate}%</span>
+              </p>
+            </div>
+            {bdCourier.cached && bdCourier.last_fetched_at && (
+              <p className="text-[9px] text-muted-foreground/50">Cached · {formatDate(bdCourier.last_fetched_at)}</p>
+            )}
+          </div>
+        ) : (
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted text-muted-foreground text-[11px] font-medium">
+            🆕 No courier record found
+          </div>
+        )}
+      </div>
+
+      <Separator className="bg-border/30" />
+
+      {/* Courier History */}
+      {phone.length >= 11 && (
+        <>
+          <div className="space-y-2.5">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground flex items-center gap-1.5">
+              🚚 Courier History
+            </p>
+            {courierHistLoading ? (
+              <div className="space-y-1.5"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div>
+            ) : courierHistory && courierHistory.length > 0 ? (
+              <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+                {courierHistory.map((h) => (
+                  <div key={h.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/20">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-medium capitalize">{h.courier_name}</p>
+                      {h.tracking_id && <p className="text-[9px] text-muted-foreground font-mono truncate">{h.tracking_id}</p>}
+                    </div>
+                    <div className="text-right shrink-0 ml-2">
+                      <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded",
+                        h.status === "delivered" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
+                      )}>
+                        {h.status === "delivered" ? "✓" : "↩"} {h.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground/50">No courier history</p>
+            )}
+          </div>
+          <Separator className="bg-border/30" />
+        </>
+      )}
+
+      {/* Our Record — Customer's previous orders */}
+      <div className="space-y-2.5">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground flex items-center gap-1.5">
+          <User className="w-3 h-3" /> Our Record
         </p>
         {phone.length < 11 ? (
           <p className="text-xs text-muted-foreground/50">Enter phone to see history</p>
@@ -265,24 +380,47 @@ function OrderHealthCard({ phone, parseResult, grandTotal, advance }: {
           <div className="space-y-1.5"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-3/4" /></div>
         ) : !hasHistory ? (
           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary/5 text-primary text-[11px] font-medium">
-            <span>✦</span> New Customer
+            <span>✦</span> New Customer — No previous orders
           </div>
         ) : (
-          <div className="space-y-1.5">
-            <KpiPill label="Total Orders" value={customerHistory.total} />
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="p-2 rounded-lg bg-muted/30 text-center">
+                <p className="text-lg font-bold tabular-nums" style={{ fontFamily: "'Syne', sans-serif" }}>{customerHistory.total}</p>
+                <p className="text-[9px] text-muted-foreground">Total Orders</p>
+              </div>
+              <div className="p-2 rounded-lg bg-muted/30 text-center">
+                <p className={cn("text-lg font-bold tabular-nums", custSuccessRate >= 80 ? "text-emerald-600" : custSuccessRate >= 50 ? "text-amber-600" : "text-red-500")}
+                  style={{ fontFamily: "'Syne', sans-serif" }}>{custSuccessRate}%</p>
+                <p className="text-[9px] text-muted-foreground">Success Rate</p>
+              </div>
+            </div>
             <KpiPill label="Delivered" value={customerHistory.delivered} color="text-emerald-600" />
             <KpiPill label="Returned" value={customerHistory.returned} color="text-amber-600" />
             <KpiPill label="Cancelled" value={customerHistory.cancelled} color="text-red-500" />
-            <div className="pt-1">
-              <div className="h-[3px] rounded-full bg-muted overflow-hidden">
-                <div className={cn("h-full rounded-full",
-                  custSuccessRate >= 80 ? "bg-emerald-500" : custSuccessRate >= 50 ? "bg-amber-500" : "bg-red-500"
-                )} style={{ width: `${custSuccessRate}%` }} />
+
+            {/* Recent orders list */}
+            {customerHistory.recentOrders && customerHistory.recentOrders.length > 0 && (
+              <div className="pt-2 space-y-1.5">
+                <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/60">Recent Orders</p>
+                <div className="max-h-[160px] overflow-y-auto space-y-1">
+                  {customerHistory.recentOrders.map((o: any) => (
+                    <div key={o.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border/20">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-mono font-medium">{o.order_number}</p>
+                        <p className="text-[9px] text-muted-foreground">{formatDate(o.created_at)}</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 ml-2">
+                        <span className="text-[10px] font-semibold tabular-nums">৳{(o.total_amount || 0).toLocaleString()}</span>
+                        <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded capitalize", statusColor(o.status))}>
+                          {o.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <p className="text-[10px] text-muted-foreground mt-1">
-                Success: <span className={cn("font-semibold", custSuccessRate >= 80 ? "text-emerald-600" : custSuccessRate >= 50 ? "text-amber-600" : "text-red-500")}>{custSuccessRate}%</span>
-              </p>
-            </div>
+            )}
           </div>
         )}
       </div>
