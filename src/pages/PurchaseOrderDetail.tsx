@@ -345,6 +345,7 @@ export default function PurchaseOrderDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["po-stats"] });
 
       toast({ title: isNew ? "Purchase Order created!" : "Purchase Order saved!" });
+      clearDraft();
       if (isNew) navigate(`/purchase-orders/${poId}`, { replace: true });
     } catch (err: any) {
       toast({ title: "Error saving PO", description: err.message, variant: "destructive" });
@@ -387,6 +388,56 @@ export default function PurchaseOrderDetailPage() {
       toast({ title: "Error receiving goods", description: err.message, variant: "destructive" });
     }
   };
+
+  // Auto-save draft to localStorage every 30 seconds
+  const DRAFT_KEY = `po-draft-${isNew ? "new" : id}`;
+
+  useEffect(() => {
+    if (!importType) return;
+    const draft = {
+      importType, poNumber, supplierId, agentId, status, paymentStatus,
+      orderDate, cnyRate, shippingMethod, shippingAgent, trackingNumber,
+      portOfEntry, expectedArrival, actualArrival, shippingCostCny,
+      shippingChargeBdt, notes, items, payments, additionalCosts, timeline,
+    };
+    const interval = setInterval(() => {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      toast({ title: "💾 Draft auto-saved", description: "Your changes have been saved locally." });
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [importType, poNumber, supplierId, agentId, status, paymentStatus, orderDate, cnyRate, shippingMethod, shippingAgent, trackingNumber, portOfEntry, expectedArrival, actualArrival, shippingCostCny, shippingChargeBdt, notes, items, payments, additionalCosts, timeline, DRAFT_KEY]);
+
+  // Restore draft on mount for new POs
+  useEffect(() => {
+    if (!isNew) return;
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (!saved) return;
+      const d = JSON.parse(saved);
+      if (d.importType) setImportType(d.importType);
+      if (d.poNumber) setPoNumber(d.poNumber);
+      if (d.supplierId) setSupplierId(d.supplierId);
+      if (d.agentId) setAgentId(d.agentId);
+      if (d.orderDate) setOrderDate(d.orderDate);
+      if (d.cnyRate) setCnyRate(d.cnyRate);
+      if (d.shippingMethod) setShippingMethod(d.shippingMethod);
+      if (d.shippingAgent) setShippingAgent(d.shippingAgent);
+      if (d.trackingNumber) setTrackingNumber(d.trackingNumber);
+      if (d.portOfEntry) setPortOfEntry(d.portOfEntry);
+      if (d.expectedArrival) setExpectedArrival(d.expectedArrival);
+      if (d.actualArrival) setActualArrival(d.actualArrival);
+      if (d.shippingCostCny) setShippingCostCny(d.shippingCostCny);
+      if (d.shippingChargeBdt) setShippingChargeBdt(d.shippingChargeBdt);
+      if (d.notes) setNotes(d.notes);
+      if (d.items?.length) setItems(d.items);
+      if (d.payments?.length) setPayments(d.payments);
+      if (d.additionalCosts?.length) setAdditionalCosts(d.additionalCosts);
+      if (d.timeline?.length) setTimeline(d.timeline);
+    } catch {}
+  }, []);
+
+  // Clear draft on successful save
+  const clearDraft = () => localStorage.removeItem(DRAFT_KEY);
 
   // Keyboard shortcut
   useEffect(() => {

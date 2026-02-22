@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSuppliers } from "@/hooks/use-purchase-orders";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -22,24 +22,57 @@ export default function SuppliersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
 
-  // Form state
-  const [form, setForm] = useState({
+  const SUPPLIER_DRAFT_KEY = "supplier-draft";
+  const emptySupplierForm = {
     name: "", country: "China", contact_person: "", wechat_id: "", whatsapp: "",
     phone: "", email: "", rating: 5, notes: "",
     alipay_id: "", bank_account_name: "", bank_account_number: "",
     bank_name: "", swift_code: "", usdt_wallet: "", usdt_network: "TRC20",
     preferred_payment: "alipay",
+  };
+
+  const [form, setForm] = useState(() => {
+    try {
+      const saved = localStorage.getItem(SUPPLIER_DRAFT_KEY);
+      return saved ? JSON.parse(saved) : emptySupplierForm;
+    } catch { return emptySupplierForm; }
   });
+
+  // Persist draft on change (only for new, not editing)
+  useEffect(() => {
+    if (!editing) {
+      localStorage.setItem(SUPPLIER_DRAFT_KEY, JSON.stringify(form));
+    }
+  }, [form, editing]);
+
+  // Auto-save toast every 30 seconds when modal is open
+  useEffect(() => {
+    if (!modalOpen || editing) return;
+    const interval = setInterval(() => {
+      localStorage.setItem(SUPPLIER_DRAFT_KEY, JSON.stringify(form));
+      toast({ title: "💾 Draft auto-saved" });
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [modalOpen, editing, form]);
+
+  // Restore modal if draft has data
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(SUPPLIER_DRAFT_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.name || parsed.phone || parsed.contact_person) {
+          setForm(parsed);
+          setModalOpen(true);
+        }
+      }
+    } catch {}
+  }, []);
 
   const openNew = () => {
     setEditing(null);
-    setForm({
-      name: "", country: "China", contact_person: "", wechat_id: "", whatsapp: "",
-      phone: "", email: "", rating: 5, notes: "",
-      alipay_id: "", bank_account_name: "", bank_account_number: "",
-      bank_name: "", swift_code: "", usdt_wallet: "", usdt_network: "TRC20",
-      preferred_payment: "alipay",
-    });
+    setForm({ ...emptySupplierForm });
+    localStorage.removeItem(SUPPLIER_DRAFT_KEY);
     setModalOpen(true);
   };
 
@@ -68,6 +101,8 @@ export default function SuppliersPage() {
       }
       queryClient.invalidateQueries({ queryKey: ["suppliers"] });
       toast({ title: editing ? "Supplier updated!" : "Supplier added!" });
+      localStorage.removeItem(SUPPLIER_DRAFT_KEY);
+      setForm({ ...emptySupplierForm });
       setModalOpen(false);
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
