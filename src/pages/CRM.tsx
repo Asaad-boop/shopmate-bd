@@ -26,6 +26,7 @@ import {
   CRMCustomer, Followup, Lead,
 } from "@/hooks/use-crm";
 import { CustomerProfileDrawer } from "@/components/crm/CustomerProfileDrawer";
+import { CustomerImportModal } from "@/components/crm/CustomerImportModal";
 
 const SEGMENT_CONFIG: Record<string, { label: string; color: string; emoji: string; bgColor: string }> = {
   vip: { label: "VIP", color: "bg-yellow-100 text-yellow-800 border-yellow-300", emoji: "⭐", bgColor: "from-yellow-50 to-yellow-100/50" },
@@ -57,6 +58,7 @@ export default function CRMPage() {
   const [showAddLead, setShowAddLead] = useState(false);
   const [showAddFollowup, setShowAddFollowup] = useState(false);
   const [showBulkWhatsApp, setShowBulkWhatsApp] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [bulkMessage, setBulkMessage] = useState("Hi {name}, hope you're doing well!");
   const [newCustomer, setNewCustomer] = useState({ full_name: "", phone: "", email: "", address: "", district: "" });
   const [newLead, setNewLead] = useState({ name: "", phone: "", source: "facebook", stage: "warm", note: "" });
@@ -191,6 +193,9 @@ export default function CRMPage() {
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm">
               <Download className="w-3.5 h-3.5 mr-1" /> Export
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
+              📥 Import Customers
             </Button>
             <Button variant="outline" size="sm">
               💬 Bulk Message
@@ -812,6 +817,7 @@ export default function CRMPage() {
       )}
 
       {/* Customer Drawer */}
+      <CustomerImportModal open={showImport} onClose={() => setShowImport(false)} />
       <CustomerProfileDrawer
         customer={drawerCustomer}
         open={!!drawerCustomer}
