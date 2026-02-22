@@ -14,10 +14,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import {
-  Save, Download, Plus, X, Trash2, Check, Copy,
+  Save, Plus, X, Trash2, Check, Copy,
   ArrowLeft, Ship, CreditCard, Clock, Package,
   CheckCircle2, AlertTriangle, Truck,
 } from "lucide-react";
+import { POPdfExport } from "@/components/purchase-orders/POPdfExport";
 import { format, differenceInDays } from "date-fns";
 
 const TIMELINE_STAGES = [
@@ -406,9 +407,36 @@ export default function PurchaseOrderDetailPage() {
           </Badge>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="gap-1.5">
-            <Download className="w-4 h-4" /> Export PDF
-          </Button>
+          <POPdfExport
+            poNumber={poNumber}
+            status={status}
+            orderDate={orderDate}
+            expectedArrival={expectedArrival}
+            actualArrival={actualArrival}
+            supplierName={selectedSupplier?.name || ""}
+            supplierWechat={selectedSupplier?.wechat_id || ""}
+            supplierPhone={selectedSupplier?.phone || ""}
+            supplierEmail={selectedSupplier?.email || ""}
+            supplierAddress={selectedSupplier?.address || ""}
+            cnyRate={cnyRate}
+            shippingMethod={shippingMethod}
+            shippingAgent={shippingAgent}
+            trackingNumber={trackingNumber}
+            portOfEntry={portOfEntry}
+            items={items}
+            payments={payments}
+            additionalCosts={additionalCosts}
+            productCostCny={productCostCny}
+            productCostBdt={productCostBdt}
+            shippingCostCny={shippingCostCny}
+            shippingCostBdt={shippingCostBdt}
+            additionalCostsBdt={additionalCostsBdt}
+            grandTotalBdt={grandTotalBdt}
+            totalPaid={totalPaid}
+            remaining={remaining}
+            totalQty={totalQty}
+            costPerUnit={costPerUnit}
+          />
           <Button size="sm" className="gap-1.5" onClick={handleSave} disabled={saving}>
             <Save className="w-4 h-4" /> {saving ? "Saving..." : "Save"}
           </Button>
