@@ -46,12 +46,13 @@ interface CourierKpiData {
 }
 
 /* ═══ Constants ═══ */
-const COURIERS: { id: string; name: string; emoji: string; icon: React.ReactNode; color: string }[] = [
-  { id: "pathao", name: "Pathao", emoji: "🛵", icon: <Bike className="w-4 h-4" />, color: "text-emerald-600 bg-emerald-100" },
-  { id: "steadfast", name: "Steadfast", emoji: "⚡", icon: <Zap className="w-4 h-4" />, color: "text-orange-600 bg-orange-100" },
-  { id: "redx", name: "RedX", emoji: "🔴", icon: <Truck className="w-4 h-4" />, color: "text-red-600 bg-red-100" },
-  { id: "paperfly", name: "Paperfly", emoji: "📄", icon: <Send className="w-4 h-4" />, color: "text-blue-600 bg-blue-100" },
-  { id: "carrbee", name: "Carrbee", emoji: "🐝", icon: <Package className="w-4 h-4" />, color: "text-amber-600 bg-amber-100" },
+const COURIERS: { id: string; name: string; icon: React.ReactNode; color: string }[] = [
+  { id: "pathao", name: "Pathao", icon: <Bike className="w-4 h-4" />, color: "text-emerald-600 bg-emerald-100" },
+  { id: "steadfast", name: "Steadfast", icon: <Zap className="w-4 h-4" />, color: "text-orange-600 bg-orange-100" },
+  { id: "redx", name: "RedX", icon: <Truck className="w-4 h-4" />, color: "text-red-600 bg-red-100" },
+  { id: "paperfly", name: "Paperfly", icon: <Send className="w-4 h-4" />, color: "text-blue-600 bg-blue-100" },
+  { id: "carrbee", name: "Carrbee", icon: <Package className="w-4 h-4" />, color: "text-amber-600 bg-amber-100" },
+  { id: "parceldex", name: "ParcelDex", icon: <Bug className="w-4 h-4" />, color: "text-violet-600 bg-violet-100" },
 ];
 
 const SOURCES = ["UNKNOWN", "Facebook", "Instagram", "Walk-in", "Referral"];
@@ -193,97 +194,98 @@ function DeliveryPerformanceSection() {
 
   const loading = isLoading || courierLoading;
   const o = overallStats || { total: 0, delivered: 0, shipped: 0, returned: 0, cancelled: 0, successRate: 0 };
-  const totalFailed = o.cancelled + o.returned;
   const rateColor = o.total === 0 ? "text-muted-foreground" :
     o.successRate >= 80 ? "text-emerald-600" :
     o.successRate >= 50 ? "text-amber-600" : "text-red-500";
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <SectionLabel icon={<TrendingUp className="w-3.5 h-3.5" />}>Delivery Performance</SectionLabel>
 
       {loading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-[130px] rounded-xl" />
-          ))}
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[72px] rounded-xl" />)}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-[150px] rounded-xl" />)}
+          </div>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-          {/* Overall Card */}
-          <div className="rounded-xl border border-primary/20 bg-primary/[0.03] p-3.5 flex flex-col">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <TrendingUp className="w-4 h-4 text-primary" />
-              </div>
-              <p className="text-[11px] font-semibold text-primary">Overall</p>
+        <div className="space-y-3">
+          {/* ── 4 Summary KPI Cards ── */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div className="rounded-xl border border-border/40 bg-card p-3.5">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Total Orders</p>
+              <p className="text-xl font-bold tabular-nums mt-1">{o.total}</p>
             </div>
-            <p className={cn("text-2xl font-bold tabular-nums leading-none mb-2", rateColor)}
-              style={{ fontFamily: "'Syne', sans-serif" }}>
-              {o.total > 0 ? `${o.successRate}%` : "—"}
-            </p>
-            <div className="space-y-1 mt-auto">
-              <div className="flex justify-between text-[10px]">
-                <span className="text-muted-foreground">Total</span>
-                <span className="font-semibold tabular-nums">{o.total}</span>
-              </div>
-              <div className="flex justify-between text-[10px]">
-                <span className="text-muted-foreground">Success</span>
-                <span className="font-semibold tabular-nums text-emerald-600">{o.delivered}</span>
-              </div>
-              <div className="flex justify-between text-[10px]">
-                <span className="text-muted-foreground">Failed</span>
-                <span className="font-semibold tabular-nums text-red-500">{totalFailed}</span>
-              </div>
+            <div className="rounded-xl border border-border/40 bg-card p-3.5">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Delivered</p>
+              <p className="text-xl font-bold tabular-nums mt-1 text-emerald-600">{o.delivered}</p>
             </div>
-            <div className="mt-2.5 h-[3px] rounded-full bg-muted overflow-hidden">
-              <div className={cn("h-full rounded-full transition-all duration-500",
-                o.successRate >= 80 ? "bg-emerald-500" : o.successRate >= 50 ? "bg-amber-500" : "bg-red-500"
-              )} style={{ width: `${o.total > 0 ? o.successRate : 0}%` }} />
+            <div className="rounded-xl border border-border/40 bg-card p-3.5">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Cancelled</p>
+              <p className="text-xl font-bold tabular-nums mt-1 text-red-500">{o.cancelled + o.returned}</p>
+            </div>
+            <div className="rounded-xl border border-border/40 bg-card p-3.5">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Success Rate</p>
+              <div className="flex items-center gap-2 mt-1">
+                <p className={cn("text-xl font-bold tabular-nums", rateColor)}>
+                  {o.total > 0 ? `${o.successRate}%` : "—"}
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Per-Courier Cards */}
-          {COURIERS.map((c) => {
-            const stats = courierStatsMap[c.id] || { total: 0, delivered: 0, cancelled: 0, returned: 0, shipped: 0, successRate: 0 };
-            const failed = (stats.cancelled || 0) + (stats.returned || 0);
-            const rate = stats.total > 0 ? Math.round((stats.delivered / Math.max(stats.delivered + failed, 1)) * 100) : 0;
-            const rc = stats.total === 0 ? "text-muted-foreground" :
-              rate >= 80 ? "text-emerald-600" : rate >= 50 ? "text-amber-600" : "text-red-500";
-            return (
-              <div key={c.id} className="rounded-xl border border-border/40 bg-card p-3.5 flex flex-col hover:border-border/80 hover:shadow-sm transition-all">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", c.color)}>
-                    {c.icon}
+          {/* ── 6 Courier Cards ── */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+            {COURIERS.map((c) => {
+              const stats = courierStatsMap[c.id] || { total: 0, delivered: 0, cancelled: 0, returned: 0, shipped: 0, successRate: 0 };
+              const failed = (stats.cancelled || 0) + (stats.returned || 0);
+              const rate = stats.total > 0 ? Math.round((stats.delivered / Math.max(stats.delivered + failed, 1)) * 100) : 0;
+              const rc = stats.total === 0 ? "text-muted-foreground" :
+                rate >= 80 ? "text-emerald-600" : rate >= 50 ? "text-amber-600" : "text-red-500";
+              return (
+                <div key={c.id} className="rounded-xl border border-border/40 bg-card p-3.5 flex flex-col hover:border-border/80 hover:shadow-sm transition-all">
+                  {/* Header: Icon + Name */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", c.color)}>
+                      {c.icon}
+                    </div>
+                    <p className="text-xs font-semibold">{c.name}</p>
                   </div>
-                  <p className="text-[11px] font-semibold">{c.name}</p>
+
+                  {/* Success Rate */}
+                  <p className={cn("text-2xl font-bold tabular-nums leading-none mb-3", rc)}>
+                    {stats.total > 0 ? `${rate}%` : "—"}
+                  </p>
+
+                  {/* Stats */}
+                  <div className="space-y-1.5 mt-auto">
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-muted-foreground">Total</span>
+                      <span className="font-semibold tabular-nums">{stats.total}</span>
+                    </div>
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-muted-foreground">Delivered</span>
+                      <span className="font-semibold tabular-nums text-emerald-600">{stats.delivered}</span>
+                    </div>
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-muted-foreground">Cancelled</span>
+                      <span className="font-semibold tabular-nums text-red-500">{failed}</span>
+                    </div>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="mt-3 h-[3px] rounded-full bg-muted overflow-hidden">
+                    <div className={cn("h-full rounded-full transition-all duration-500",
+                      rate >= 80 ? "bg-emerald-500" : rate >= 50 ? "bg-amber-500" : "bg-red-500"
+                    )} style={{ width: `${stats.total > 0 ? rate : 0}%` }} />
+                  </div>
                 </div>
-                <p className={cn("text-2xl font-bold tabular-nums leading-none mb-2", rc)}
-                  style={{ fontFamily: "'Syne', sans-serif" }}>
-                  {stats.total > 0 ? `${rate}%` : "—"}
-                </p>
-                <div className="space-y-1 mt-auto">
-                  <div className="flex justify-between text-[10px]">
-                    <span className="text-muted-foreground">Total</span>
-                    <span className="font-semibold tabular-nums">{stats.total}</span>
-                  </div>
-                  <div className="flex justify-between text-[10px]">
-                    <span className="text-muted-foreground">Success</span>
-                    <span className="font-semibold tabular-nums text-emerald-600">{stats.delivered}</span>
-                  </div>
-                  <div className="flex justify-between text-[10px]">
-                    <span className="text-muted-foreground">Failed</span>
-                    <span className="font-semibold tabular-nums text-red-500">{failed}</span>
-                  </div>
-                </div>
-                <div className="mt-2.5 h-[3px] rounded-full bg-muted overflow-hidden">
-                  <div className={cn("h-full rounded-full transition-all duration-500",
-                    rate >= 80 ? "bg-emerald-500" : rate >= 50 ? "bg-amber-500" : "bg-red-500"
-                  )} style={{ width: `${stats.total > 0 ? rate : 0}%` }} />
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -969,7 +971,7 @@ export default function NewOrder() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-card">
-                    {COURIERS.map((c) => (<SelectItem key={c.id} value={c.id}>{c.emoji} {c.name}</SelectItem>))}
+                    {COURIERS.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
                   </SelectContent>
                 </Select>
               </div>
