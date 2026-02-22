@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { formatBDT, formatDate } from "@/lib/format";
 import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/use-pathao";
+import { useBDCourierSingle, getRiskLevel } from "@/hooks/use-bd-courier";
 import { cn } from "@/lib/utils";
 import { parseAddress, getParseConfidenceLevel } from "@/lib/pathao-address-parser";
 import type { ParseAddressResult } from "@/lib/pathao-address-parser";
@@ -231,6 +232,10 @@ function OrderHealthCard({ phone, parseResult, grandTotal, advance }: {
   const confLevel = parseResult ? getParseConfidenceLevel(parseResult.confidence) : null;
   const codPending = grandTotal - advance;
 
+  // BD Courier check
+  const { data: bdCourier, isLoading: bdLoading } = useBDCourierSingle(phone, phone.length >= 11);
+  const riskInfo = bdCourier ? getRiskLevel(bdCourier.success_rate) : null;
+
   // Customer history from our DB
   const { data: customerHistory, isLoading } = useQuery({
     queryKey: ["customer-history", phone],
@@ -258,17 +263,12 @@ function OrderHealthCard({ phone, parseResult, grandTotal, advance }: {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Courier history from courier_history table
+  // Courier history
   const { data: courierHistory, isLoading: courierHistLoading } = useQuery({
     queryKey: ["courier-history-phone", phone],
     queryFn: async () => {
       if (!phone || phone.length < 11) return [];
-      const { data, error } = await supabase
-        .from("courier_history")
-        .select("*")
-        .eq("phone", phone)
-        .order("created_at", { ascending: false })
-        .limit(10);
+      const { data, error } = await supabase.from("courier_history").select("*").eq("phone", phone).order("created_at", { ascending: false }).limit(10);
       if (error) throw error;
       return data || [];
     },
@@ -287,17 +287,123 @@ function OrderHealthCard({ phone, parseResult, grandTotal, advance }: {
     return "text-muted-foreground bg-muted";
   };
 
+  // Parse BD Courier raw_data for per-courier breakdown
+  const courierBreakdown = useMemo(() => {
+    if (!bdCourier?.raw_data) return null;
+    const raw = bdCourier.raw_data as any;
+    if (raw?.delivery_data && Array.isArray(raw.delivery_data)) {
+      return raw.delivery_data as Array<{ courier: string; total: number; success: number; cancel: number }>;
+    }
+    if (raw?.courier_wise) {
+      return Object.entries(raw.courier_wise).map(([name, data]: [string, any]) => ({
+        courier: name, total: data.total || 0, success: data.success || data.delivered || 0, cancel: data.cancel || data.cancelled || 0,
+      }));
+    }
+    return null;
+  }, [bdCourier]);
+
   return (
     <div className="rounded-xl border border-border/40 bg-card p-5 space-y-5">
       <SectionLabel icon={<Zap className="w-3.5 h-3.5" />}>Order Health</SectionLabel>
+
+      {/* BD Courier Check */}
+      <div className="space-y-3">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground flex items-center gap-1.5">
+          <ShieldCheck className="w-3 h-3" /> BD Courier Check
+        </p>
+        {phone.length < 11 ? (
+          <p className="text-xs text-muted-foreground/50">Enter phone to check</p>
+        ) : bdLoading ? (
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2"><Skeleton className="h-14 rounded-lg" /><Skeleton className="h-14 rounded-lg" /><Skeleton className="h-14 rounded-lg" /><Skeleton className="h-14 rounded-lg" /></div>
+            <Skeleton className="h-24 rounded-lg" />
+          </div>
+        ) : bdCourier && bdCourier.total_orders > 0 ? (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="p-2.5 rounded-lg border border-border/30 bg-muted/20 text-center">
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Total Orders</p>
+                <p className="text-lg font-bold tabular-nums" style={{ fontFamily: "'Syne', sans-serif" }}>{bdCourier.total_orders}</p>
+                <p className="text-[8px] text-muted-foreground">All time</p>
+              </div>
+              <div className="p-2.5 rounded-lg border border-emerald-200/50 bg-emerald-50/30 text-center">
+                <p className="text-[9px] text-emerald-700 uppercase tracking-wider">Successful</p>
+                <p className="text-lg font-bold tabular-nums text-emerald-600" style={{ fontFamily: "'Syne', sans-serif" }}>{bdCourier.successful_orders}</p>
+                <p className="text-[8px] text-emerald-600/60">Delivered</p>
+              </div>
+              <div className="p-2.5 rounded-lg border border-red-200/50 bg-red-50/30 text-center">
+                <p className="text-[9px] text-red-700 uppercase tracking-wider">Cancelled</p>
+                <p className="text-lg font-bold tabular-nums text-red-500" style={{ fontFamily: "'Syne', sans-serif" }}>{bdCourier.cancelled_orders + bdCourier.returned_orders}</p>
+                <p className="text-[8px] text-red-500/60">Failed</p>
+              </div>
+              <div className="p-2.5 rounded-lg border border-primary/20 bg-primary/5 text-center">
+                <p className="text-[9px] text-primary uppercase tracking-wider">Success Rate</p>
+                <p className="text-lg font-bold tabular-nums text-primary" style={{ fontFamily: "'Syne', sans-serif" }}>{bdCourier.success_rate}%</p>
+                <div className="mt-1 h-[3px] rounded-full bg-primary/10 overflow-hidden">
+                  <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${bdCourier.success_rate}%` }} />
+                </div>
+              </div>
+            </div>
+            {courierBreakdown && courierBreakdown.length > 0 && (
+              <div className="rounded-lg border border-border/30 overflow-hidden">
+                <div className="grid grid-cols-4 gap-0 bg-primary text-primary-foreground px-3 py-1.5">
+                  <span className="text-[9px] font-semibold uppercase tracking-wider">Courier</span>
+                  <span className="text-[9px] font-semibold uppercase tracking-wider text-center">Total</span>
+                  <span className="text-[9px] font-semibold uppercase tracking-wider text-center">Success</span>
+                  <span className="text-[9px] font-semibold uppercase tracking-wider text-center">Cancel</span>
+                </div>
+                {courierBreakdown.map((row, i) => (
+                  <div key={i} className={cn("grid grid-cols-4 gap-0 px-3 py-2 border-t border-border/20", i % 2 === 0 ? "bg-background" : "bg-muted/20")}>
+                    <span className="text-[11px] font-medium capitalize">{row.courier}</span>
+                    <span className="text-[11px] tabular-nums text-center font-medium">{row.total}</span>
+                    <span className="text-[11px] tabular-nums text-center font-semibold text-emerald-600">{row.success}</span>
+                    <span className="text-[11px] tabular-nums text-center font-semibold text-red-500">{row.cancel}</span>
+                  </div>
+                ))}
+                <div className="grid grid-cols-4 gap-0 px-3 py-2 border-t-2 border-border/40 bg-muted/30">
+                  <span className="text-[11px] font-bold">Total</span>
+                  <span className="text-[11px] tabular-nums text-center font-bold">{bdCourier.total_orders}</span>
+                  <span className="text-[11px] tabular-nums text-center font-bold text-emerald-600">{bdCourier.successful_orders}</span>
+                  <span className="text-[11px] tabular-nums text-center font-bold text-red-500">{bdCourier.cancelled_orders + bdCourier.returned_orders}</span>
+                </div>
+              </div>
+            )}
+            <div className={cn("flex items-center gap-2 px-3 py-2 rounded-lg border",
+              riskInfo?.risk === "low" ? "border-emerald-200/50 bg-emerald-50/30" :
+              riskInfo?.risk === "medium" ? "border-amber-200/50 bg-amber-50/30" :
+              riskInfo?.risk === "high" ? "border-red-200/50 bg-red-50/30" : "border-border/30 bg-muted/20"
+            )}>
+              {riskInfo?.risk === "low" ? <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" /> :
+               riskInfo?.risk === "medium" ? <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" /> :
+               riskInfo?.risk === "high" ? <AlertCircle className="w-4 h-4 text-red-600 shrink-0" /> :
+               <ShieldCheck className="w-4 h-4 text-muted-foreground shrink-0" />}
+              <div>
+                <p className="text-[11px] font-semibold">{riskInfo?.label || "Unknown"}</p>
+                <p className="text-[9px] text-muted-foreground">
+                  {bdCourier.success_rate >= 80 ? "This customer appears safe based on previous records." :
+                   bdCourier.success_rate >= 50 ? "Customer has a moderate return/cancel history." :
+                   "High risk — frequent cancellations or returns."}
+                </p>
+              </div>
+            </div>
+            {bdCourier.cached && bdCourier.last_fetched_at && (
+              <p className="text-[8px] text-muted-foreground/40 text-right">Cached · {formatDate(bdCourier.last_fetched_at)}</p>
+            )}
+          </div>
+        ) : (
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted text-muted-foreground text-[11px] font-medium">
+            🆕 No courier record found
+          </div>
+        )}
+      </div>
+
+      <Separator className="bg-border/30" />
 
       {/* Courier History */}
       {phone.length >= 11 && (
         <>
           <div className="space-y-2.5">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground flex items-center gap-1.5">
-              🚚 Courier History
-            </p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground flex items-center gap-1.5">🚚 Courier History</p>
             {courierHistLoading ? (
               <div className="space-y-1.5"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div>
             ) : courierHistory && courierHistory.length > 0 ? (
@@ -308,13 +414,9 @@ function OrderHealthCard({ phone, parseResult, grandTotal, advance }: {
                       <p className="text-[11px] font-medium capitalize">{h.courier_name}</p>
                       {h.tracking_id && <p className="text-[9px] text-muted-foreground font-mono truncate">{h.tracking_id}</p>}
                     </div>
-                    <div className="text-right shrink-0 ml-2">
-                      <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded",
-                        h.status === "delivered" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
-                      )}>
-                        {h.status === "delivered" ? "✓" : "↩"} {h.status}
-                      </span>
-                    </div>
+                    <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded shrink-0",
+                      h.status === "delivered" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
+                    )}>{h.status === "delivered" ? "✓" : "↩"} {h.status}</span>
                   </div>
                 ))}
               </div>
@@ -326,19 +428,15 @@ function OrderHealthCard({ phone, parseResult, grandTotal, advance }: {
         </>
       )}
 
-      {/* Our Record — Customer's previous orders */}
+      {/* Our Record */}
       <div className="space-y-2.5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground flex items-center gap-1.5">
-          <User className="w-3 h-3" /> Our Record
-        </p>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground flex items-center gap-1.5"><User className="w-3 h-3" /> Our Record</p>
         {phone.length < 11 ? (
           <p className="text-xs text-muted-foreground/50">Enter phone to see history</p>
         ) : isLoading ? (
           <div className="space-y-1.5"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-3/4" /></div>
         ) : !hasHistory ? (
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary/5 text-primary text-[11px] font-medium">
-            <span>✦</span> New Customer — No previous orders
-          </div>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary/5 text-primary text-[11px] font-medium"><span>✦</span> New Customer</div>
         ) : (
           <div className="space-y-2">
             <div className="grid grid-cols-2 gap-2">
@@ -355,8 +453,6 @@ function OrderHealthCard({ phone, parseResult, grandTotal, advance }: {
             <KpiPill label="Delivered" value={customerHistory.delivered} color="text-emerald-600" />
             <KpiPill label="Returned" value={customerHistory.returned} color="text-amber-600" />
             <KpiPill label="Cancelled" value={customerHistory.cancelled} color="text-red-500" />
-
-            {/* Recent orders list */}
             {customerHistory.recentOrders && customerHistory.recentOrders.length > 0 && (
               <div className="pt-2 space-y-1.5">
                 <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/60">Recent Orders</p>
@@ -369,9 +465,7 @@ function OrderHealthCard({ phone, parseResult, grandTotal, advance }: {
                       </div>
                       <div className="flex items-center gap-2 shrink-0 ml-2">
                         <span className="text-[10px] font-semibold tabular-nums">৳{(o.total_amount || 0).toLocaleString()}</span>
-                        <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded capitalize", statusColor(o.status))}>
-                          {o.status}
-                        </span>
+                        <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded capitalize", statusColor(o.status))}>{o.status}</span>
                       </div>
                     </div>
                   ))}
@@ -407,13 +501,9 @@ function OrderHealthCard({ phone, parseResult, grandTotal, advance }: {
         <div className="flex items-center justify-between">
           <span className="text-[11px] text-muted-foreground">COD Pending</span>
           <span className={cn("text-sm font-bold tabular-nums", codPending > 0 ? "text-amber-600" : "text-emerald-600")}
-            style={{ fontFamily: "'Syne', sans-serif" }}>
-            ৳{codPending.toLocaleString()}
-          </span>
+            style={{ fontFamily: "'Syne', sans-serif" }}>৳{codPending.toLocaleString()}</span>
         </div>
-        {advance > 0 && (
-          <p className="text-[10px] text-emerald-600 font-medium">✓ Advance ৳{advance.toLocaleString()} received</p>
-        )}
+        {advance > 0 && <p className="text-[10px] text-emerald-600 font-medium">✓ Advance ৳{advance.toLocaleString()} received</p>}
       </div>
     </div>
   );
