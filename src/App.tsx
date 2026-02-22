@@ -15,6 +15,9 @@ import WebOrderDetail from "./pages/WebOrderDetail";
 import SettingsPage from "./pages/Settings";
 import InventoryPage from "./pages/Inventory";
 import SystemHealth from "./pages/SystemHealth";
+import PurchaseOrdersPage from "./pages/PurchaseOrders";
+import PurchaseOrderDetailPage from "./pages/PurchaseOrderDetail";
+import SuppliersPage from "./pages/Suppliers";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +39,10 @@ const App = () => (
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/products/new" element={<NewProduct />} />
             <Route path="/inventory" element={<InventoryPage />} />
+            <Route path="/purchase-orders" element={<PurchaseOrdersPage />} />
+            <Route path="/purchase-orders/new" element={<PurchaseOrderDetailPage />} />
+            <Route path="/purchase-orders/:id" element={<PurchaseOrderDetailPage />} />
+            <Route path="/suppliers" element={<SuppliersPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/system-health" element={<SystemHealth />} />
           </Route>
