@@ -14,10 +14,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import {
-  Save, Plus, X, Check, Copy,
+  Save, Plus, X, Check, Copy, Pencil, Trash2,
   ArrowLeft, CreditCard, Package,
-  CheckCircle2, Handshake, Rocket,
+  CheckCircle2, Handshake, Rocket, ToggleLeft,
 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { POPdfExport } from "@/components/purchase-orders/POPdfExport";
 import { POProductSearch } from "@/components/purchase-orders/POProductSearch";
 import { format, differenceInDays } from "date-fns";
@@ -115,6 +119,23 @@ export default function PurchaseOrderDetailPage() {
   const [timeline, setTimeline] = useState<{ stage: number; completed_at: string | null; note: string }[]>([]);
 
   const [saving, setSaving] = useState(false);
+
+  // Payment form state
+  const [payInputMode, setPayInputMode] = useState<"amount" | "percent">("amount");
+  const [newPayAmount, setNewPayAmount] = useState(0);
+  const [newPayPercent, setNewPayPercent] = useState(0);
+  const [newPayDate, setNewPayDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [newPayMethod, setNewPayMethod] = useState("bKash");
+  const [newPayTxnId, setNewPayTxnId] = useState("");
+  const [newPayNote, setNewPayNote] = useState("");
+  const [newPayType, setNewPayType] = useState("PRODUCT_ADVANCE");
+  const [editingPayIdx, setEditingPayIdx] = useState<number | null>(null);
+
+  // Shipping payment form
+  const [shipPayAmount, setShipPayAmount] = useState(0);
+  const [shipPayDate, setShipPayDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [shipPayMethod, setShipPayMethod] = useState("bKash");
+  const [shipPayTxnId, setShipPayTxnId] = useState("");
 
   const activeTimeline = importType === "AGENT" ? AGENT_TIMELINE : DIRECT_TIMELINE;
 
@@ -358,10 +379,6 @@ export default function PurchaseOrderDetailPage() {
   // Receive goods
   const handleReceiveGoods = async () => {
     if (!id) return;
-    if (isAgent && remaining > 0) {
-      toast({ title: "Please complete payment first", description: "Due and shipping must be paid before receiving goods.", variant: "destructive" });
-      return;
-    }
     try {
       for (const item of items) {
         if (!item.product_id || (item.received_quantity || 0) <= 0) continue;
@@ -831,162 +848,344 @@ export default function PurchaseOrderDetailPage() {
           )}
 
           {/* Payment Tracking */}
-          <section className="rounded-2xl border border-border bg-card p-5">
-            <h2 className="text-sm font-bold text-foreground mb-3">Payment Tracking</h2>
+          <section className="rounded-2xl border border-border bg-card p-5 space-y-5">
+            <h2 className="text-sm font-bold text-foreground">Payment Tracking</h2>
 
-            {isAgent ? (
-              /* Agent payment: structured advance/due/shipping */
-              <div className="space-y-4">
-                {/* Advance */}
-                <div className="rounded-xl border border-border p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-xs font-bold text-foreground">💳 Advance Payment (50%)</h3>
-                    <span className="text-xs text-muted-foreground">Suggested: ৳{(productCostBdt * 0.5).toLocaleString()}</span>
-                  </div>
-                  {payments.filter(p => p.payment_type === "ADVANCE").length === 0 ? (
-                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => addPayment("ADVANCE")}>
-                      <Plus className="w-3.5 h-3.5" /> Add Advance Payment
-                    </Button>
-                  ) : null}
-                  {payments.map((p, i) => p.payment_type === "ADVANCE" ? (
-                    <div key={i} className="flex flex-wrap gap-2 mb-2 items-center">
-                      <Input type="date" value={p.payment_date} onChange={(e) => setPayments(prev => prev.map((pp, idx) => idx === i ? { ...pp, payment_date: e.target.value } : pp))} className="h-8 w-36" />
-                      <Input type="number" placeholder="Amount" value={p.amount || ""} onChange={(e) => setPayments(prev => prev.map((pp, idx) => idx === i ? { ...pp, amount: Number(e.target.value) } : pp))} className="h-8 w-28" />
-                      <Select value={p.payment_method} onValueChange={(v) => setPayments(prev => prev.map((pp, idx) => idx === i ? { ...pp, payment_method: v } : pp))}>
-                        <SelectTrigger className="h-8 w-24"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {AGENT_PAYMENT_METHODS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                      <Input placeholder="Txn ID" value={p.transaction_id || ""} onChange={(e) => setPayments(prev => prev.map((pp, idx) => idx === i ? { ...pp, transaction_id: e.target.value } : pp))} className="h-8 w-28" />
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removePayment(i)}>
-                        <X className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  ) : null)}
+            {/* Payment Summary Box - always visible */}
+            <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">💰 Total Bill</span>
+                <span className="font-bold">৳{productCostBdt.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">✅ Total Paid</span>
+                <span className="font-semibold text-success">৳{payments.filter(p => p.payment_type !== "SHIPPING").reduce((s, p) => s + p.amount, 0).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">🔴 Due Remaining</span>
+                <span className="font-bold text-destructive">
+                  ৳{Math.max(0, productCostBdt - payments.filter(p => p.payment_type !== "SHIPPING").reduce((s, p) => s + p.amount, 0)).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">📊 Paid</span>
+                <span className="font-semibold">{productCostBdt > 0 ? Math.min(100, Math.round((payments.filter(p => p.payment_type !== "SHIPPING").reduce((s, p) => s + p.amount, 0) / productCostBdt) * 100)) : 0}%</span>
+              </div>
+              <Progress value={productCostBdt > 0 ? Math.min(100, (payments.filter(p => p.payment_type !== "SHIPPING").reduce((s, p) => s + p.amount, 0) / productCostBdt) * 100) : 0} className="h-2.5 mt-1" />
+            </div>
+
+            {/* Add Payment Section */}
+            <div className="rounded-xl border border-border p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-foreground">➕ Add Payment</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-xs h-7"
+                  onClick={() => {
+                    if (payInputMode === "amount") {
+                      setPayInputMode("percent");
+                      if (newPayAmount > 0 && productCostBdt > 0) {
+                        setNewPayPercent(Math.round((newPayAmount / productCostBdt) * 100));
+                      }
+                    } else {
+                      setPayInputMode("amount");
+                      if (newPayPercent > 0 && productCostBdt > 0) {
+                        setNewPayAmount(Math.round(productCostBdt * newPayPercent / 100));
+                      }
+                    }
+                  }}
+                >
+                  <ToggleLeft className="w-3 h-3" />
+                  {payInputMode === "amount" ? "Switch to % input" : "Switch to ৳ input"}
+                </Button>
+              </div>
+
+              {payInputMode === "amount" ? (
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Amount (৳)</label>
+                  <Input
+                    type="number"
+                    value={newPayAmount || ""}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setNewPayAmount(v);
+                      if (productCostBdt > 0) setNewPayPercent(Math.round((v / productCostBdt) * 100));
+                    }}
+                    placeholder="Enter amount..."
+                    className="h-9"
+                  />
+                  {newPayAmount > 0 && productCostBdt > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">= {Math.round((newPayAmount / productCostBdt) * 100)}% of total bill</p>
+                  )}
                 </div>
-
-                {/* Shipping Charge */}
-                <div className="rounded-xl border border-border p-4">
-                  <h3 className="text-xs font-bold text-foreground mb-2">🚚 Shipping Charge</h3>
-                  <div className="flex gap-2 items-center mb-2">
-                    <Input type="number" placeholder="৳ Amount" value={shippingChargeBdt || ""} onChange={(e) => setShippingChargeBdt(Number(e.target.value))} className="h-8 w-32" />
-                  </div>
-                  {payments.filter(p => p.payment_type === "SHIPPING").length === 0 ? (
-                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => addPayment("SHIPPING")}>
-                      <Plus className="w-3.5 h-3.5" /> Pay Shipping
-                    </Button>
-                  ) : null}
-                  {payments.map((p, i) => p.payment_type === "SHIPPING" ? (
-                    <div key={i} className="flex flex-wrap gap-2 mb-2 items-center">
-                      <Input type="date" value={p.payment_date} onChange={(e) => setPayments(prev => prev.map((pp, idx) => idx === i ? { ...pp, payment_date: e.target.value } : pp))} className="h-8 w-36" />
-                      <Input type="number" placeholder="Amount" value={p.amount || ""} onChange={(e) => setPayments(prev => prev.map((pp, idx) => idx === i ? { ...pp, amount: Number(e.target.value) } : pp))} className="h-8 w-28" />
-                      <Select value={p.payment_method} onValueChange={(v) => setPayments(prev => prev.map((pp, idx) => idx === i ? { ...pp, payment_method: v } : pp))}>
-                        <SelectTrigger className="h-8 w-24"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {AGENT_PAYMENT_METHODS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                      <Input placeholder="Txn ID" value={p.transaction_id || ""} onChange={(e) => setPayments(prev => prev.map((pp, idx) => idx === i ? { ...pp, transaction_id: e.target.value } : pp))} className="h-8 w-28" />
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removePayment(i)}>
-                        <X className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  ) : null)}
+              ) : (
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Percentage (%)</label>
+                  <Input
+                    type="number"
+                    value={newPayPercent || ""}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setNewPayPercent(v);
+                      setNewPayAmount(Math.round(productCostBdt * v / 100));
+                    }}
+                    placeholder="Enter %..."
+                    className="h-9"
+                    max={100}
+                  />
+                  {newPayPercent > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">= ৳{Math.round(productCostBdt * newPayPercent / 100).toLocaleString()}</p>
+                  )}
                 </div>
+              )}
 
-                {/* Due Amount */}
-                <div className="rounded-xl border border-border p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-xs font-bold text-foreground">💰 Due Amount</h3>
-                    <span className={`text-xs font-bold ${dueAmount > 0 ? "text-destructive" : "text-success"}`}>
-                      ৳{Math.max(0, dueAmount).toLocaleString()}
-                    </span>
-                  </div>
-                  {advancePaid === 0 ? (
-                    <p className="text-xs text-muted-foreground">Pay advance first before due payment</p>
-                  ) : payments.filter(p => p.payment_type === "DUE").length === 0 ? (
-                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => addPayment("DUE")} disabled={advancePaid === 0}>
-                      <Plus className="w-3.5 h-3.5" /> Pay Due Amount
-                    </Button>
-                  ) : null}
-                  {payments.map((p, i) => p.payment_type === "DUE" ? (
-                    <div key={i} className="flex flex-wrap gap-2 mb-2 items-center">
-                      <Input type="date" value={p.payment_date} onChange={(e) => setPayments(prev => prev.map((pp, idx) => idx === i ? { ...pp, payment_date: e.target.value } : pp))} className="h-8 w-36" />
-                      <Input type="number" placeholder="Amount" value={p.amount || ""} onChange={(e) => setPayments(prev => prev.map((pp, idx) => idx === i ? { ...pp, amount: Number(e.target.value) } : pp))} className="h-8 w-28" />
-                      <Select value={p.payment_method} onValueChange={(v) => setPayments(prev => prev.map((pp, idx) => idx === i ? { ...pp, payment_method: v } : pp))}>
-                        <SelectTrigger className="h-8 w-24"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {AGENT_PAYMENT_METHODS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                      <Input placeholder="Txn ID" value={p.transaction_id || ""} onChange={(e) => setPayments(prev => prev.map((pp, idx) => idx === i ? { ...pp, transaction_id: e.target.value } : pp))} className="h-8 w-28" />
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removePayment(i)}>
-                        <X className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  ) : null)}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Date</label>
+                  <Input type="date" value={newPayDate} onChange={(e) => setNewPayDate(e.target.value)} className="h-9" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Method</label>
+                  <Select value={newPayMethod} onValueChange={setNewPayMethod}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {(isAgent ? AGENT_PAYMENT_METHODS : DIRECT_PAYMENT_METHODS).map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-            ) : (
-              /* Direct: flexible payments */
-              <>
-                {payments.map((p, i) => (
-                  <div key={i} className="flex flex-wrap gap-2 mb-2 items-center">
-                    <Input type="date" value={p.payment_date} onChange={(e) => setPayments(prev => prev.map((pp, idx) => idx === i ? { ...pp, payment_date: e.target.value } : pp))} className="h-8 w-36" />
-                    <Input type="number" placeholder="Amount" value={p.amount || ""} onChange={(e) => setPayments(prev => prev.map((pp, idx) => idx === i ? { ...pp, amount: Number(e.target.value) } : pp))} className="h-8 w-28" />
-                    <Select value={p.currency} onValueChange={(v) => setPayments(prev => prev.map((pp, idx) => idx === i ? { ...pp, currency: v } : pp))}>
-                      <SelectTrigger className="h-8 w-20"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="CNY">CNY</SelectItem>
-                        <SelectItem value="BDT">BDT</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={p.payment_method} onValueChange={(v) => setPayments(prev => prev.map((pp, idx) => idx === i ? { ...pp, payment_method: v } : pp))}>
-                      <SelectTrigger className="h-8 w-24"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {DIRECT_PAYMENT_METHODS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <Select value={p.payment_type} onValueChange={(v) => setPayments(prev => prev.map((pp, idx) => idx === i ? { ...pp, payment_type: v } : pp))}>
-                      <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ADVANCE">Advance</SelectItem>
-                        <SelectItem value="REMAINING">Remaining</SelectItem>
-                        <SelectItem value="SHIPPING">Shipping</SelectItem>
-                        <SelectItem value="OTHER">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Input placeholder="Txn ID" value={p.transaction_id || ""} onChange={(e) => setPayments(prev => prev.map((pp, idx) => idx === i ? { ...pp, transaction_id: e.target.value } : pp))} className="h-8 w-28" />
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removePayment(i)}>
-                      <X className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                ))}
-                <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => addPayment()}>
-                  <Plus className="w-3.5 h-3.5" /> Add Payment
-                </Button>
-              </>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Transaction ID</label>
+                  <Input value={newPayTxnId} onChange={(e) => setNewPayTxnId(e.target.value)} placeholder="TXN-XXXX" className="h-9" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Type</label>
+                  <Select value={newPayType} onValueChange={setNewPayType}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PRODUCT_ADVANCE">Product Advance</SelectItem>
+                      <SelectItem value="PRODUCT_DUE">Product Due</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Note (optional)</label>
+                <Input value={newPayNote} onChange={(e) => setNewPayNote(e.target.value)} placeholder="e.g. Initial advance" className="h-9" />
+              </div>
+              <Button
+                size="sm"
+                className="gap-1.5 w-full"
+                disabled={newPayAmount <= 0}
+                onClick={() => {
+                  if (editingPayIdx !== null) {
+                    setPayments(prev => prev.map((p, idx) => idx === editingPayIdx ? {
+                      ...p,
+                      amount: newPayAmount,
+                      payment_date: newPayDate,
+                      payment_method: newPayMethod,
+                      payment_type: newPayType,
+                      transaction_id: newPayTxnId,
+                      note: newPayNote,
+                    } : p));
+                    setEditingPayIdx(null);
+                  } else {
+                    setPayments(prev => [...prev, {
+                      payment_date: newPayDate,
+                      amount: newPayAmount,
+                      currency: "BDT",
+                      payment_method: newPayMethod,
+                      payment_type: newPayType,
+                      transaction_id: newPayTxnId,
+                      note: newPayNote,
+                    }]);
+                  }
+                  setNewPayAmount(0);
+                  setNewPayPercent(0);
+                  setNewPayTxnId("");
+                  setNewPayNote("");
+                  setNewPayType("PRODUCT_ADVANCE");
+                  toast({ title: editingPayIdx !== null ? "Payment updated" : "Payment added" });
+                }}
+              >
+                <Plus className="w-3.5 h-3.5" /> {editingPayIdx !== null ? "Update Payment" : "Add Payment"}
+              </Button>
+            </div>
+
+            {/* Payment History */}
+            {payments.filter(p => p.payment_type !== "SHIPPING").length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-xs font-bold text-muted-foreground">Payment History</h3>
+                {payments.map((p, i) => {
+                  if (p.payment_type === "SHIPPING") return null;
+                  const pctOfTotal = productCostBdt > 0 ? Math.round((p.amount / productCostBdt) * 100) : 0;
+                  return (
+                    <div key={i} className="rounded-xl border border-border p-3 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold">💳 ৳{p.amount.toLocaleString()} ({pctOfTotal}%)</span>
+                        <Badge variant="secondary" className="text-[10px]">{p.payment_method}</Badge>
+                      </div>
+                      {p.transaction_id && (
+                        <p className="text-xs text-muted-foreground">TXN: {p.transaction_id}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        {p.payment_date ? format(new Date(p.payment_date), "dd MMM yyyy") : "—"}
+                        {p.payment_type && ` · ${p.payment_type.replace(/_/g, " ")}`}
+                      </p>
+                      {p.note && <p className="text-xs text-muted-foreground italic">Note: {p.note}</p>}
+                      <div className="flex gap-1 mt-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-xs gap-1 px-2"
+                          onClick={() => {
+                            setEditingPayIdx(i);
+                            setNewPayAmount(p.amount);
+                            setNewPayPercent(productCostBdt > 0 ? Math.round((p.amount / productCostBdt) * 100) : 0);
+                            setNewPayDate(p.payment_date);
+                            setNewPayMethod(p.payment_method);
+                            setNewPayType(p.payment_type);
+                            setNewPayTxnId(p.transaction_id || "");
+                            setNewPayNote(p.note || "");
+                          }}
+                        >
+                          <Pencil className="w-3 h-3" /> Edit
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 px-2 text-destructive">
+                              <Trash2 className="w-3 h-3" /> Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Payment?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Delete ৳{p.amount.toLocaleString()} payment via {p.payment_method}? This cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => removePayment(i)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
 
-            {/* Payment Summary */}
-            <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-emerald-50 to-emerald-100 dark:from-emerald-950/30 dark:to-emerald-900/20 space-y-1">
-              {isAgent && (
-                <>
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Product Cost</span><span className="font-semibold">৳{productCostBdt.toLocaleString()}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Advance Paid</span><span className="font-semibold text-success">৳{advancePaid.toLocaleString()}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Due Amount</span><span className={`font-semibold ${dueAmount > 0 ? "text-destructive" : "text-success"}`}>৳{Math.max(0, dueAmount).toLocaleString()}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Shipping Charge</span><span className="font-semibold">৳{shippingChargeBdt.toLocaleString()}</span></div>
-                  <Separator className="my-2" />
-                </>
-              )}
-              <div className="flex justify-between text-sm"><span>Grand Total</span><span className="font-bold">৳{grandTotalBdt.toLocaleString()}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-success">Total Paid</span><span className="font-semibold text-success">৳{totalPaid.toLocaleString()}</span></div>
-              <div className="flex justify-between text-sm">
-                <span className={remaining > 0 ? "text-destructive" : "text-success"}>Remaining</span>
-                <span className={`font-bold ${remaining > 0 ? "text-destructive" : "text-success"}`}>৳{Math.max(0, remaining).toLocaleString()}</span>
+            {/* Shipping Charge */}
+            <div className="rounded-xl border border-border p-4 space-y-3">
+              <h3 className="text-xs font-bold text-foreground">🚚 Shipping Charge</h3>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Amount (৳)</label>
+                <Input type="number" value={shippingChargeBdt || ""} onChange={(e) => setShippingChargeBdt(Number(e.target.value))} placeholder="৳ Shipping amount" className="h-9" />
               </div>
-              <Progress value={paidPercent} className="mt-2 h-2" />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Date</label>
+                  <Input type="date" value={shipPayDate} onChange={(e) => setShipPayDate(e.target.value)} className="h-9" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Method</label>
+                  <Select value={shipPayMethod} onValueChange={setShipPayMethod}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {AGENT_PAYMENT_METHODS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Txn ID</label>
+                <Input value={shipPayTxnId} onChange={(e) => setShipPayTxnId(e.target.value)} placeholder="TXN-XXXX" className="h-9" />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 w-full"
+                disabled={shippingChargeBdt <= 0}
+                onClick={() => {
+                  setPayments(prev => [...prev, {
+                    payment_date: shipPayDate,
+                    amount: shippingChargeBdt,
+                    currency: "BDT",
+                    payment_method: shipPayMethod,
+                    payment_type: "SHIPPING",
+                    transaction_id: shipPayTxnId,
+                    note: "Shipping charge",
+                  }]);
+                  setShipPayTxnId("");
+                  toast({ title: "Shipping payment added" });
+                }}
+              >
+                <Check className="w-3.5 h-3.5" /> Pay Shipping
+              </Button>
+              {/* Shipping payments list */}
+              {payments.filter(p => p.payment_type === "SHIPPING").map((p, i) => {
+                const realIdx = payments.indexOf(p);
+                return (
+                  <div key={i} className="rounded-lg border border-border p-2 text-xs flex items-center justify-between mt-2">
+                    <span>✅ ৳{p.amount.toLocaleString()} · {p.payment_method} · {p.payment_date ? format(new Date(p.payment_date), "dd MMM yyyy") : ""}</span>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removePayment(realIdx)}>
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Full Payment Summary */}
+            <div className="rounded-xl bg-gradient-to-r from-muted/50 to-muted/30 border border-border p-4 space-y-1.5">
+              <div className="flex justify-between text-sm"><span className="text-muted-foreground">📦 Product Cost</span><span className="font-semibold">৳{productCostBdt.toLocaleString()}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-muted-foreground">🚚 Shipping Charge</span><span className="font-semibold">৳{shippingChargeBdt.toLocaleString()}</span></div>
+              <Separator className="my-2" />
+              <div className="flex justify-between text-sm font-bold"><span>💰 Grand Total</span><span>৳{(productCostBdt + shippingChargeBdt).toLocaleString()}</span></div>
+
+              <div className="mt-2 space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-success">✅ Product Paid</span>
+                  <span className="font-semibold text-success">
+                    ৳{payments.filter(p => p.payment_type !== "SHIPPING").reduce((s, p) => s + p.amount, 0).toLocaleString()}
+                    {" "}({productCostBdt > 0 ? Math.round((payments.filter(p => p.payment_type !== "SHIPPING").reduce((s, p) => s + p.amount, 0) / productCostBdt) * 100) : 0}%)
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-success">✅ Shipping Paid</span>
+                  <span className="font-semibold text-success">
+                    ৳{shippingPaid.toLocaleString()}
+                    {" "}({shippingChargeBdt > 0 ? Math.round((shippingPaid / shippingChargeBdt) * 100) : 0}%)
+                  </span>
+                </div>
+              </div>
+              <Separator className="my-2" />
+              <div className="flex justify-between text-sm">
+                <span className="text-destructive font-bold">🔴 Total Due</span>
+                <span className="font-bold text-destructive">
+                  ৳{Math.max(0, (productCostBdt + shippingChargeBdt) - totalPaid).toLocaleString()}
+                </span>
+              </div>
+
+              <div className="mt-3 space-y-1.5">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="w-14">Product</span>
+                  <Progress value={productCostBdt > 0 ? Math.min(100, (payments.filter(p => p.payment_type !== "SHIPPING").reduce((s, p) => s + p.amount, 0) / productCostBdt) * 100) : 0} className="h-2 flex-1" />
+                  <span className="w-8 text-right">{productCostBdt > 0 ? Math.round((payments.filter(p => p.payment_type !== "SHIPPING").reduce((s, p) => s + p.amount, 0) / productCostBdt) * 100) : 0}%</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="w-14">Overall</span>
+                  <Progress value={paidPercent} className="h-2 flex-1" />
+                  <span className="w-8 text-right">{Math.round(paidPercent)}%</span>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -1030,56 +1229,72 @@ export default function PurchaseOrderDetailPage() {
           </section>
 
           {/* Receive Goods */}
-          {(status === "shipped" || status === "in_transit" || status === "customs" || status === "arrived_bd") && (
-            <section className="rounded-2xl border-2 border-success/30 bg-success/5 p-5">
-              <h2 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-                <Package className="w-4 h-4 text-success" /> Receive Goods
-              </h2>
-              {isAgent && remaining > 0 && (
-                <div className="rounded-xl bg-warning/10 border border-warning/30 p-3 mb-3 text-sm text-warning flex items-center gap-2">
-                  ⚠️ Please complete payment first (Due + Shipping) before receiving goods.
-                </div>
-              )}
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Ordered</TableHead>
-                    <TableHead>Received</TableHead>
-                    <TableHead>Condition</TableHead>
+          <section className="rounded-2xl border-2 border-success/30 bg-success/5 p-5">
+            <h2 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+              <Package className="w-4 h-4 text-success" /> Receive Goods
+            </h2>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Ordered</TableHead>
+                  <TableHead>Received</TableHead>
+                  <TableHead>Condition</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {items.map((item, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="text-sm font-medium">{item.product_name || `Item ${i + 1}`}</TableCell>
+                    <TableCell>{item.quantity}</TableCell>
+                    <TableCell>
+                      <Input type="number" value={item.received_quantity || ""} onChange={(e) => updateItem(i, "received_quantity", Number(e.target.value))} className="h-8 w-20" />
+                    </TableCell>
+                    <TableCell>
+                      <Select value={item.condition || "good"} onValueChange={(v) => updateItem(i, "condition", v)}>
+                        <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="good">Good</SelectItem>
+                          <SelectItem value="damaged">Damaged</SelectItem>
+                          <SelectItem value="missing">Missing</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((item, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="text-sm font-medium">{item.product_name || `Item ${i + 1}`}</TableCell>
-                      <TableCell>{item.quantity}</TableCell>
-                      <TableCell>
-                        <Input type="number" value={item.received_quantity || ""} onChange={(e) => updateItem(i, "received_quantity", Number(e.target.value))} className="h-8 w-20" />
-                      </TableCell>
-                      <TableCell>
-                        <Select value={item.condition || "good"} onValueChange={(v) => updateItem(i, "condition", v)}>
-                          <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="good">Good</SelectItem>
-                            <SelectItem value="damaged">Damaged</SelectItem>
-                            <SelectItem value="missing">Missing</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                ))}
+              </TableBody>
+            </Table>
+            {remaining > 0 ? (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button className="mt-3 gap-1.5 bg-success hover:bg-success/90">
+                    <CheckCircle2 className="w-4 h-4" /> Receive & Update Inventory
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>⚠️ Outstanding Balance</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      ৳{Math.max(0, remaining).toLocaleString()} still due — receive anyway?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleReceiveGoods} className="bg-success hover:bg-success/90">
+                      Yes, Receive
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ) : (
               <Button
                 className="mt-3 gap-1.5 bg-success hover:bg-success/90"
                 onClick={handleReceiveGoods}
-                disabled={isAgent && remaining > 0}
               >
                 <CheckCircle2 className="w-4 h-4" /> Receive & Update Inventory
               </Button>
-            </section>
-          )}
+            )}
+          </section>
 
           {/* Notes */}
           <section className="rounded-2xl border border-border bg-card p-5">
