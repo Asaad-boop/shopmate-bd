@@ -7,7 +7,7 @@
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
+    --background: 228 27% 96%;
     --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
@@ -16,10 +16,10 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    --primary: 350 84% 49%;
+    --primary: 244 100% 69%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 350 100% 97%;
-    --primary-dark: 350 82% 41%;
+    --primary-light: 244 100% 97%;
+    --primary-dark: 244 82% 57%;
 
     --secondary: 214 32% 96%;
     --secondary-foreground: 222 47% 11%;
@@ -27,26 +27,26 @@
     --muted: 214 32% 96%;
     --muted-foreground: 215 16% 47%;
 
-    --accent: 350 100% 97%;
-    --accent-foreground: 350 84% 49%;
+    --accent: 244 100% 97%;
+    --accent-foreground: 244 100% 69%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 214 32% 96%;
     --input: 214 32% 91%;
-    --ring: 350 84% 49%;
+    --ring: 244 100% 69%;
 
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 350 84% 49%;
+    --sidebar-primary: 244 100% 69%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 20% 96%;
+    --sidebar-accent: 228 27% 96%;
     --sidebar-accent-foreground: 222 47% 11%;
     --sidebar-border: 214 32% 93%;
-    --sidebar-ring: 350 84% 49%;
+    --sidebar-ring: 244 100% 69%;
     --sidebar-muted: 215 16% 57%;
 
     --success: 160 84% 39%;
@@ -70,10 +70,10 @@
     --card-foreground: 210 40% 98%;
     --popover: 240 18% 21%;
     --popover-foreground: 210 40% 98%;
-    --primary: 350 84% 49%;
+    --primary: 244 100% 69%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 350 50% 20%;
-    --primary-dark: 350 82% 41%;
+    --primary-light: 244 50% 20%;
+    --primary-dark: 244 82% 57%;
     --secondary: 240 18% 21%;
     --secondary-foreground: 210 40% 98%;
     --muted: 240 18% 21%;
@@ -84,15 +84,15 @@
     --destructive-foreground: 210 40% 98%;
     --border: 240 18% 21%;
     --input: 240 18% 21%;
-    --ring: 350 84% 49%;
+    --ring: 244 100% 69%;
     --sidebar-background: 240 24% 10%;
     --sidebar-foreground: 210 40% 90%;
-    --sidebar-primary: 350 84% 49%;
+    --sidebar-primary: 244 100% 69%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 18% 16%;
     --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 240 18% 16%;
-    --sidebar-ring: 350 84% 49%;
+    --sidebar-ring: 244 100% 69%;
     --sidebar-muted: 215 16% 47%;
   }
 }
@@ -104,7 +104,7 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
   }
 }
 
@@ -272,4 +272,11 @@ tbody tr {
 
 .toast-progress {
   animation: toast-progress 4s linear forwards;
+}
+
+/* ─── Shimmer for bottom bar ─── */
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
