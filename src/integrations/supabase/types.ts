@@ -847,6 +847,120 @@ export type Database = {
           },
         ]
       }
+      po_additional_costs: {
+        Row: {
+          amount_bdt: number
+          created_at: string | null
+          id: string
+          label: string
+          po_id: string | null
+        }
+        Insert: {
+          amount_bdt?: number
+          created_at?: string | null
+          id?: string
+          label: string
+          po_id?: string | null
+        }
+        Update: {
+          amount_bdt?: number
+          created_at?: string | null
+          id?: string
+          label?: string
+          po_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "po_additional_costs_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      po_payments: {
+        Row: {
+          amount: number
+          created_at: string | null
+          currency: string
+          id: string
+          note: string | null
+          payment_date: string
+          payment_method: string | null
+          po_id: string | null
+          transaction_id: string | null
+        }
+        Insert: {
+          amount?: number
+          created_at?: string | null
+          currency?: string
+          id?: string
+          note?: string | null
+          payment_date?: string
+          payment_method?: string | null
+          po_id?: string | null
+          transaction_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          currency?: string
+          id?: string
+          note?: string | null
+          payment_date?: string
+          payment_method?: string | null
+          po_id?: string | null
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "po_payments_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      po_timeline: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          done_by: string | null
+          id: string
+          note: string | null
+          po_id: string | null
+          stage: number
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          done_by?: string | null
+          id?: string
+          note?: string | null
+          po_id?: string | null
+          stage: number
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          done_by?: string | null
+          id?: string
+          note?: string | null
+          po_id?: string | null
+          stage?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "po_timeline_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           available_quantity: number | null
@@ -963,40 +1077,55 @@ export type Database = {
       }
       purchase_order_items: {
         Row: {
+          condition: string | null
           defective_quantity: number | null
           id: string
+          image_url: string | null
           notes: string | null
           product_id: string | null
+          product_name: string | null
           purchase_order_id: string | null
           quantity: number
           received_quantity: number | null
           total_price_usd: number | null
+          unit: string | null
           unit_price_cny: number | null
           unit_price_usd: number | null
+          variant_note: string | null
         }
         Insert: {
+          condition?: string | null
           defective_quantity?: number | null
           id?: string
+          image_url?: string | null
           notes?: string | null
           product_id?: string | null
+          product_name?: string | null
           purchase_order_id?: string | null
           quantity: number
           received_quantity?: number | null
           total_price_usd?: number | null
+          unit?: string | null
           unit_price_cny?: number | null
           unit_price_usd?: number | null
+          variant_note?: string | null
         }
         Update: {
+          condition?: string | null
           defective_quantity?: number | null
           id?: string
+          image_url?: string | null
           notes?: string | null
           product_id?: string | null
+          product_name?: string | null
           purchase_order_id?: string | null
           quantity?: number
           received_quantity?: number | null
           total_price_usd?: number | null
+          unit?: string | null
           unit_price_cny?: number | null
           unit_price_usd?: number | null
+          variant_note?: string | null
         }
         Relationships: [
           {
@@ -1026,10 +1155,12 @@ export type Database = {
         Row: {
           actual_arrival_date: string | null
           actual_shipment_date: string | null
+          additional_costs_bdt: number | null
           advance_paid_bdt: number | null
           bl_number: string | null
           c_and_f_charge_bdt: number | null
           container_number: string | null
+          cost_per_unit_bdt: number | null
           created_at: string | null
           created_by: string | null
           customs_duty_bdt: number | null
@@ -1041,6 +1172,7 @@ export type Database = {
           freight_cost_bdt: number | null
           freight_cost_usd: number | null
           freight_forwarder: string | null
+          grand_total_bdt: number | null
           id: string
           local_transport_bdt: number | null
           notes: string | null
@@ -1049,23 +1181,29 @@ export type Database = {
           payment_status: string | null
           po_number: string
           port_of_discharge: string | null
+          port_of_entry: string | null
           port_of_loading: string | null
           remaining_payment_bdt: number | null
+          shipping_agent: string | null
           shipping_method: string | null
           status: string | null
           supplier_id: string | null
+          tags: string[] | null
           total_landed_cost_bdt: number | null
           total_product_cost_cny: number | null
           total_product_cost_usd: number | null
+          tracking_number: string | null
           updated_at: string | null
         }
         Insert: {
           actual_arrival_date?: string | null
           actual_shipment_date?: string | null
+          additional_costs_bdt?: number | null
           advance_paid_bdt?: number | null
           bl_number?: string | null
           c_and_f_charge_bdt?: number | null
           container_number?: string | null
+          cost_per_unit_bdt?: number | null
           created_at?: string | null
           created_by?: string | null
           customs_duty_bdt?: number | null
@@ -1077,6 +1215,7 @@ export type Database = {
           freight_cost_bdt?: number | null
           freight_cost_usd?: number | null
           freight_forwarder?: string | null
+          grand_total_bdt?: number | null
           id?: string
           local_transport_bdt?: number | null
           notes?: string | null
@@ -1085,23 +1224,29 @@ export type Database = {
           payment_status?: string | null
           po_number: string
           port_of_discharge?: string | null
+          port_of_entry?: string | null
           port_of_loading?: string | null
           remaining_payment_bdt?: number | null
+          shipping_agent?: string | null
           shipping_method?: string | null
           status?: string | null
           supplier_id?: string | null
+          tags?: string[] | null
           total_landed_cost_bdt?: number | null
           total_product_cost_cny?: number | null
           total_product_cost_usd?: number | null
+          tracking_number?: string | null
           updated_at?: string | null
         }
         Update: {
           actual_arrival_date?: string | null
           actual_shipment_date?: string | null
+          additional_costs_bdt?: number | null
           advance_paid_bdt?: number | null
           bl_number?: string | null
           c_and_f_charge_bdt?: number | null
           container_number?: string | null
+          cost_per_unit_bdt?: number | null
           created_at?: string | null
           created_by?: string | null
           customs_duty_bdt?: number | null
@@ -1113,6 +1258,7 @@ export type Database = {
           freight_cost_bdt?: number | null
           freight_cost_usd?: number | null
           freight_forwarder?: string | null
+          grand_total_bdt?: number | null
           id?: string
           local_transport_bdt?: number | null
           notes?: string | null
@@ -1121,14 +1267,18 @@ export type Database = {
           payment_status?: string | null
           po_number?: string
           port_of_discharge?: string | null
+          port_of_entry?: string | null
           port_of_loading?: string | null
           remaining_payment_bdt?: number | null
+          shipping_agent?: string | null
           shipping_method?: string | null
           status?: string | null
           supplier_id?: string | null
+          tags?: string[] | null
           total_landed_cost_bdt?: number | null
           total_product_cost_cny?: number | null
           total_product_cost_usd?: number | null
+          tracking_number?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -1318,6 +1468,10 @@ export type Database = {
       suppliers: {
         Row: {
           address: string | null
+          alipay_id: string | null
+          bank_account_name: string | null
+          bank_account_number: string | null
+          bank_name: string | null
           company_name: string | null
           contact_person: string | null
           country: string | null
@@ -1328,15 +1482,23 @@ export type Database = {
           notes: string | null
           payment_terms: string | null
           phone: string | null
+          preferred_payment: string | null
           rating: number | null
           status: string | null
+          swift_code: string | null
           total_amount: number | null
           total_orders: number | null
+          usdt_network: string | null
+          usdt_wallet: string | null
           wechat_id: string | null
           whatsapp: string | null
         }
         Insert: {
           address?: string | null
+          alipay_id?: string | null
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
           company_name?: string | null
           contact_person?: string | null
           country?: string | null
@@ -1347,15 +1509,23 @@ export type Database = {
           notes?: string | null
           payment_terms?: string | null
           phone?: string | null
+          preferred_payment?: string | null
           rating?: number | null
           status?: string | null
+          swift_code?: string | null
           total_amount?: number | null
           total_orders?: number | null
+          usdt_network?: string | null
+          usdt_wallet?: string | null
           wechat_id?: string | null
           whatsapp?: string | null
         }
         Update: {
           address?: string | null
+          alipay_id?: string | null
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
           company_name?: string | null
           contact_person?: string | null
           country?: string | null
@@ -1366,10 +1536,14 @@ export type Database = {
           notes?: string | null
           payment_terms?: string | null
           phone?: string | null
+          preferred_payment?: string | null
           rating?: number | null
           status?: string | null
+          swift_code?: string | null
           total_amount?: number | null
           total_orders?: number | null
+          usdt_network?: string | null
+          usdt_wallet?: string | null
           wechat_id?: string | null
           whatsapp?: string | null
         }

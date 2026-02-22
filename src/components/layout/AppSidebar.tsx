@@ -54,7 +54,7 @@ const navItems: NavItem[] = [
     label: "China Import",
     icon: Ship,
     children: [
-      { label: "Purchase Orders", path: "/imports", icon: List },
+      { label: "Purchase Orders", path: "/purchase-orders", icon: List },
       { label: "Suppliers", path: "/suppliers", icon: Users },
     ],
   },
