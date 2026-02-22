@@ -11,11 +11,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Minus, X, Search, Package, Phone, Loader2,
   Star, RefreshCw, Trash2, FileText, Link2, Mail, Tag, Save,
-  MessageCircle,
+  MessageCircle, TrendingUp, TrendingDown, Truck, RotateCcw, XCircle, Clock,
+  ShieldCheck, AlertTriangle, AlertCircle, User,
 } from "lucide-react";
 import { formatBDT } from "@/lib/format";
 import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/use-pathao";
@@ -37,52 +41,372 @@ interface OrderItem {
 
 /* ═══ Constants ═══ */
 const COURIERS = [
-  { id: "pathao", name: "Pathao", emoji: "🛵", successRate: 94 },
-  { id: "redx", name: "RedX", emoji: "🔴", successRate: 91 },
-  { id: "steadfast", name: "Steadfast", emoji: "⚡", successRate: 95 },
-  { id: "sundarban", name: "Sundarban", emoji: "📦", successRate: 88 },
+  { id: "pathao", name: "Pathao", emoji: "🛵" },
+  { id: "redx", name: "RedX", emoji: "🔴" },
+  { id: "steadfast", name: "Steadfast", emoji: "⚡" },
+  { id: "sundarban", name: "Sundarban", emoji: "📦" },
 ];
 
 const SOURCES = ["UNKNOWN", "Facebook", "Instagram", "Walk-in", "Referral"];
-
 const QUICK_NOTES = ["Call before delivery", "Fragile", "Gift wrap", "After 5 PM"];
-
 const DEFAULT_SHIPPING_NOTE = "🛡️ মার্চেন্টের অনুমতি ছাড়া প্রোডাক্ট খোলা সম্পূর্ণ নিষিদ্ধ। খোলা পণ্য গ্রহণযোগ্য নয়।";
+
+const TIME_RANGES = [
+  { label: "Today", value: "today" },
+  { label: "7 Days", value: "7d" },
+  { label: "30 Days", value: "30d" },
+  { label: "90 Days", value: "90d" },
+];
+
+function getTimeRangeDate(range: string): Date {
+  const now = new Date();
+  switch (range) {
+    case "today": return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    case "7d": { const d = new Date(); d.setDate(d.getDate() - 7); return d; }
+    case "90d": { const d = new Date(); d.setDate(d.getDate() - 90); return d; }
+    default: { const d = new Date(); d.setDate(d.getDate() - 30); return d; }
+  }
+}
 
 /* ═══ Sub Components ═══ */
 
-function DeliveryStatCard({
-  name, emoji, successRate, total, rows, isPurple,
-}: {
-  name: string; emoji: string; successRate: number; total: number;
-  rows: { label: string; value: number; color?: string }[];
-  isPurple?: boolean;
-}) {
-  const color = isPurple ? "text-primary" : "text-emerald-500";
-  const barColor = isPurple ? "bg-primary" : "bg-emerald-500";
-  const barBg = isPurple ? "bg-primary/20" : "bg-emerald-100";
+function KpiMini({ icon, label, value, sub, color }: { icon: React.ReactNode; label: string; value: string; sub?: string; color?: string }) {
   return (
-    <div className={cn(
-      "rounded-xl border bg-card p-2.5 min-w-[130px] flex-1 transition-all hover:-translate-y-0.5 hover:shadow-md hover:border-primary/40 group cursor-default",
-    )}>
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs font-semibold text-foreground">{name}</span>
-        <span className="text-lg">{emoji}</span>
+    <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-card border border-border/50 min-w-[140px] flex-1">
+      <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", color || "bg-primary/10 text-primary")}>
+        {icon}
       </div>
-      <p className={cn("text-xl font-extrabold tabular-nums", color)}>{successRate}%</p>
-      <div className="mt-2 space-y-0.5">
-        {rows.map((r) => (
-          <div key={r.label} className="flex justify-between text-[11px]">
-            <span className="text-muted-foreground">{r.label}</span>
-            <span className={cn("font-semibold tabular-nums", r.color || "text-foreground")}>{r.value}</span>
-          </div>
-        ))}
-      </div>
-      <div className={cn("mt-2.5 h-1.5 rounded-full overflow-hidden", barBg)}>
-        <div className={cn("h-full rounded-full transition-all duration-700", barColor)}
-          style={{ width: `${Math.min(successRate, 100)}%` }} />
+      <div className="min-w-0">
+        <p className="text-base font-extrabold tabular-nums leading-tight">{value}</p>
+        <p className="text-[10px] text-muted-foreground font-medium truncate">{label}</p>
+        {sub && <p className="text-[9px] text-muted-foreground/70">{sub}</p>}
       </div>
     </div>
+  );
+}
+
+function CourierBreakdownRow({ name, emoji, delivered, inTransit, returned, cancelled, successRate }: {
+  name: string; emoji: string; delivered: number; inTransit: number; returned: number; cancelled: number; successRate: number;
+}) {
+  const total = delivered + inTransit + returned + cancelled;
+  return (
+    <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-muted/20 border border-border/30 hover:border-primary/20 transition-colors">
+      <span className="text-lg shrink-0">{emoji}</span>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs font-bold">{name}</span>
+          <span className={cn("text-xs font-extrabold tabular-nums", successRate >= 80 ? "text-emerald-600" : successRate >= 50 ? "text-amber-600" : "text-destructive")}>
+            {successRate}%
+          </span>
+        </div>
+        <div className="flex gap-3 text-[10px] text-muted-foreground">
+          <span>✅ {delivered}</span>
+          <span>🚚 {inTransit}</span>
+          <span className="text-amber-600">↩ {returned}</span>
+          <span className="text-destructive">✕ {cancelled}</span>
+          <span className="ml-auto font-medium">{total} total</span>
+        </div>
+        <Progress value={successRate} className="h-1 mt-1.5" />
+      </div>
+    </div>
+  );
+}
+
+function DeliveryPerformanceSection({ timeRange, setTimeRange }: { timeRange: string; setTimeRange: (v: string) => void }) {
+  const fromDate = getTimeRangeDate(timeRange);
+
+  const { data: kpis, isLoading } = useQuery({
+    queryKey: ["delivery-kpis", timeRange],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("status, created_at, order_date")
+        .gte("order_date", fromDate.toISOString());
+      if (error) throw error;
+      const total = data.length;
+      const delivered = data.filter((o) => o.status === "delivered").length;
+      const shipped = data.filter((o) => ["shipped", "in_transit"].includes(o.status || "")).length;
+      const returned = data.filter((o) => o.status === "returned").length;
+      const cancelled = data.filter((o) => o.status === "cancelled").length;
+      const inTransit = shipped;
+      const dispatchedTotal = delivered + returned + cancelled + inTransit;
+      const deliveredPct = dispatchedTotal > 0 ? Math.round((delivered / dispatchedTotal) * 100) : 0;
+      const rtoPct = (delivered + returned) > 0 ? Math.round((returned / (delivered + returned)) * 100) : 0;
+      const cancelPct = total > 0 ? Math.round((cancelled / total) * 100) : 0;
+      return { total, delivered, shipped: inTransit, returned, cancelled, deliveredPct, rtoPct, cancelPct, inTransit };
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: courierData, isLoading: courierLoading } = useQuery({
+    queryKey: ["courier-breakdown", timeRange],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("courier_history")
+        .select("courier_name, status")
+        .gte("created_at", fromDate.toISOString());
+      if (error) throw error;
+      const grouped: Record<string, { delivered: number; inTransit: number; returned: number; cancelled: number }> = {};
+      for (const row of data) {
+        const name = row.courier_name?.toLowerCase() || "unknown";
+        if (!grouped[name]) grouped[name] = { delivered: 0, inTransit: 0, returned: 0, cancelled: 0 };
+        const s = row.status?.toLowerCase() || "";
+        if (s === "delivered") grouped[name].delivered++;
+        else if (s === "in_transit" || s === "shipped" || s === "pending") grouped[name].inTransit++;
+        else if (s === "returned") grouped[name].returned++;
+        else if (s === "cancelled") grouped[name].cancelled++;
+      }
+      return grouped;
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const [courierTab, setCourierTab] = useState("all");
+
+  const getCourierStats = (name: string) => {
+    const d = courierData?.[name.toLowerCase()] || { delivered: 0, inTransit: 0, returned: 0, cancelled: 0 };
+    const total = d.delivered + d.inTransit + d.returned + d.cancelled;
+    const successRate = total > 0 ? Math.round((d.delivered / total) * 100) : 0;
+    return { ...d, total, successRate };
+  };
+
+  const allCourierStats = COURIERS.map((c) => ({ ...c, ...getCourierStats(c.name) }));
+  const allTotal = allCourierStats.reduce((s, c) => ({
+    delivered: s.delivered + c.delivered, inTransit: s.inTransit + c.inTransit,
+    returned: s.returned + c.returned, cancelled: s.cancelled + c.cancelled,
+  }), { delivered: 0, inTransit: 0, returned: 0, cancelled: 0 });
+  const allTotalCount = allTotal.delivered + allTotal.inTransit + allTotal.returned + allTotal.cancelled;
+  const allSuccessRate = allTotalCount > 0 ? Math.round((allTotal.delivered / allTotalCount) * 100) : 0;
+
+  const isEmpty = !isLoading && (kpis?.total ?? 0) === 0;
+
+  return (
+    <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
+      <CardContent className="p-4">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            📊 Delivery Performance
+          </h2>
+          <div className="flex items-center gap-1">
+            {TIME_RANGES.map((tr) => (
+              <button key={tr.value}
+                onClick={() => setTimeRange(tr.value)}
+                className={cn(
+                  "px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors",
+                  timeRange === tr.value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+                )}>
+                {tr.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* KPI Row */}
+        {isLoading ? (
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-[68px] min-w-[140px] flex-1 rounded-xl" />
+            ))}
+          </div>
+        ) : isEmpty ? (
+          <div className="flex flex-col items-center justify-center py-8 text-muted-foreground/50">
+            <Truck className="w-10 h-10 mb-2" />
+            <p className="text-xs font-medium">No orders found in this time range</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex gap-2 overflow-x-auto pb-3">
+              <KpiMini icon={<TrendingUp className="w-4 h-4" />} label="Delivered %" value={`${kpis?.deliveredPct ?? 0}%`}
+                sub={`${kpis?.delivered ?? 0} orders`} color="bg-emerald-500/10 text-emerald-600" />
+              <KpiMini icon={<RotateCcw className="w-4 h-4" />} label="RTO/Return %" value={`${kpis?.rtoPct ?? 0}%`}
+                sub={`${kpis?.returned ?? 0} returned`} color="bg-amber-500/10 text-amber-600" />
+              <KpiMini icon={<XCircle className="w-4 h-4" />} label="Cancel %" value={`${kpis?.cancelPct ?? 0}%`}
+                sub={`${kpis?.cancelled ?? 0} cancelled`} color="bg-destructive/10 text-destructive" />
+              <KpiMini icon={<Truck className="w-4 h-4" />} label="In Transit" value={`${kpis?.inTransit ?? 0}`}
+                sub="active shipments" color="bg-blue-500/10 text-blue-600" />
+              <KpiMini icon={<Package className="w-4 h-4" />} label="Total Orders" value={`${kpis?.total ?? 0}`}
+                color="bg-primary/10 text-primary" />
+            </div>
+
+            {/* Courier Breakdown Tabs */}
+            <Tabs value={courierTab} onValueChange={setCourierTab} className="mt-1">
+              <TabsList className="w-full justify-start gap-0 bg-transparent border-b border-border/40 h-8">
+                <TabsTrigger value="all" className="text-[10px] px-3 py-1 h-7 data-[state=active]:border-primary">All</TabsTrigger>
+                {COURIERS.map((c) => (
+                  <TabsTrigger key={c.id} value={c.id} className="text-[10px] px-3 py-1 h-7 data-[state=active]:border-primary">
+                    {c.emoji} {c.name}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+
+              <TabsContent value="all" className="mt-2 space-y-1.5">
+                {courierLoading ? (
+                  <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-xl" />)}</div>
+                ) : (
+                  <>
+                    {/* All summary */}
+                    <CourierBreakdownRow name="All Couriers" emoji="📊"
+                      delivered={allTotal.delivered} inTransit={allTotal.inTransit}
+                      returned={allTotal.returned} cancelled={allTotal.cancelled}
+                      successRate={allSuccessRate} />
+                    {allCourierStats.filter((c) => c.total > 0).map((c) => (
+                      <CourierBreakdownRow key={c.id} name={c.name} emoji={c.emoji}
+                        delivered={c.delivered} inTransit={c.inTransit}
+                        returned={c.returned} cancelled={c.cancelled}
+                        successRate={c.successRate} />
+                    ))}
+                    {allTotalCount === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-4">No courier data available</p>
+                    )}
+                  </>
+                )}
+              </TabsContent>
+
+              {COURIERS.map((c) => {
+                const stats = getCourierStats(c.name);
+                return (
+                  <TabsContent key={c.id} value={c.id} className="mt-2">
+                    {courierLoading ? (
+                      <Skeleton className="h-14 rounded-xl" />
+                    ) : stats.total === 0 ? (
+                      <div className="flex flex-col items-center py-6 text-muted-foreground/50">
+                        <span className="text-2xl mb-1">{c.emoji}</span>
+                        <p className="text-xs">No {c.name} orders in this period</p>
+                      </div>
+                    ) : (
+                      <CourierBreakdownRow name={c.name} emoji={c.emoji}
+                        delivered={stats.delivered} inTransit={stats.inTransit}
+                        returned={stats.returned} cancelled={stats.cancelled}
+                        successRate={stats.successRate} />
+                    )}
+                  </TabsContent>
+                );
+              })}
+            </Tabs>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/* Order Health Card (replaces Delivery Method) */
+function OrderHealthCard({ phone, parseResult, grandTotal, advance }: {
+  phone: string; parseResult: ParseAddressResult | null; grandTotal: number; advance: number;
+}) {
+  const confLevel = parseResult ? getParseConfidenceLevel(parseResult.confidence) : null;
+  const codPending = grandTotal - advance;
+
+  const { data: customerHistory, isLoading } = useQuery({
+    queryKey: ["customer-history", phone],
+    queryFn: async () => {
+      if (!phone || phone.length < 11) return null;
+      // Find customer by phone
+      const { data: customer } = await supabase
+        .from("customers").select("id, total_orders, total_spent").eq("phone", phone).maybeSingle();
+      if (!customer) return null;
+      // Get order stats
+      const { data: orders } = await supabase
+        .from("orders").select("status").eq("customer_id", customer.id);
+      if (!orders) return { total: customer.total_orders || 0, delivered: 0, returned: 0, cancelled: 0 };
+      return {
+        total: orders.length,
+        delivered: orders.filter((o) => o.status === "delivered").length,
+        returned: orders.filter((o) => o.status === "returned").length,
+        cancelled: orders.filter((o) => o.status === "cancelled").length,
+      };
+    },
+    enabled: phone.length >= 11,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const hasHistory = customerHistory && customerHistory.total > 0;
+  const custSuccessRate = hasHistory ? Math.round((customerHistory.delivered / customerHistory.total) * 100) : 0;
+
+  return (
+    <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
+      <CardContent className="p-5">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 mb-4">
+          🩺 Order Health
+        </h2>
+
+        {/* Customer History */}
+        <div className="rounded-xl bg-muted/20 border border-border/30 p-3 mb-3">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1">
+            <User className="w-3 h-3" /> Customer History
+          </p>
+          {phone.length < 11 ? (
+            <p className="text-xs text-muted-foreground/60 italic">Enter phone to see history</p>
+          ) : isLoading ? (
+            <div className="space-y-1.5">
+              <Skeleton className="h-4 w-full rounded" />
+              <Skeleton className="h-4 w-3/4 rounded" />
+            </div>
+          ) : !hasHistory ? (
+            <div className="flex items-center gap-2">
+              <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] rounded-full">🆕 New Customer</Badge>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Total Orders</span>
+                <span className="text-xs font-bold">{customerHistory.total}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Delivered</span>
+                <span className="text-xs font-bold text-emerald-600">{customerHistory.delivered}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Returned</span>
+                <span className="text-xs font-bold text-amber-600">{customerHistory.returned}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Cancelled</span>
+                <span className="text-xs font-bold text-destructive">{customerHistory.cancelled}</span>
+              </div>
+              <Progress value={custSuccessRate} className="h-1.5 mt-1" />
+              <p className="text-[10px] text-muted-foreground">Success Rate: <span className={cn("font-bold", custSuccessRate >= 80 ? "text-emerald-600" : custSuccessRate >= 50 ? "text-amber-600" : "text-destructive")}>{custSuccessRate}%</span></p>
+            </div>
+          )}
+        </div>
+
+        {/* Address Confidence */}
+        <div className="rounded-xl bg-muted/20 border border-border/30 p-3 mb-3">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">📍 Address Mapping</p>
+          {confLevel ? (
+            <div className="flex items-center gap-2">
+              {confLevel.level === "high" ? (
+                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+              ) : confLevel.level === "medium" ? (
+                <AlertTriangle className="w-4 h-4 text-amber-500" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-destructive" />
+              )}
+              <Badge variant="outline" className={cn("text-[10px] rounded-full px-2", confLevel.color)}>
+                {confLevel.icon} {confLevel.label}
+              </Badge>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground/60 italic">Enter address to detect</p>
+          )}
+        </div>
+
+        {/* COD Pending */}
+        <div className="rounded-xl bg-muted/20 border border-border/30 p-3">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">💰 COD Status</p>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">COD Pending</span>
+            <span className={cn("text-sm font-extrabold tabular-nums", codPending > 0 ? "text-amber-600" : "text-emerald-600")}>
+              ৳{codPending.toLocaleString()}
+            </span>
+          </div>
+          {advance > 0 && (
+            <p className="text-[10px] text-emerald-600 mt-1">✓ Advance ৳{advance.toLocaleString()} received</p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -129,6 +453,7 @@ export default function NewOrder() {
   const [parseResult, setParseResult] = useState<ParseAddressResult | null>(null);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [isReturningCustomer, setIsReturningCustomer] = useState(false);
+  const [deliveryTimeRange, setDeliveryTimeRange] = useState("30d");
 
   const updateForm = useCallback((updates: Partial<typeof form>) => {
     setForm((f) => ({ ...f, ...updates }));
@@ -167,52 +492,6 @@ export default function NewOrder() {
   const { data: zones } = usePathaoZones(selectedCityId);
   const { data: areas } = usePathaoAreas(selectedZoneId);
 
-  // Delivery performance stats
-  const { data: deliveryStats } = useQuery({
-    queryKey: ["delivery-performance-30d"],
-    queryFn: async () => {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const { data, error } = await supabase
-        .from("orders")
-        .select("status")
-        .gte("order_date", thirtyDaysAgo.toISOString());
-      if (error) throw error;
-      const total = data.length;
-      const delivered = data.filter((o) => o.status === "delivered").length;
-      const cancelled = data.filter((o) => o.status === "cancelled").length;
-      const returned = data.filter((o) => o.status === "returned").length;
-      const shipped = data.filter((o) => o.status === "shipped" || o.status === "in_transit").length;
-      const successRate = total > 0 ? Math.round((delivered / total) * 100) : 0;
-      return { total, delivered, cancelled, returned, shipped, successRate };
-    },
-    staleTime: 5 * 60 * 1000,
-  });
-
-  // Courier-specific stats
-  const { data: courierStats } = useQuery({
-    queryKey: ["courier-stats-30d"],
-    queryFn: async () => {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const { data, error } = await supabase
-        .from("courier_history")
-        .select("courier_name, status")
-        .gte("created_at", thirtyDaysAgo.toISOString());
-      if (error) throw error;
-      const grouped: Record<string, { total: number; success: number; cancelled: number }> = {};
-      for (const row of data) {
-        const name = row.courier_name?.toLowerCase() || "";
-        if (!grouped[name]) grouped[name] = { total: 0, success: 0, cancelled: 0 };
-        grouped[name].total++;
-        if (row.status === "delivered") grouped[name].success++;
-        if (row.status === "cancelled" || row.status === "returned") grouped[name].cancelled++;
-      }
-      return grouped;
-    },
-    staleTime: 5 * 60 * 1000,
-  });
-
   /* ── Derived ── */
   const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
   const total = subtotal - form.discount + form.delivery_charge;
@@ -222,7 +501,6 @@ export default function NewOrder() {
   /* ── Address Parsing ── */
   const autoMapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Auto-set Dhaka as default city when address is typed and no city selected
   const ensureCitySelected = useCallback(() => {
     if (!selectedCityId && cities) {
       const dhaka = cities.find((c) => c.city_name.toLowerCase() === "dhaka");
@@ -238,21 +516,12 @@ export default function NewOrder() {
       setParseResult(null);
       return;
     }
-    // Ensure city is set so zones can load
     ensureCitySelected();
     const currentCity = cities?.find((c) => c.city_id === selectedCityId)?.city_name || "Dhaka";
     const parsed = parseAddress(address, currentCity);
     setParseResult(parsed);
-
     const conf = getParseConfidenceLevel(parsed.confidence);
-
-    if (conf.level === "high" && zones) {
-      const zoneMatch = zones.find((z) => z.zone_name.toLowerCase() === parsed.zone.toLowerCase());
-      if (zoneMatch) {
-        setSelectedZoneId(zoneMatch.zone_id);
-        setZoneName(zoneMatch.zone_name);
-      }
-    } else if (conf.level === "medium" && zones) {
+    if ((conf.level === "high" || conf.level === "medium") && zones) {
       const zoneMatch = zones.find((z) => z.zone_name.toLowerCase() === parsed.zone.toLowerCase());
       if (zoneMatch) {
         setSelectedZoneId(zoneMatch.zone_id);
@@ -261,14 +530,12 @@ export default function NewOrder() {
     }
   }, [cities, selectedCityId, zones, ensureCitySelected]);
 
-  // Re-run autoMap when zones load (they load async after city is set)
   useEffect(() => {
     if (zones && zones.length > 0 && form.delivery_address && parseResult && !selectedZoneId) {
       runAutoMap(form.delivery_address);
     }
   }, [zones]);
 
-  // Auto-fill area when areas load + parseResult has area
   useEffect(() => {
     if (parseResult?.area && areas) {
       const areaMatch = areas.find((a) => a.area_name.toLowerCase() === parseResult.area.toLowerCase());
@@ -281,7 +548,6 @@ export default function NewOrder() {
 
   const handleAddressChange = useCallback((address: string) => {
     updateForm({ delivery_address: address });
-    // Auto-set Dhaka city when user starts typing address
     ensureCitySelected();
     if (autoMapTimerRef.current) clearTimeout(autoMapTimerRef.current);
     autoMapTimerRef.current = setTimeout(() => runAutoMap(address), 400);
@@ -505,7 +771,6 @@ export default function NewOrder() {
     const name = nameSearch.toLowerCase();
     if (code) filtered = filtered.filter((p) => p.sku.toLowerCase().includes(code));
     if (name) filtered = filtered.filter((p) => p.name.toLowerCase().includes(name));
-    // Sort: favorites first
     return [...filtered].sort((a, b) => {
       const aFav = favorites.has(a.id) ? 0 : 1;
       const bFav = favorites.has(b.id) ? 0 : 1;
@@ -514,17 +779,7 @@ export default function NewOrder() {
   }, [products, codeSearch, nameSearch, favorites]);
 
   const canCreate = form.customer_phone.length >= 11 && items.length > 0;
-
-  // Parse confidence UI
   const confLevel = parseResult ? getParseConfidenceLevel(parseResult.confidence) : null;
-
-  // Courier stats helpers
-  const getCourierStat = (courierName: string) => {
-    const key = courierName.toLowerCase();
-    const stat = courierStats?.[key];
-    if (!stat) return { total: 0, success: 0, cancelled: 0, rate: 0 };
-    return { ...stat, rate: stat.total > 0 ? Math.round((stat.success / stat.total) * 100) : 0 };
-  };
 
   /* ═══ RENDER ═══ */
   return (
@@ -550,60 +805,8 @@ export default function NewOrder() {
         {/* ══ LEFT COLUMN ══ */}
         <div className="space-y-6">
 
-          {/* ── Card 1: Delivery Performance (only after phone entered) ── */}
-          {showDeliveryPerformance && (
-          <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
-            <CardContent className="p-3.5">
-              <div className="flex items-center justify-between mb-2.5">
-                <h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  📊 Delivery Performance
-                </h2>
-                <span className="text-[9px] text-muted-foreground">Last 30 days</span>
-              </div>
-              <div className="flex gap-2 overflow-x-auto pb-0.5">
-                {/* Overall */}
-                <DeliveryStatCard
-                  name="Overall" emoji="🏆"
-                  successRate={deliveryStats?.successRate ?? 0}
-                  total={deliveryStats?.total ?? 0}
-                  rows={[
-                    { label: "Total", value: deliveryStats?.total ?? 0 },
-                    { label: "Success", value: deliveryStats?.delivered ?? 0 },
-                    { label: "Cancelled", value: deliveryStats?.cancelled ?? 0, color: "text-destructive" },
-                  ]}
-                />
-                {/* Courier cards */}
-                {COURIERS.slice(0, 3).map((c) => {
-                  const stat = getCourierStat(c.name);
-                  return (
-                    <DeliveryStatCard key={c.id}
-                      name={c.name} emoji={c.emoji}
-                      successRate={stat.rate || c.successRate}
-                      total={stat.total}
-                      rows={[
-                        { label: "Total", value: stat.total },
-                        { label: "Success", value: stat.success },
-                        { label: "Cancelled", value: stat.cancelled, color: "text-destructive" },
-                      ]}
-                    />
-                  );
-                })}
-                {/* Our Record */}
-                <DeliveryStatCard
-                  name="Our Record" emoji="🏅" isPurple
-                  successRate={deliveryStats?.successRate ?? 0}
-                  total={deliveryStats?.total ?? 0}
-                  rows={[
-                    { label: "Total", value: deliveryStats?.total ?? 0 },
-                    { label: "Shipped", value: deliveryStats?.shipped ?? 0 },
-                    { label: "Returned", value: deliveryStats?.returned ?? 0, color: "text-destructive" },
-                    { label: "Cancelled", value: deliveryStats?.cancelled ?? 0, color: "text-destructive" },
-                  ]}
-                />
-              </div>
-            </CardContent>
-          </Card>
-          )}
+          {/* ── Card 1: Delivery Performance (always visible, real data) ── */}
+          <DeliveryPerformanceSection timeRange={deliveryTimeRange} setTimeRange={setDeliveryTimeRange} />
 
           {/* ── Card 2: Customer Information ── */}
           <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
@@ -643,7 +846,6 @@ export default function NewOrder() {
                       ✓ Returning Customer
                     </Badge>
                   )}
-                  {/* Customer dropdown */}
                   {showCustomerDropdown && customers && customers.length > 0 && (
                     <div className="absolute z-40 w-full bg-card border border-border/60 rounded-xl mt-1 shadow-lg overflow-hidden">
                       {customers.map((c) => (
@@ -858,7 +1060,6 @@ export default function NewOrder() {
                             <p className="text-xs font-semibold text-primary truncate">{item.product_name}</p>
                             <p className="text-[10px] text-muted-foreground">৳{item.unit_price} · Stock: {item.stock_quantity}</p>
                             <div className="flex items-center gap-3 mt-2">
-                              {/* Qty controls */}
                               <div className="flex items-center gap-0.5 bg-card border border-border/60 rounded-full px-1 py-0.5">
                                 <button className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-muted transition-colors"
                                   onClick={() => updateItem(item.product_id, "quantity", item.quantity - 1)}>
@@ -872,7 +1073,6 @@ export default function NewOrder() {
                                   <Plus className="w-2.5 h-2.5" />
                                 </button>
                               </div>
-                              {/* Price controls */}
                               <div className="flex items-center gap-0.5 bg-card border border-border/60 rounded-full px-1 py-0.5">
                                 <button className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-muted transition-colors"
                                   onClick={() => updateItem(item.product_id, "unit_price", item.unit_price - 10)}>
@@ -899,7 +1099,6 @@ export default function NewOrder() {
                   <h3 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3">
                     Click To Add Products
                   </h3>
-                  {/* Search inputs */}
                   <div className="grid grid-cols-2 gap-2 mb-3">
                     <div className="relative">
                       <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/40" />
@@ -917,7 +1116,6 @@ export default function NewOrder() {
                     </div>
                   </div>
 
-                  {/* Product list */}
                   <div className="max-h-[320px] overflow-y-auto space-y-1 pr-0.5">
                     {(filteredProducts || []).slice(0, 30).map((p) => {
                       const stock = p.stock_quantity || 0;
@@ -966,38 +1164,13 @@ export default function NewOrder() {
         {/* ══ RIGHT COLUMN ══ */}
         <div className="space-y-5 lg:sticky lg:top-16 lg:self-start">
 
-          {/* ── Delivery Method ── */}
-          <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
-            <CardContent className="p-5">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 mb-4">
-                🚚 Delivery Method
-              </h2>
-              <div className="grid grid-cols-2 gap-2.5">
-                {COURIERS.map((c) => {
-                  const stat = getCourierStat(c.name);
-                  const isActive = form.delivery_method === c.id;
-                  return (
-                    <button key={c.id}
-                      onClick={() => updateForm({ delivery_method: c.id })}
-                      className={cn(
-                        "flex flex-col items-center gap-1 py-3 px-2 rounded-xl border transition-all text-center",
-                        isActive
-                          ? "border-primary bg-primary/5 shadow-sm"
-                          : "border-border/40 hover:border-border hover:bg-muted/30"
-                      )}>
-                      <span className="text-lg">{c.emoji}</span>
-                      <span className="text-xs font-semibold">{c.name}</span>
-                      <span className={cn("text-[10px] font-bold",
-                        isActive ? "text-primary" : "text-emerald-500"
-                      )}>
-                        {stat.rate || c.successRate}% success
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+          {/* ── Order Health (replaces Delivery Method) ── */}
+          <OrderHealthCard
+            phone={form.customer_phone}
+            parseResult={parseResult}
+            grandTotal={grandTotal}
+            advance={form.advance}
+          />
 
           {/* ── Order Summary ── */}
           <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
@@ -1075,7 +1248,6 @@ export default function NewOrder() {
           background: "linear-gradient(135deg, #0d0f1a 0%, #161830 100%)",
           animation: "slideUp 0.4s ease-out",
         }}>
-        {/* Shimmer overlay */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute inset-0 opacity-[0.03]"
             style={{
@@ -1085,9 +1257,7 @@ export default function NewOrder() {
             }} />
         </div>
 
-        {/* LEFT: Customer info */}
         <div className="flex-1 flex items-center gap-3 min-w-0">
-          {/* Blinking pulse dot */}
           <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0" style={{ animation: "pulse-subtle 2s infinite" }} />
           <div className="min-w-0">
             <p className="text-white font-bold text-sm truncate">
@@ -1113,7 +1283,6 @@ export default function NewOrder() {
           </div>
         </div>
 
-        {/* CENTER: Grand Total + Create */}
         <div className="flex items-center gap-3">
           <div className="hidden sm:flex flex-col items-end px-4 py-1.5 rounded-xl bg-white/5 border border-white/10">
             <span className="text-[9px] uppercase tracking-wider text-white/50 font-medium">Grand Total</span>
@@ -1138,7 +1307,6 @@ export default function NewOrder() {
           </Button>
         </div>
 
-        {/* RIGHT: Draft + Clear */}
         <div className="flex-1 flex items-center justify-end gap-2">
           <Button variant="ghost" size="sm"
             className="text-white/60 hover:text-white hover:bg-white/10 text-xs gap-1.5 rounded-lg">
