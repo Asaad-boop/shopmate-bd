@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { formatBDT, formatDate } from "@/lib/format";
 import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/use-pathao";
-import { useBDCourierSingle, getRiskLevel } from "@/hooks/use-bd-courier";
 import { cn } from "@/lib/utils";
 import { parseAddress, getParseConfidenceLevel } from "@/lib/pathao-address-parser";
 import type { ParseAddressResult } from "@/lib/pathao-address-parser";
@@ -232,10 +231,6 @@ function OrderHealthCard({ phone, parseResult, grandTotal, advance }: {
   const confLevel = parseResult ? getParseConfidenceLevel(parseResult.confidence) : null;
   const codPending = grandTotal - advance;
 
-  // BD Courier check
-  const { data: bdCourier, isLoading: bdLoading } = useBDCourierSingle(phone, phone.length >= 11);
-  const riskInfo = bdCourier ? getRiskLevel(bdCourier.success_rate) : null;
-
   // Customer history from our DB
   const { data: customerHistory, isLoading } = useQuery({
     queryKey: ["customer-history", phone],
@@ -295,49 +290,6 @@ function OrderHealthCard({ phone, parseResult, grandTotal, advance }: {
   return (
     <div className="rounded-xl border border-border/40 bg-card p-5 space-y-5">
       <SectionLabel icon={<Zap className="w-3.5 h-3.5" />}>Order Health</SectionLabel>
-
-      {/* BD Courier Check */}
-      <div className="space-y-2.5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground flex items-center gap-1.5">
-          <ShieldCheck className="w-3 h-3" /> BD Courier Check
-        </p>
-        {phone.length < 11 ? (
-          <p className="text-xs text-muted-foreground/50">Enter phone to check</p>
-        ) : bdLoading ? (
-          <div className="space-y-1.5"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-3/4" /></div>
-        ) : bdCourier && bdCourier.total_orders > 0 ? (
-          <div className="space-y-2">
-            <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold", riskInfo?.bg, riskInfo?.color)}>
-              {riskInfo?.label}
-            </div>
-            <KpiPill label="Total Orders" value={bdCourier.total_orders} />
-            <KpiPill label="Successful" value={bdCourier.successful_orders} color="text-emerald-600" />
-            <KpiPill label="Returned" value={bdCourier.returned_orders} color="text-amber-600" />
-            <KpiPill label="Cancelled" value={bdCourier.cancelled_orders} color="text-red-500" />
-            <div className="pt-1">
-              <div className="h-[3px] rounded-full bg-muted overflow-hidden">
-                <div className={cn("h-full rounded-full",
-                  bdCourier.success_rate >= 80 ? "bg-emerald-500" : bdCourier.success_rate >= 50 ? "bg-amber-500" : "bg-red-500"
-                )} style={{ width: `${bdCourier.success_rate}%` }} />
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-1">
-                Success: <span className={cn("font-semibold",
-                  bdCourier.success_rate >= 80 ? "text-emerald-600" : bdCourier.success_rate >= 50 ? "text-amber-600" : "text-red-500"
-                )}>{bdCourier.success_rate}%</span>
-              </p>
-            </div>
-            {bdCourier.cached && bdCourier.last_fetched_at && (
-              <p className="text-[9px] text-muted-foreground/50">Cached · {formatDate(bdCourier.last_fetched_at)}</p>
-            )}
-          </div>
-        ) : (
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted text-muted-foreground text-[11px] font-medium">
-            🆕 No courier record found
-          </div>
-        )}
-      </div>
-
-      <Separator className="bg-border/30" />
 
       {/* Courier History */}
       {phone.length >= 11 && (
