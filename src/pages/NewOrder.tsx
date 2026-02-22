@@ -140,69 +140,60 @@ function DeliveryKpiCard({
 }
 
 function DeliveryPerformanceSection() {
-  const { data: allOrders, isLoading } = useQuery({
-    queryKey: ["delivery-kpi-orders-alltime"],
+  const { data: cacheRows, isLoading } = useQuery({
+    queryKey: ["delivery-perf-bdcourier-alltime"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("orders")
-        .select("status, web_order_status");
+        .from("customer_qc_cache")
+        .select("raw_data");
       if (error) throw error;
       return data;
     },
-    staleTime: 60 * 1000,
+    staleTime: 5 * 60 * 1000,
   });
 
-  const { data: courierRows, isLoading: courierLoading } = useQuery({
-    queryKey: ["delivery-kpi-couriers-alltime"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("courier_history")
-        .select("courier_name, status");
-      if (error) throw error;
-      return data;
-    },
-    staleTime: 60 * 1000,
-  });
+  const { summary, courierMap } = useMemo(() => {
+    const cMap: Record<string, { total: number; delivered: number; cancelled: number }> = {};
+    COURIERS.forEach((c) => { cMap[c.id] = { total: 0, delivered: 0, cancelled: 0 }; });
+    let sTotal = 0, sDelivered = 0, sCancelled = 0;
 
-  const computeStats = useCallback((rows: { status: string | null }[]): CourierKpiData => {
-    const total = rows.length;
-    const delivered = rows.filter((r) => r.status === "delivered").length;
-    const shipped = rows.filter((r) => ["shipped", "in_transit"].includes(r.status || "")).length;
-    const returned = rows.filter((r) => ["returned", "pending_return", "damage_return"].includes(r.status || "")).length;
-    const cancelled = rows.filter((r) => r.status === "cancelled").length;
-    const denom = delivered + returned + cancelled;
-    const successRate = denom > 0 ? Math.round((delivered / denom) * 100) : 0;
-    return { total, delivered, shipped, returned, cancelled, successRate };
-  }, []);
-
-  const overallStats = useMemo(() => allOrders ? computeStats(allOrders) : null, [allOrders, computeStats]);
-
-  const courierStatsMap = useMemo(() => {
-    if (!courierRows) return {};
-    const grouped: Record<string, { status: string | null }[]> = {};
-    for (const row of courierRows) {
-      const name = row.courier_name?.toLowerCase() || "unknown";
-      if (!grouped[name]) grouped[name] = [];
-      grouped[name].push({ status: row.status });
+    if (cacheRows) {
+      for (const row of cacheRows) {
+        const cd = (row.raw_data as any)?.courierData;
+        if (!cd) continue;
+        for (const c of COURIERS) {
+          const d = cd[c.id];
+          if (d) {
+            cMap[c.id].total += d.total_parcel || 0;
+            cMap[c.id].delivered += d.success_parcel || 0;
+            cMap[c.id].cancelled += d.cancelled_parcel || 0;
+          }
+        }
+        const s = cd.summary;
+        if (s) {
+          sTotal += s.total_parcel || 0;
+          sDelivered += s.success_parcel || 0;
+          sCancelled += s.cancelled_parcel || 0;
+        }
+      }
     }
-    const result: Record<string, CourierKpiData> = {};
-    for (const [key, rows] of Object.entries(grouped)) {
-      result[key] = computeStats(rows);
-    }
-    return result;
-  }, [courierRows, computeStats]);
 
-  const loading = isLoading || courierLoading;
-  const o = overallStats || { total: 0, delivered: 0, shipped: 0, returned: 0, cancelled: 0, successRate: 0 };
-  const rateColor = o.total === 0 ? "text-muted-foreground" :
-    o.successRate >= 80 ? "text-emerald-600" :
-    o.successRate >= 50 ? "text-amber-600" : "text-red-500";
+    const sRate = sTotal > 0 ? Math.round((sDelivered / sTotal) * 100) : 0;
+    return {
+      summary: { total: sTotal, delivered: sDelivered, cancelled: sCancelled, successRate: sRate },
+      courierMap: cMap,
+    };
+  }, [cacheRows]);
+
+  const rateColor = summary.total === 0 ? "text-muted-foreground" :
+    summary.successRate >= 80 ? "text-emerald-600" :
+    summary.successRate >= 50 ? "text-amber-600" : "text-red-500";
 
   return (
     <div className="space-y-4">
       <SectionLabel icon={<TrendingUp className="w-3.5 h-3.5" />}>Delivery Performance</SectionLabel>
 
-      {loading ? (
+      {isLoading ? (
         <div className="space-y-3">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[72px] rounded-xl" />)}
@@ -213,74 +204,62 @@ function DeliveryPerformanceSection() {
         </div>
       ) : (
         <div className="space-y-3">
-          {/* ── 4 Summary KPI Cards ── */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             <div className="rounded-xl border border-border/40 bg-card p-3.5">
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Total Orders</p>
-              <p className="text-xl font-bold tabular-nums mt-1">{o.total}</p>
+              <p className="text-xl font-bold tabular-nums mt-1">{summary.total.toLocaleString()}</p>
             </div>
             <div className="rounded-xl border border-border/40 bg-card p-3.5">
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Delivered</p>
-              <p className="text-xl font-bold tabular-nums mt-1 text-emerald-600">{o.delivered}</p>
+              <p className="text-xl font-bold tabular-nums mt-1 text-emerald-600">{summary.delivered.toLocaleString()}</p>
             </div>
             <div className="rounded-xl border border-border/40 bg-card p-3.5">
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Cancelled</p>
-              <p className="text-xl font-bold tabular-nums mt-1 text-red-500">{o.cancelled + o.returned}</p>
+              <p className="text-xl font-bold tabular-nums mt-1 text-red-500">{summary.cancelled.toLocaleString()}</p>
             </div>
             <div className="rounded-xl border border-border/40 bg-card p-3.5">
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Success Rate</p>
-              <div className="flex items-center gap-2 mt-1">
-                <p className={cn("text-xl font-bold tabular-nums", rateColor)}>
-                  {o.total > 0 ? `${o.successRate}%` : "—"}
-                </p>
-              </div>
+              <p className={cn("text-xl font-bold tabular-nums mt-1", rateColor)}>
+                {summary.total > 0 ? `${summary.successRate}%` : "—"}
+              </p>
             </div>
           </div>
 
-          {/* ── 6 Courier Cards ── */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
             {COURIERS.map((c) => {
-              const stats = courierStatsMap[c.id] || { total: 0, delivered: 0, cancelled: 0, returned: 0, shipped: 0, successRate: 0 };
-              const failed = (stats.cancelled || 0) + (stats.returned || 0);
-              const rate = stats.total > 0 ? Math.round((stats.delivered / Math.max(stats.delivered + failed, 1)) * 100) : 0;
-              const rc = stats.total === 0 ? "text-muted-foreground" :
+              const s = courierMap[c.id] || { total: 0, delivered: 0, cancelled: 0 };
+              const rate = s.total > 0 ? Math.round((s.delivered / s.total) * 100) : 0;
+              const rc = s.total === 0 ? "text-muted-foreground" :
                 rate >= 80 ? "text-emerald-600" : rate >= 50 ? "text-amber-600" : "text-red-500";
               return (
                 <div key={c.id} className="rounded-xl border border-border/40 bg-card p-3.5 flex flex-col hover:border-border/80 hover:shadow-sm transition-all">
-                  {/* Header: Icon + Name */}
                   <div className="flex items-center gap-2 mb-3">
                     <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", c.color)}>
                       {c.icon}
                     </div>
                     <p className="text-xs font-semibold">{c.name}</p>
                   </div>
-
-                  {/* Success Rate */}
                   <p className={cn("text-2xl font-bold tabular-nums leading-none mb-3", rc)}>
-                    {stats.total > 0 ? `${rate}%` : "—"}
+                    {s.total > 0 ? `${rate}%` : "—"}
                   </p>
-
-                  {/* Stats */}
                   <div className="space-y-1.5 mt-auto">
                     <div className="flex justify-between text-[10px]">
                       <span className="text-muted-foreground">Total</span>
-                      <span className="font-semibold tabular-nums">{stats.total}</span>
+                      <span className="font-semibold tabular-nums">{s.total.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between text-[10px]">
                       <span className="text-muted-foreground">Delivered</span>
-                      <span className="font-semibold tabular-nums text-emerald-600">{stats.delivered}</span>
+                      <span className="font-semibold tabular-nums text-emerald-600">{s.delivered.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between text-[10px]">
                       <span className="text-muted-foreground">Cancelled</span>
-                      <span className="font-semibold tabular-nums text-red-500">{failed}</span>
+                      <span className="font-semibold tabular-nums text-red-500">{s.cancelled.toLocaleString()}</span>
                     </div>
                   </div>
-
-                  {/* Progress bar */}
                   <div className="mt-3 h-[3px] rounded-full bg-muted overflow-hidden">
                     <div className={cn("h-full rounded-full transition-all duration-500",
                       rate >= 80 ? "bg-emerald-500" : rate >= 50 ? "bg-amber-500" : "bg-red-500"
-                    )} style={{ width: `${stats.total > 0 ? rate : 0}%` }} />
+                    )} style={{ width: `${s.total > 0 ? rate : 0}%` }} />
                   </div>
                 </div>
               );
