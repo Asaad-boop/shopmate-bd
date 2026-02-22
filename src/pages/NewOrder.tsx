@@ -48,9 +48,10 @@ interface CourierKpiData {
 /* ═══ Constants ═══ */
 const COURIERS = [
   { id: "pathao", name: "Pathao", emoji: "🛵" },
-  { id: "redx", name: "RedX", emoji: "🔴" },
   { id: "steadfast", name: "Steadfast", emoji: "⚡" },
-  { id: "sundarban", name: "Sundarban", emoji: "📦" },
+  { id: "redx", name: "RedX", emoji: "🔴" },
+  { id: "paperfly", name: "Paperfly", emoji: "📄" },
+  { id: "carrbee", name: "Carrbee", emoji: "🐝" },
 ];
 
 const SOURCES = ["UNKNOWN", "Facebook", "Instagram", "Walk-in", "Referral"];
@@ -204,15 +205,19 @@ function DeliveryPerformanceSection() {
   return (
     <div className="space-y-3">
       <SectionLabel icon={<TrendingUp className="w-3.5 h-3.5" />}>Delivery Performance</SectionLabel>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
         <DeliveryKpiCard name="Overall" data={overallStats} isLoading={loading}
           selected={selectedCard === "overall"} onClick={() => toggle("overall")} accent />
         <DeliveryKpiCard name="Pathao" data={courierStatsMap["pathao"] || null} isLoading={loading}
           selected={selectedCard === "pathao"} onClick={() => toggle("pathao")} />
-        <DeliveryKpiCard name="RedX" data={courierStatsMap["redx"] || null} isLoading={loading}
-          selected={selectedCard === "redx"} onClick={() => toggle("redx")} />
         <DeliveryKpiCard name="Steadfast" data={courierStatsMap["steadfast"] || null} isLoading={loading}
           selected={selectedCard === "steadfast"} onClick={() => toggle("steadfast")} />
+        <DeliveryKpiCard name="RedX" data={courierStatsMap["redx"] || null} isLoading={loading}
+          selected={selectedCard === "redx"} onClick={() => toggle("redx")} />
+        <DeliveryKpiCard name="Paperfly" data={courierStatsMap["paperfly"] || null} isLoading={loading}
+          selected={selectedCard === "paperfly"} onClick={() => toggle("paperfly")} />
+        <DeliveryKpiCard name="Carrbee" data={courierStatsMap["carrbee"] || null} isLoading={loading}
+          selected={selectedCard === "carrbee"} onClick={() => toggle("carrbee")} />
         <DeliveryKpiCard name="Our Record" data={ourRecord} isLoading={loading}
           selected={selectedCard === "our"} onClick={() => toggle("our")} />
       </div>
