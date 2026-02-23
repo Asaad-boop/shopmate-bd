@@ -180,11 +180,11 @@ export default function Dashboard() {
   return (
     <div className="space-y-5 animate-fade-in">
       {/* ─── TODAY HERO BANNER ─── */}
-      <div className="rounded-xl bg-gradient-to-r from-blue-900/40 via-blue-800/30 to-blue-900/20 border border-blue-500/20 p-5">
+      <div className="rounded-xl bg-card border border-border p-5 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-live-pulse" />
-            <span className="text-xs font-semibold text-green-400 uppercase tracking-wider">LIVE — TODAY'S PERFORMANCE</span>
+            <span className="text-xs font-semibold text-green-600 uppercase tracking-wider">LIVE — TODAY'S PERFORMANCE</span>
           </div>
           <span className="text-[10px] text-muted-foreground">Auto-updates every 5 min</span>
         </div>
@@ -195,10 +195,10 @@ export default function Dashboard() {
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 md:divide-x divide-border">
             <HeroPill label="ORDERS TODAY" value={todayStats?.count?.toString() || "0"} sub="↑ 8 vs yesterday" color="text-foreground" />
-            <HeroPill label="REVENUE" value={fmt(todayStats?.revenue)} sub="↑ 12% vs avg" color="text-green-400" />
-            <HeroPill label="EST. PROFIT" value={fmt(todayStats?.profit)} sub={`${todayStats?.margin}% margin`} color="text-blue-400" />
-            <HeroPill label="PENDING" value={todayStats?.pending?.toString() || "0"} sub="Need action" color="text-orange-400" />
-            <HeroPill label="ALERTS" value={alertCount.toString()} sub="Low stock" color="text-red-400" />
+            <HeroPill label="REVENUE" value={fmt(todayStats?.revenue)} sub="↑ 12% vs avg" color="text-green-600" />
+            <HeroPill label="EST. PROFIT" value={fmt(todayStats?.profit)} sub={`${todayStats?.margin}% margin`} color="text-blue-600" />
+            <HeroPill label="PENDING" value={todayStats?.pending?.toString() || "0"} sub="Need action" color="text-orange-600" />
+            <HeroPill label="ALERTS" value={alertCount.toString()} sub="Low stock" color="text-red-600" />
           </div>
         )}
       </div>
@@ -211,7 +211,7 @@ export default function Dashboard() {
           value={formatNumber(monthStats?.orders)}
           trend={monthStats?.trendOrders}
           borderColor="border-blue-500"
-          iconBg="bg-blue-500/10 text-blue-400"
+          iconBg="bg-blue-50 text-blue-600"
           loading={l2}
         />
         <MetricCard
@@ -220,7 +220,7 @@ export default function Dashboard() {
           value={fmtL(monthStats?.revenue)}
           trend={monthStats?.trendRevenue}
           borderColor="border-green-500"
-          iconBg="bg-green-500/10 text-green-400"
+          iconBg="bg-green-50 text-green-600"
           loading={l2}
         />
         <MetricCard
@@ -229,7 +229,7 @@ export default function Dashboard() {
           value={`${monthStats?.returnRate || 0}%`}
           trend={undefined}
           borderColor="border-red-500"
-          iconBg="bg-red-500/10 text-red-400"
+          iconBg="bg-red-50 text-red-600"
           loading={l2}
           warn={Number(monthStats?.returnRate || 0) > 15}
         />
@@ -239,7 +239,7 @@ export default function Dashboard() {
           value={fmtL(monthStats?.profit)}
           trend={monthStats?.trendProfit}
           borderColor="border-purple-500"
-          iconBg="bg-purple-500/10 text-purple-400"
+          iconBg="bg-purple-50 text-purple-600"
           loading={l2}
         />
       </div>
@@ -256,12 +256,12 @@ export default function Dashboard() {
           {l3 ? <Skeleton className="h-[240px]" /> : (
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={chartData} barGap={4}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 20% 20%)" />
-                <XAxis dataKey="date" fontSize={11} tick={{ fill: "hsl(220 15% 55%)" }} />
-                <YAxis fontSize={11} tick={{ fill: "hsl(220 15% 55%)" }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(228 16% 90%)" />
+                <XAxis dataKey="date" fontSize={11} tick={{ fill: "hsl(220 9% 46%)" }} />
+                <YAxis fontSize={11} tick={{ fill: "hsl(220 9% 46%)" }} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: "hsl(222 25% 12%)", border: "1px solid hsl(222 20% 20%)", borderRadius: 8, fontSize: 12 }}
-                  labelStyle={{ color: "hsl(224 70% 97%)" }}
+                  contentStyle={{ backgroundColor: "#fff", border: "1px solid hsl(228 16% 90%)", borderRadius: 8, fontSize: 12 }}
+                  labelStyle={{ color: "hsl(222 47% 11%)" }}
                 />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar dataKey="orders" fill="hsl(217, 91%, 60%)" radius={[4, 4, 0, 0]} name="Orders" />
@@ -476,7 +476,7 @@ function HeroPill({ label, value, sub, color }: { label: string; value: string; 
     <div className="pl-4 first:pl-0">
       <p className={cn("text-2xl font-bold font-mono-num", color)}>{value}</p>
       <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">{label}</p>
-      <p className="text-[10px] text-green-400 mt-0.5">{sub}</p>
+      <p className="text-[10px] text-green-600 mt-0.5">{sub}</p>
     </div>
   );
 }
@@ -498,7 +498,7 @@ function MetricCard({ icon, label, value, trend, borderColor, iconBg, loading, w
           {trend !== undefined && (
             <span className={cn(
               "text-[10px] font-semibold px-1.5 py-0.5 rounded-md",
-              trendNum >= 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
+              trendNum >= 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
             )}>
               {trendNum >= 0 ? "↑" : "↓"} {Math.abs(trendNum)}%
             </span>

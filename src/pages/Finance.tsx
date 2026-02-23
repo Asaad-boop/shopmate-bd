@@ -50,19 +50,19 @@ export default function FinancePage() {
   }, [handleKeyDown]);
 
   return (
-    <div className="min-h-screen" style={{ background: "#f4f5f9", fontFamily: "'DM Sans', sans-serif" }}>
-      {/* HEADER — Dark Navy */}
-      <div className="sticky top-0 z-30" style={{ background: "#0f172a" }}>
+    <div className="min-h-screen bg-background" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+      {/* HEADER */}
+      <div className="sticky top-0 z-30 bg-card border-b border-border">
         <div className="flex items-center justify-between px-6 h-[54px]">
           {/* Left */}
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center">
               <BarChart3 className="w-4 h-4 text-white" />
             </div>
-            <h1 className="text-white text-lg font-bold" style={heading}>Finance</h1>
-            <div className="w-px h-6 bg-white/20 mx-1" />
+            <h1 className="text-foreground text-lg font-bold" style={heading}>Finance</h1>
+            <div className="w-px h-6 bg-border mx-1" />
             <Select value={period} onValueChange={(v) => setPeriod(v as any)}>
-              <SelectTrigger className="w-[150px] h-8 bg-white/10 border-white/20 text-white text-xs hover:bg-white/15">
+              <SelectTrigger className="w-[150px] h-8 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -72,10 +72,10 @@ export default function FinancePage() {
           </div>
           {/* Right */}
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="text-white/80 hover:text-white hover:bg-white/10 border border-white/20 text-xs h-8">
+            <Button variant="outline" size="sm" className="text-xs h-8">
               📊 Reports
             </Button>
-            <Button variant="ghost" size="sm" className="text-white/80 hover:text-white hover:bg-white/10 border border-white/20 text-xs h-8">
+            <Button variant="outline" size="sm" className="text-xs h-8">
               📤 Export PDF
             </Button>
             <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs h-8" onClick={() => setModalOpen(true)}>
@@ -85,7 +85,7 @@ export default function FinancePage() {
         </div>
 
         {/* TABS */}
-        <div className="flex items-center gap-0 px-6 border-t border-white/10">
+        <div className="flex items-center gap-0 px-6 border-t border-border">
           {TABS.map((tab) => (
             <button
               key={tab.id}
@@ -93,8 +93,8 @@ export default function FinancePage() {
               className={cn(
                 "px-4 py-2.5 text-xs font-medium transition-all border-b-2",
                 activeTab === tab.id
-                  ? "border-emerald-400 text-emerald-400"
-                  : "border-transparent text-white/60 hover:text-white/90"
+                  ? "border-emerald-500 text-emerald-600"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
               )}
             >
               {tab.label}
