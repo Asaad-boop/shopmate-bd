@@ -1265,6 +1265,98 @@ export type Database = {
         }
         Relationships: []
       }
+      hrm_task_comments: {
+        Row: {
+          author_name: string
+          content: string
+          created_at: string
+          id: string
+          task_id: string
+        }
+        Insert: {
+          author_name?: string
+          content: string
+          created_at?: string
+          id?: string
+          task_id: string
+        }
+        Update: {
+          author_name?: string
+          content?: string
+          created_at?: string
+          id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hrm_task_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "hrm_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hrm_tasks: {
+        Row: {
+          assigned_to: string | null
+          completed_at: string | null
+          created_at: string
+          created_by_name: string | null
+          department_id: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          priority: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by_name?: string | null
+          department_id?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by_name?: string | null
+          department_id?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hrm_tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hrm_tasks_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_batches: {
         Row: {
           created_at: string
