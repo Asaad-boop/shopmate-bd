@@ -18,7 +18,7 @@ export function AppLayout() {
       <AppSidebar />
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex items-center justify-between h-[52px] px-6 bg-card border-b border-border">
+        <header className="sticky top-0 z-30 flex items-center justify-between h-[52px] px-6 bg-background border-b border-border">
           <div className="flex items-center gap-3">
             <h1 className="text-sm font-semibold text-foreground">Dashboard</h1>
             <span className="text-xs text-muted-foreground">{today}</span>
@@ -30,7 +30,7 @@ export function AppLayout() {
             </button>
             <Button
               size="sm"
-              className="h-8 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white text-xs gap-1.5"
+              className="h-8 text-xs gap-1.5"
               onClick={() => navigate("/orders/new")}
             >
               <Plus className="w-3.5 h-3.5" />

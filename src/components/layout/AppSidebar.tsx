@@ -101,10 +101,10 @@ export function AppSidebar() {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <aside className="flex flex-col h-screen w-[220px] bg-sidebar text-sidebar-foreground border-r border-sidebar-border sticky top-0 shrink-0">
+    <aside className="flex flex-col h-screen w-[220px] bg-card text-foreground border-r border-border sticky top-0 shrink-0">
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 pt-6 pb-5">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shrink-0">
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shrink-0">
           <Zap className="w-5 h-5 text-white" />
         </div>
         <div className="min-w-0">
@@ -126,7 +126,7 @@ export function AppSidebar() {
                   className={cn(
                     "flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 relative",
                     isActive(item.path!)
-                      ? "bg-gradient-to-r from-blue-600/20 to-purple-600/10 text-blue-400 border-l-2 border-blue-500"
+                      ? "bg-primary/10 text-primary font-semibold border-l-2 border-primary"
                       : "text-muted-foreground hover:text-foreground hover:bg-accent"
                   )}
                 >
@@ -147,7 +147,7 @@ export function AppSidebar() {
       {/* User card */}
       <div className="px-3 pb-4">
         <div className="flex items-center gap-3 px-3 py-3 rounded-lg bg-accent">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
             MA
           </div>
           <div className="min-w-0">

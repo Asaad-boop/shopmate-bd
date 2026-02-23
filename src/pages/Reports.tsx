@@ -280,12 +280,12 @@ export default function ReportsPage() {
           {l2 ? <Skeleton className="h-[280px]" /> : (
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={dailyData} barGap={2}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 20% 20%)" />
-                <XAxis dataKey="day" fontSize={10} tick={{ fill: "hsl(220 15% 55%)" }} interval={1} />
-                <YAxis fontSize={10} tick={{ fill: "hsl(220 15% 55%)" }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(228 16% 90%)" />
+                <XAxis dataKey="day" fontSize={10} tick={{ fill: "hsl(220 9% 46%)" }} interval={1} />
+                <YAxis fontSize={10} tick={{ fill: "hsl(220 9% 46%)" }} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: "hsl(222 25% 12%)", border: "1px solid hsl(222 20% 20%)", borderRadius: 8, fontSize: 11 }}
-                  labelStyle={{ color: "hsl(224 70% 97%)" }}
+                  contentStyle={{ backgroundColor: "#fff", border: "1px solid hsl(228 16% 90%)", borderRadius: 8, fontSize: 11 }}
+                  labelStyle={{ color: "hsl(222 47% 11%)" }}
                   formatter={(val: any, name: string) => [name === "revenue" || name === "profit" ? fmt(val) : val, name.charAt(0).toUpperCase() + name.slice(1)]}
                   labelFormatter={(v) => `Day ${v}`}
                 />
