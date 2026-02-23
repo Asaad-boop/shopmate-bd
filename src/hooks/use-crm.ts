@@ -68,29 +68,54 @@ export function computeSegment(c: any): string {
   return "active";
 }
 
+async function fetchAllCustomers(search?: string): Promise<CRMCustomer[]> {
+  const PAGE_SIZE = 1000;
+  let allRows: any[] = [];
+  let page = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    let query = supabase.from("customers").select("*");
+    if (search) {
+      query = query.or(`full_name.ilike.%${search}%,phone.ilike.%${search}%`);
+    }
+    query = query.order("total_spent", { ascending: false, nullsFirst: false })
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+    const { data, error } = await query;
+    if (error) throw error;
+    allRows = [...allRows, ...(data || [])];
+    hasMore = (data || []).length === PAGE_SIZE;
+    page++;
+  }
+
+  // Fetch QC cache (also paginated)
+  let allQc: any[] = [];
+  page = 0;
+  hasMore = true;
+  while (hasMore) {
+    const { data } = await supabase.from("customer_qc_cache").select("phone, success_rate")
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+    allQc = [...allQc, ...(data || [])];
+    hasMore = (data || []).length === PAGE_SIZE;
+    page++;
+  }
+  const qcMap = new Map(allQc.map((q) => [q.phone, q.success_rate]));
+
+  return allRows.map((c: any) => ({
+    ...c,
+    total_orders: c.total_orders || 0,
+    total_spent: c.total_spent || 0,
+    computed_segment: computeSegment(c),
+    is_repeat: (c.total_orders || 0) >= 3,
+    success_rate: qcMap.get(c.phone) ?? null,
+  }));
+}
+
 export function useCustomers(search: string, segmentFilter: string) {
   return useQuery({
     queryKey: ["crm-customers", search, segmentFilter],
     queryFn: async () => {
-      let query = supabase.from("customers").select("*");
-      if (search) {
-        query = query.or(`full_name.ilike.%${search}%,phone.ilike.%${search}%`);
-      }
-      query = query.order("total_spent", { ascending: false, nullsFirst: false }).limit(500);
-      const { data, error } = await query;
-      if (error) throw error;
-
-      const { data: qcData } = await supabase.from("customer_qc_cache").select("phone, success_rate");
-      const qcMap = new Map((qcData || []).map((q) => [q.phone, q.success_rate]));
-
-      const customers: CRMCustomer[] = (data || []).map((c: any) => ({
-        ...c,
-        total_orders: c.total_orders || 0,
-        total_spent: c.total_spent || 0,
-        computed_segment: computeSegment(c),
-        is_repeat: (c.total_orders || 0) >= 3,
-        success_rate: qcMap.get(c.phone) ?? null,
-      }));
+      const customers = await fetchAllCustomers(search || undefined);
 
       if (segmentFilter && segmentFilter !== "all") {
         if (segmentFilter === "repeat") {
