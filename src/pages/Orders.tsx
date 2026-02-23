@@ -23,6 +23,7 @@ import { ScanMode } from "@/components/orders/ScanMode";
 import { printInvoice, printBulkInvoices, printPickingList, printPackingSlip, printBarcodeLabels } from "@/components/orders/PrintInvoice";
 import { BulkActionsDropdown } from "@/components/orders/BulkActionsDropdown";
 import { CODReconciliation } from "@/components/orders/CODReconciliation";
+import { OrderDetailsDrawer } from "@/components/orders/OrderDetailsDrawer";
 import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Search, Download, Upload, ScanLine, MoreHorizontal,
@@ -67,6 +68,7 @@ export default function OrdersPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [scanMode, setScanMode] = useState(false);
   const [codPanelOpen, setCodPanelOpen] = useState(false);
+  const [detailsDrawer, setDetailsDrawer] = useState<{ open: boolean; orderId: string | null }>({ open: false, orderId: null });
 
   // Modals
   const [statusModal, setStatusModal] = useState<{ open: boolean; orderId: string; orderNumber: string; newStatus: string } | null>(null);
@@ -715,8 +717,24 @@ export default function OrdersPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
-                              <DropdownMenuItem onClick={() => navigate(`/orders/${order.id}`)}>
-                                <Eye className="w-3.5 h-3.5 mr-2" /> View Details
+                              <DropdownMenuItem onClick={() => setDetailsDrawer({ open: true, orderId: order.id })}>
+                                <ClipboardList className="w-3.5 h-3.5 mr-2 text-primary" /> Order Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => printInvoice(order, companySettings, invoiceSettings)}>
+                                <Printer className="w-3.5 h-3.5 mr-2" /> Print
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => handleStatusChange(order.id, order.order_number, "delivered")}
+                                className="text-emerald-600"
+                              >
+                                <CheckCircle className="w-3.5 h-3.5 mr-2" /> Mark as Delivered
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleStatusChange(order.id, order.order_number, "returned")}
+                                className="text-destructive"
+                              >
+                                <RotateCcw className="w-3.5 h-3.5 mr-2" /> Return
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuSub>
@@ -762,11 +780,8 @@ export default function OrdersPage() {
                                 </DropdownMenuSubContent>
                               </DropdownMenuSub>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => printInvoice(order, companySettings, invoiceSettings)}>
-                                <Printer className="w-3.5 h-3.5 mr-2" /> Print Invoice
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => printBarcodeLabels([order], companySettings)}>
-                                <Tag className="w-3.5 h-3.5 mr-2" /> Print Barcode
+                              <DropdownMenuItem onClick={() => navigate(`/orders/${order.id}`)}>
+                                <Edit className="w-3.5 h-3.5 mr-2" /> Edit Order
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -815,6 +830,11 @@ export default function OrdersPage() {
 
 
       <CODReconciliation open={codPanelOpen} onOpenChange={setCodPanelOpen} />
+      <OrderDetailsDrawer
+        open={detailsDrawer.open}
+        onOpenChange={(open) => setDetailsDrawer({ open, orderId: open ? detailsDrawer.orderId : null })}
+        orderId={detailsDrawer.orderId}
+      />
     </div>
   );
 }
