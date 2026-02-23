@@ -61,14 +61,7 @@ const navItems: NavItem[] = [
     ],
   },
   { label: "Customers", icon: Users, path: "/customers" },
-  {
-    label: "Accounting",
-    icon: Wallet,
-    children: [
-      { label: "Transactions", path: "/accounting", icon: List },
-      { label: "P&L Report", path: "/accounting/pnl", icon: FileText },
-    ],
-  },
+  { label: "Finance", icon: Wallet, path: "/finance" },
   { label: "Reports", icon: BarChart3, path: "/reports" },
   { label: "HRM", icon: UserCog, path: "/hrm" },
   { label: "CRM", icon: Handshake, path: "/crm" },
