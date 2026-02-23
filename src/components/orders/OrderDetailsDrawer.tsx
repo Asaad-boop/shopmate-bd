@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -43,20 +44,85 @@ export function OrderDetailsDrawer({ open, onOpenChange, orderId }: OrderDetails
     enabled: !!orderId && open,
   });
 
-  const { data: logs } = useQuery({
-    queryKey: ["order-drawer-logs", orderId],
+  const { data: activityLogs } = useQuery({
+    queryKey: ["order-drawer-activity-logs", orderId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("order_activity_log")
         .select("*")
         .eq("order_id", orderId!)
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(30);
       if (error) throw error;
       return data || [];
     },
     enabled: !!orderId && open,
   });
+
+  const { data: webNotes } = useQuery({
+    queryKey: ["order-drawer-web-notes", orderId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("web_order_notes")
+        .select("*")
+        .eq("order_id", orderId!)
+        .order("created_at", { ascending: false })
+        .limit(30);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!orderId && open,
+  });
+
+  // Merge all logs into a unified timeline
+  const allLogs = useMemo(() => {
+    const entries: { id: string; action: string; created_at: string; done_by: string; details?: string }[] = [];
+
+    // Add activity logs
+    activityLogs?.forEach((log: any) => {
+      entries.push({
+        id: log.id,
+        action: log.action,
+        created_at: log.created_at,
+        done_by: log.done_by || "",
+        details: log.details || (log.old_status && log.new_status ? `${log.old_status} → ${log.new_status}` : undefined),
+      });
+    });
+
+    // Add web order notes
+    webNotes?.forEach((note: any) => {
+      entries.push({
+        id: note.id,
+        action: note.content,
+        created_at: note.created_at,
+        done_by: note.created_by || "",
+        details: note.note_type === "call_log" ? `Call result: ${note.call_result || "—"}` : undefined,
+      });
+    });
+
+    // Add "Order Created" entry from order itself
+    if (order) {
+      entries.push({
+        id: "order-created",
+        action: "Order Created",
+        created_at: order.created_at,
+        done_by: order.channel === "shopify" ? "Shopify" : "Staff",
+        details: `Channel: ${order.channel || "manual"} • #${order.order_number}`,
+      });
+    }
+
+    // Sort by created_at descending (most recent first)
+    entries.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    // Deduplicate by removing entries with identical action + timestamp (within 1s)
+    const seen = new Set<string>();
+    return entries.filter((e) => {
+      const key = `${e.action}__${Math.floor(new Date(e.created_at).getTime() / 1000)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [activityLogs, webNotes, order]);
 
   const customer = order?.customers as any;
   const subtotal = items?.reduce((s, i: any) => s + (i.unit_price * i.quantity), 0) || 0;
@@ -178,11 +244,11 @@ export function OrderDetailsDrawer({ open, onOpenChange, orderId }: OrderDetails
               <p className="text-xs text-muted-foreground mb-3">
                 Each log entry will be displayed as a card in chronological order, with the most recent entry on the top.
               </p>
-              {(!logs || logs.length === 0) ? (
+              {allLogs.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">No activity logs yet</p>
               ) : (
                 <div className="space-y-2">
-                  {logs.map((log: any) => (
+                  {allLogs.map((log) => (
                     <div key={log.id} className="border-l-4 border-muted-foreground/20 bg-muted/30 rounded-r-lg p-3">
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-sm font-medium flex-1">{log.action}</p>
@@ -197,9 +263,6 @@ export function OrderDetailsDrawer({ open, onOpenChange, orderId }: OrderDetails
                       </div>
                       {log.details && (
                         <p className="text-xs text-muted-foreground mt-1">{log.details}</p>
-                      )}
-                      {log.old_status && log.new_status && (
-                        <p className="text-xs text-muted-foreground mt-1">{log.old_status} → {log.new_status}</p>
                       )}
                     </div>
                   ))}
