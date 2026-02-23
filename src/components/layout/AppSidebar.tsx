@@ -132,7 +132,6 @@ export function AppSidebar() {
       title: "SYSTEM",
       items: [
         { label: "Audit Logs", icon: ScrollText, path: "/audit-logs" },
-        { label: "System Health", icon: Activity, path: "/system-health" },
         { label: "Settings", icon: Settings, path: "/settings" },
       ],
     },
