@@ -7,6 +7,7 @@ import { AttendanceTab } from "@/components/hrm/AttendanceTab";
 import { LeaveTab } from "@/components/hrm/LeaveTab";
 import { PayrollTab } from "@/components/hrm/PayrollTab";
 import { PerformanceTab } from "@/components/hrm/PerformanceTab";
+import { TasksTab } from "@/components/hrm/TasksTab";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Building2, Shield } from "lucide-react";
 
@@ -60,12 +61,7 @@ export default function HRMPage() {
       {activeTab === "payroll" && <PayrollTab />}
       {activeTab === "performance" && <PerformanceTab />}
       
-      {activeTab === "tasks" && (
-        <div className="rounded-2xl border bg-card p-8 text-center text-muted-foreground">
-          <p className="text-lg font-medium">Task Management</p>
-          <p className="text-sm mt-1">Coming soon — Phase 4</p>
-        </div>
-      )}
+      {activeTab === "tasks" && <TasksTab />}
     </div>
   );
 }
