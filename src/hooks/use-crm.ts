@@ -20,6 +20,7 @@ export interface CRMCustomer {
   manual_segment?: string | null;
   tags?: string[] | null;
   computed_segment: string;
+  is_repeat: boolean;
   success_rate?: number | null;
 }
 
@@ -50,17 +51,19 @@ export interface Lead {
 export function computeSegment(c: any): string {
   if (c.manual_segment) return c.manual_segment;
   const spent = c.total_spent || 0;
-  if (spent >= 10000) return "vip";
+  if (spent >= 10000) return "diamond";
+  if (spent >= 5000) return "gold";
+  if (spent >= 2000) return "silver";
   const lastOrder = c.last_order_date;
-  if (lastOrder) {
-    const days = differenceInDays(new Date(), new Date(lastOrder));
-    if (days > 90) return "lost";
-    if (days > 60) return "inactive";
-  }
   const created = c.created_at;
   if (created) {
     const daysCreated = differenceInDays(new Date(), new Date(created));
     if (daysCreated <= 30 && (!lastOrder || differenceInDays(new Date(), new Date(lastOrder)) <= 30)) return "new";
+  }
+  if (lastOrder) {
+    const days = differenceInDays(new Date(), new Date(lastOrder));
+    if (days > 90) return "lost";
+    if (days > 60) return "inactive";
   }
   return "active";
 }
@@ -85,10 +88,14 @@ export function useCustomers(search: string, segmentFilter: string) {
         total_orders: c.total_orders || 0,
         total_spent: c.total_spent || 0,
         computed_segment: computeSegment(c),
+        is_repeat: (c.total_orders || 0) >= 3,
         success_rate: qcMap.get(c.phone) ?? null,
       }));
 
       if (segmentFilter && segmentFilter !== "all") {
+        if (segmentFilter === "repeat") {
+          return customers.filter((c) => c.is_repeat);
+        }
         return customers.filter((c) => c.computed_segment === segmentFilter);
       }
       return customers;
