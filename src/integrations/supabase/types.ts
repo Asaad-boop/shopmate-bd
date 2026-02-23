@@ -770,6 +770,179 @@ export type Database = {
           },
         ]
       }
+      departments: {
+        Row: {
+          created_at: string
+          description: string | null
+          head_employee_id: string | null
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          head_employee_id?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          head_employee_id?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "departments_head_employee_id_fkey"
+            columns: ["head_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employees: {
+        Row: {
+          address: string | null
+          bank_account_number: string | null
+          bank_name: string | null
+          basic_salary: number | null
+          bkash_number: string | null
+          blood_group: string | null
+          contract_end_date: string | null
+          created_at: string
+          date_of_birth: string | null
+          department_id: string | null
+          designation: string | null
+          email: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          employee_id: string
+          employment_type: string | null
+          full_name: string
+          gender: string | null
+          hrm_role_id: string | null
+          id: string
+          join_date: string | null
+          nagad_number: string | null
+          nid_document_url: string | null
+          nid_number: string | null
+          notes: string | null
+          phone: string | null
+          photo_url: string | null
+          probation_end_date: string | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
+          basic_salary?: number | null
+          bkash_number?: string | null
+          blood_group?: string | null
+          contract_end_date?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          department_id?: string | null
+          designation?: string | null
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          employee_id: string
+          employment_type?: string | null
+          full_name: string
+          gender?: string | null
+          hrm_role_id?: string | null
+          id?: string
+          join_date?: string | null
+          nagad_number?: string | null
+          nid_document_url?: string | null
+          nid_number?: string | null
+          notes?: string | null
+          phone?: string | null
+          photo_url?: string | null
+          probation_end_date?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
+          basic_salary?: number | null
+          bkash_number?: string | null
+          blood_group?: string | null
+          contract_end_date?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          department_id?: string | null
+          designation?: string | null
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          employee_id?: string
+          employment_type?: string | null
+          full_name?: string
+          gender?: string | null
+          hrm_role_id?: string | null
+          id?: string
+          join_date?: string | null
+          nagad_number?: string | null
+          nid_document_url?: string | null
+          nid_number?: string | null
+          notes?: string | null
+          phone?: string | null
+          photo_url?: string | null
+          probation_end_date?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employees_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_hrm_role_id_fkey"
+            columns: ["hrm_role_id"]
+            isOneToOne: false
+            referencedRelation: "hrm_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hrm_roles: {
+        Row: {
+          created_at: string
+          id: string
+          level: string
+          name: string
+          permissions: Json | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          level?: string
+          name: string
+          permissions?: Json | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          level?: string
+          name?: string
+          permissions?: Json | null
+        }
+        Relationships: []
+      }
       import_batches: {
         Row: {
           created_at: string

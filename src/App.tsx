@@ -22,6 +22,7 @@ import AgentsPage from "./pages/Agents";
 import ImportDashboard from "./pages/ImportDashboard";
 import CRMPage from "./pages/CRM";
 import FinancePage from "./pages/Finance";
+import HRMPage from "./pages/HRM";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,6 +52,8 @@ const App = () => (
             <Route path="/import-dashboard" element={<ImportDashboard />} />
             <Route path="/crm" element={<CRMPage />} />
             <Route path="/finance" element={<FinancePage />} />
+            <Route path="/hrm" element={<HRMPage />} />
+            <Route path="/hrm/employees" element={<HRMPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/system-health" element={<SystemHealth />} />
           </Route>
