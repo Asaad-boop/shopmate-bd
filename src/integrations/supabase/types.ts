@@ -919,6 +919,163 @@ export type Database = {
           },
         ]
       }
+      hrm_attendance: {
+        Row: {
+          check_in: string | null
+          check_out: string | null
+          created_at: string
+          date: string
+          employee_id: string
+          id: string
+          is_late: boolean | null
+          notes: string | null
+          overtime_hours: number | null
+          status: string | null
+          working_hours: number | null
+        }
+        Insert: {
+          check_in?: string | null
+          check_out?: string | null
+          created_at?: string
+          date?: string
+          employee_id: string
+          id?: string
+          is_late?: boolean | null
+          notes?: string | null
+          overtime_hours?: number | null
+          status?: string | null
+          working_hours?: number | null
+        }
+        Update: {
+          check_in?: string | null
+          check_out?: string | null
+          created_at?: string
+          date?: string
+          employee_id?: string
+          id?: string
+          is_late?: boolean | null
+          notes?: string | null
+          overtime_hours?: number | null
+          status?: string | null
+          working_hours?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hrm_attendance_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hrm_leave_balances: {
+        Row: {
+          casual_leave_total: number | null
+          casual_leave_used: number | null
+          created_at: string
+          employee_id: string
+          id: string
+          paid_leave_total: number | null
+          paid_leave_used: number | null
+          sick_leave_total: number | null
+          sick_leave_used: number | null
+          unpaid_leave_used: number | null
+          year: number
+        }
+        Insert: {
+          casual_leave_total?: number | null
+          casual_leave_used?: number | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          paid_leave_total?: number | null
+          paid_leave_used?: number | null
+          sick_leave_total?: number | null
+          sick_leave_used?: number | null
+          unpaid_leave_used?: number | null
+          year?: number
+        }
+        Update: {
+          casual_leave_total?: number | null
+          casual_leave_used?: number | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          paid_leave_total?: number | null
+          paid_leave_used?: number | null
+          sick_leave_total?: number | null
+          sick_leave_used?: number | null
+          unpaid_leave_used?: number | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hrm_leave_balances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hrm_leave_requests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          days: number
+          employee_id: string
+          end_date: string
+          id: string
+          leave_type: string
+          reason: string | null
+          start_date: string
+          status: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          days?: number
+          employee_id: string
+          end_date: string
+          id?: string
+          leave_type?: string
+          reason?: string | null
+          start_date: string
+          status?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          days?: number
+          employee_id?: string
+          end_date?: string
+          id?: string
+          leave_type?: string
+          reason?: string | null
+          start_date?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hrm_leave_requests_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hrm_leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hrm_roles: {
         Row: {
           created_at: string
