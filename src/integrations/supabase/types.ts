@@ -16,23 +16,29 @@ export type Database = {
     Tables: {
       accounts: {
         Row: {
+          account_number: string | null
           balance: number | null
           created_at: string | null
           id: string
+          is_active: boolean
           name: string
           type: string | null
         }
         Insert: {
+          account_number?: string | null
           balance?: number | null
           created_at?: string | null
           id?: string
+          is_active?: boolean
           name: string
           type?: string | null
         }
         Update: {
+          account_number?: string | null
           balance?: number | null
           created_at?: string | null
           id?: string
+          is_active?: boolean
           name?: string
           type?: string | null
         }
@@ -959,6 +965,45 @@ export type Database = {
           },
         ]
       }
+      payables: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          paid_amount: number
+          party_name: string
+          status: string | null
+          total_amount: number
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          paid_amount?: number
+          party_name: string
+          status?: string | null
+          total_amount?: number
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          paid_amount?: number
+          party_name?: string
+          status?: string | null
+          total_amount?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       payroll: {
         Row: {
           basic_salary: number | null
@@ -1482,6 +1527,42 @@ export type Database = {
           },
         ]
       }
+      receivables: {
+        Row: {
+          amount: number
+          created_at: string | null
+          description: string | null
+          expected_date: string | null
+          id: string
+          reference: string | null
+          source: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount?: number
+          created_at?: string | null
+          description?: string | null
+          expected_date?: string | null
+          id?: string
+          reference?: string | null
+          source?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          description?: string | null
+          expected_date?: string | null
+          id?: string
+          reference?: string | null
+          source?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       returns: {
         Row: {
           created_at: string | null
@@ -1770,39 +1851,51 @@ export type Database = {
         Row: {
           account_id: string | null
           amount: number
+          auto_generated: boolean | null
           category: string | null
           created_at: string | null
           created_by: string | null
           description: string | null
           id: string
+          payment_method: string | null
           reference_id: string | null
           reference_type: string | null
+          source_id: string | null
+          source_module: string | null
           transaction_date: string | null
           type: string
         }
         Insert: {
           account_id?: string | null
           amount: number
+          auto_generated?: boolean | null
           category?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
           id?: string
+          payment_method?: string | null
           reference_id?: string | null
           reference_type?: string | null
+          source_id?: string | null
+          source_module?: string | null
           transaction_date?: string | null
           type: string
         }
         Update: {
           account_id?: string | null
           amount?: number
+          auto_generated?: boolean | null
           category?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
           id?: string
+          payment_method?: string | null
           reference_id?: string | null
           reference_type?: string | null
+          source_id?: string | null
+          source_module?: string | null
           transaction_date?: string | null
           type?: string
         }
