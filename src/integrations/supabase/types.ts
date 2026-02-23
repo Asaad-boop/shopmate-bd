@@ -969,6 +969,56 @@ export type Database = {
           },
         ]
       }
+      hrm_goals: {
+        Row: {
+          created_at: string
+          current_value: number | null
+          description: string | null
+          due_date: string | null
+          employee_id: string
+          id: string
+          status: string
+          target_value: number | null
+          title: string
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_value?: number | null
+          description?: string | null
+          due_date?: string | null
+          employee_id: string
+          id?: string
+          status?: string
+          target_value?: number | null
+          title: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_value?: number | null
+          description?: string | null
+          due_date?: string | null
+          employee_id?: string
+          id?: string
+          status?: string
+          target_value?: number | null
+          title?: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hrm_goals_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hrm_leave_balances: {
         Row: {
           casual_leave_total: number | null
@@ -1069,6 +1119,121 @@ export type Database = {
           },
           {
             foreignKeyName: "hrm_leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hrm_payroll: {
+        Row: {
+          basic_salary: number
+          bonus: number | null
+          created_at: string
+          deductions: number | null
+          employee_id: string
+          id: string
+          month: number
+          net_salary: number
+          notes: string | null
+          overtime_amount: number | null
+          overtime_hours: number | null
+          paid_at: string | null
+          payment_method: string | null
+          payment_status: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          basic_salary?: number
+          bonus?: number | null
+          created_at?: string
+          deductions?: number | null
+          employee_id: string
+          id?: string
+          month: number
+          net_salary?: number
+          notes?: string | null
+          overtime_amount?: number | null
+          overtime_hours?: number | null
+          paid_at?: string | null
+          payment_method?: string | null
+          payment_status?: string
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          basic_salary?: number
+          bonus?: number | null
+          created_at?: string
+          deductions?: number | null
+          employee_id?: string
+          id?: string
+          month?: number
+          net_salary?: number
+          notes?: string | null
+          overtime_amount?: number | null
+          overtime_hours?: number | null
+          paid_at?: string | null
+          payment_method?: string | null
+          payment_status?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hrm_payroll_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hrm_performance_reviews: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          improvements: string | null
+          overall_comment: string | null
+          rating: number | null
+          review_date: string
+          review_period: string
+          reviewer_name: string | null
+          status: string
+          strengths: string | null
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          improvements?: string | null
+          overall_comment?: string | null
+          rating?: number | null
+          review_date?: string
+          review_period?: string
+          reviewer_name?: string | null
+          status?: string
+          strengths?: string | null
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          improvements?: string | null
+          overall_comment?: string | null
+          rating?: number | null
+          review_date?: string
+          review_period?: string
+          reviewer_name?: string | null
+          status?: string
+          strengths?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hrm_performance_reviews_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
