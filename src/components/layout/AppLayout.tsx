@@ -1,46 +1,35 @@
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
-import { Search, Bell, Plus } from "lucide-react";
+import { Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { NotificationDropdown } from "./NotificationDropdown";
-import { Button } from "@/components/ui/button";
 
 export function AppLayout() {
-  const navigate = useNavigate();
-  const today = new Date().toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-
   return (
     <div className="flex min-h-screen w-full bg-background">
       <AppSidebar />
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex items-center justify-between h-[52px] px-6 bg-background border-b border-border">
-          <div className="flex items-center gap-3">
-            <h1 className="text-sm font-semibold text-foreground">Dashboard</h1>
-            <span className="text-xs text-muted-foreground">{today}</span>
+         <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-6 bg-card border-b border-border">
+          <div className="flex items-center gap-4 flex-1 max-w-md">
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search orders, products, customers..."
+                className="pl-10 bg-muted border-0 rounded-lg focus-visible:ring-primary"
+              />
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <NotificationDropdown />
-            <button className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
-              <Search className="w-4 h-4" />
-            </button>
-            <Button
-              size="sm"
-              className="h-8 text-xs gap-1.5"
-              onClick={() => navigate("/orders/new")}
-            >
-              <Plus className="w-3.5 h-3.5" />
-              New Order
-            </Button>
+            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-semibold">
+              A
+            </div>
           </div>
         </header>
 
         {/* Main content */}
-        <main className="flex-1 p-5 overflow-auto">
+        <main className="flex-1 p-6 overflow-auto">
           <Outlet />
         </main>
       </div>

@@ -9,12 +9,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
 
 @layer base {
   :root {
-    --background: 228 25% 97%;
+    --background: 228 27% 96%;
     --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
@@ -23,38 +21,38 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    --primary: 217 91% 60%;
+    --primary: 244 100% 69%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 217 91% 95%;
-    --primary-dark: 217 82% 50%;
+    --primary-light: 244 100% 97%;
+    --primary-dark: 244 82% 57%;
 
-    --secondary: 220 14% 96%;
+    --secondary: 214 32% 96%;
     --secondary-foreground: 222 47% 11%;
 
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 214 32% 96%;
+    --muted-foreground: 215 16% 47%;
 
-    --accent: 220 14% 96%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 244 100% 97%;
+    --accent-foreground: 244 100% 69%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 228 16% 90%;
-    --input: 228 16% 90%;
-    --ring: 217 91% 60%;
+    --border: 214 32% 96%;
+    --input: 214 32% 91%;
+    --ring: 244 100% 69%;
 
-    --radius: 0.625rem;
+    --radius: 0.5rem;
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary: 244 100% 69%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent: 228 27% 96%;
     --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 228 16% 90%;
-    --sidebar-ring: 217 91% 60%;
-    --sidebar-muted: 220 9% 46%;
+    --sidebar-border: 214 32% 93%;
+    --sidebar-ring: 244 100% 69%;
+    --sidebar-muted: 215 16% 57%;
 
     --success: 160 84% 39%;
     --success-foreground: 0 0% 100%;
@@ -63,11 +61,44 @@
     --info: 217 91% 60%;
     --info-foreground: 0 0% 100%;
 
-    --chart-1: 217 91% 60%;
+    --chart-1: 350 84% 49%;
     --chart-2: 160 84% 39%;
     --chart-3: 38 92% 50%;
     --chart-4: 0 84% 60%;
     --chart-5: 262 83% 58%;
+  }
+
+  .dark {
+    --background: 240 24% 15%;
+    --foreground: 210 40% 98%;
+    --card: 240 18% 21%;
+    --card-foreground: 210 40% 98%;
+    --popover: 240 18% 21%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 244 100% 69%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 244 50% 20%;
+    --primary-dark: 244 82% 57%;
+    --secondary: 240 18% 21%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 240 18% 21%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 240 18% 21%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 240 18% 21%;
+    --input: 240 18% 21%;
+    --ring: 244 100% 69%;
+    --sidebar-background: 240 24% 10%;
+    --sidebar-foreground: 210 40% 90%;
+    --sidebar-primary: 244 100% 69%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 18% 16%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 240 18% 16%;
+    --sidebar-ring: 244 100% 69%;
+    --sidebar-muted: 215 16% 47%;
   }
 }
 
@@ -78,15 +109,11 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Outfit', 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
   }
 }
 
 @layer utilities {
-  .font-mono-num {
-    font-family: 'JetBrains Mono', 'DM Mono', monospace;
-  }
-
   .animate-fade-in {
     animation: fadeIn 0.3s ease-in-out;
   }
@@ -111,15 +138,6 @@
 @keyframes slide-up {
   from { opacity: 0; transform: translateX(-50%) translateY(100%); }
   to { opacity: 1; transform: translateX(-50%) translateY(0); }
-}
-
-@keyframes livePulse {
-  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
-  50% { opacity: 0.8; box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
-}
-
-.animate-live-pulse {
-  animation: livePulse 2s ease-in-out infinite;
 }
 
 /* ─── Premium Modal Animations ─── */
