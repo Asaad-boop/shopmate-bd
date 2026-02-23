@@ -8,10 +8,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Building2, FileText, ShoppingBag, Shield, Truck,
+  Building2, FileText, ShoppingBag, Shield, Truck, MessageSquare,
   CheckCircle2, XCircle, Loader2, Eye, EyeOff,
 } from "lucide-react";
 import PathaoSettingsSection from "@/components/settings/PathaoSettingsSection";
+import SmsSettingsSection from "@/components/settings/SmsSettingsSection";
 import CompanyProfileSection from "@/components/settings/CompanyProfileSection";
 import InvoiceSettingsSection from "@/components/settings/InvoiceSettingsSection";
 import { cn } from "@/lib/utils";
@@ -22,6 +23,7 @@ const SECTIONS = [
   { id: "shopify", label: "Shopify Integration", icon: ShoppingBag, description: "Sync orders & products" },
   { id: "bdcourier", label: "BD Courier (QC)", icon: Shield, description: "Customer quality check" },
   { id: "pathao", label: "Pathao Courier", icon: Truck, description: "Delivery booking" },
+  { id: "sms", label: "Bulk SMS BD", icon: MessageSquare, description: "SMS notifications & marketing" },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]["id"];
@@ -187,6 +189,7 @@ export default function SettingsPage() {
     shopify: connectionStatus,
     bdcourier: bdStatus,
     pathao: pathaoStatus,
+    sms: "unknown",
   };
 
   return (
@@ -335,6 +338,17 @@ export default function SettingsPage() {
               </SettingsCard>
             )}
             {activeSection === "pathao" && <PathaoSettingsSection />}
+            {activeSection === "sms" && (
+              <SettingsCard
+                icon={MessageSquare}
+                iconBg="bg-violet-50 text-violet-600"
+                title="Bulk SMS BD"
+                description="Send SMS notifications, OTP, and marketing messages via BulkSMSBD.com"
+                badge={null}
+              >
+                <SmsSettingsSection />
+              </SettingsCard>
+            )}
           </div>
         </div>
       </div>
