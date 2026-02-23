@@ -63,7 +63,14 @@ const navItems: NavItem[] = [
   { label: "Customers", icon: Users, path: "/customers" },
   { label: "Finance", icon: Wallet, path: "/finance" },
   { label: "Reports", icon: BarChart3, path: "/reports" },
-  { label: "HRM", icon: UserCog, path: "/hrm" },
+  {
+    label: "HRM",
+    icon: UserCog,
+    children: [
+      { label: "HR Dashboard", path: "/hrm", icon: BarChart3 },
+      { label: "Employees", path: "/hrm/employees", icon: Users },
+    ],
+  },
   { label: "CRM", icon: Handshake, path: "/crm" },
   { label: "Settings", icon: Settings, path: "/settings" },
   { label: "System Health", icon: Activity, path: "/system-health" },
