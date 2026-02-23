@@ -73,25 +73,27 @@ Deno.serve(async (req) => {
         const normalizedPhone = phone.replace(/[\s\-\+]/g, "").replace(/^88/, "").replace(/^0/, "0");
         
         const response = await fetch(
-          `https://bdcourier.com/api/courier-check?phone=${encodeURIComponent(normalizedPhone)}`,
+          "https://api.bdcourier.com/courier-check",
           {
+            method: "POST",
             headers: {
               "Authorization": `Bearer ${apiKey}`,
               "Content-Type": "application/json",
               "Accept": "application/json",
             },
+            body: JSON.stringify({ phone: normalizedPhone }),
           }
         );
 
         if (response.ok) {
           const data = await response.json();
           
-          // Parse BD Courier response - data is nested under courierData.summary
-          const summary = data?.courierData?.summary || {};
+          // Parse BD Courier response - new API format: data.data.summary
+          const summary = data?.data?.summary || {};
           const totalOrders = summary.total_parcel || 0;
           const totalDelivered = summary.success_parcel || 0;
           const totalCancelled = summary.cancelled_parcel || 0;
-          const totalReturned = totalCancelled; // BD Courier uses cancelled_parcel for returns
+          const totalReturned = totalCancelled;
           const successRate = summary.success_ratio ? Math.round(summary.success_ratio) : (totalOrders > 0 ? Math.round((totalDelivered / totalOrders) * 100) : 0);
 
           const record = {
