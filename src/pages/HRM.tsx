@@ -3,6 +3,8 @@ import { EmployeesTab } from "@/components/hrm/EmployeesTab";
 import { DepartmentsTab } from "@/components/hrm/DepartmentsTab";
 import { HrDashboardTab } from "@/components/hrm/HrDashboardTab";
 import { RolesTab } from "@/components/hrm/RolesTab";
+import { AttendanceTab } from "@/components/hrm/AttendanceTab";
+import { LeaveTab } from "@/components/hrm/LeaveTab";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Building2, Shield } from "lucide-react";
 
@@ -51,12 +53,8 @@ export default function HRMPage() {
 
       {activeTab === "employees" && <EmployeesTab />}
 
-      {activeTab === "attendance" && (
-        <div className="rounded-2xl border bg-card p-8 text-center text-muted-foreground">
-          <p className="text-lg font-medium">Attendance Module</p>
-          <p className="text-sm mt-1">Coming soon — Phase 2</p>
-        </div>
-      )}
+      {activeTab === "attendance" && <AttendanceTab />}
+      {activeTab === "leave" && <LeaveTab />}
       {activeTab === "payroll" && (
         <div className="rounded-2xl border bg-card p-8 text-center text-muted-foreground">
           <p className="text-lg font-medium">Payroll Module</p>
@@ -69,12 +67,7 @@ export default function HRMPage() {
           <p className="text-sm mt-1">Coming soon — Phase 3</p>
         </div>
       )}
-      {activeTab === "leave" && (
-        <div className="rounded-2xl border bg-card p-8 text-center text-muted-foreground">
-          <p className="text-lg font-medium">Leave Management</p>
-          <p className="text-sm mt-1">Coming soon — Phase 2</p>
-        </div>
-      )}
+      
       {activeTab === "tasks" && (
         <div className="rounded-2xl border bg-card p-8 text-center text-muted-foreground">
           <p className="text-lg font-medium">Task Management</p>
