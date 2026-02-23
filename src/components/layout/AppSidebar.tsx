@@ -18,21 +18,8 @@ import {
   List,
   Zap,
   Activity,
-  Truck,
-  Receipt,
-  ScrollText,
-  FileText,
-  Shield,
-  ChevronDown,
-  ChevronRight,
-  ClipboardList,
-  DollarSign,
-  TrendingUp,
-  Archive,
-  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
 
 interface NavItem {
   label: string;
@@ -40,7 +27,6 @@ interface NavItem {
   path?: string;
   badge?: number;
   badgeColor?: string;
-  children?: { label: string; icon: React.ElementType; path: string }[];
 }
 
 interface NavGroup {
@@ -50,7 +36,6 @@ interface NavGroup {
 
 export function AppSidebar() {
   const location = useLocation();
-  const [expandedItems, setExpandedItems] = useState<string[]>(["Orders", "Reports"]);
 
   const { data: pendingCount } = useQuery({
     queryKey: ["sidebar-pending"],
@@ -74,12 +59,6 @@ export function AppSidebar() {
     },
   });
 
-  const toggleExpand = (label: string) => {
-    setExpandedItems((prev) =>
-      prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label]
-    );
-  };
-
   const navGroups: NavGroup[] = [
     {
       title: "MAIN",
@@ -88,58 +67,38 @@ export function AppSidebar() {
       ],
     },
     {
-      title: "OPERATIONS",
+      title: "ORDERS",
       items: [
-        {
-          label: "Orders",
-          icon: ShoppingCart,
-          badge: pendingCount || 0,
-          badgeColor: "bg-red-500",
-          children: [
-            { label: "Order List", icon: List, path: "/orders" },
-            { label: "New Order", icon: Plus, path: "/orders/new" },
-            { label: "Web Orders", icon: Globe, path: "/web-orders" },
-          ],
-        },
-        { label: "Inventory", icon: Package, path: "/inventory", badge: lowStockCount || 0, badgeColor: "bg-orange-500" },
-        { label: "Courier & COD", icon: Truck, path: "/courier" },
+        { label: "Order List", icon: List, path: "/orders", badge: pendingCount || 0, badgeColor: "bg-red-500" },
+        { label: "New Order", icon: Plus, path: "/orders/new" },
       ],
     },
     {
-      title: "FINANCE",
+      title: "INVENTORY",
       items: [
-        { label: "Accounts", icon: BookOpen, path: "/accounts" },
-        { label: "Expenses", icon: Receipt, path: "/expenses" },
-        {
-          label: "Reports",
-          icon: BarChart3,
-          children: [
-            { label: "P&L Report", icon: TrendingUp, path: "/reports/pnl" },
-            { label: "Cashflow", icon: DollarSign, path: "/reports/cashflow" },
-            { label: "Stock Report", icon: Archive, path: "/reports/stock" },
-          ],
-        },
-      ],
-    },
-    {
-      title: "PROCUREMENT",
-      items: [
+        { label: "Products", icon: Package, path: "/products", badge: lowStockCount || 0, badgeColor: "bg-orange-500" },
         { label: "Purchase Orders", icon: Boxes, path: "/purchase-orders" },
-        { label: "Suppliers", icon: Handshake, path: "/suppliers" },
+        { label: "Import Dashboard", icon: Ship, path: "/import-dashboard" },
       ],
     },
     {
-      title: "SYSTEM",
+      title: "BUSINESS",
       items: [
-        { label: "Audit Logs", icon: ScrollText, path: "/audit-logs" },
+        { label: "CRM", icon: Handshake, path: "/crm" },
+        { label: "Finance", icon: Wallet, path: "/finance" },
+        { label: "Reports", icon: BarChart3, path: "/reports" },
+      ],
+    },
+    {
+      title: "SETTINGS",
+      items: [
+        { label: "Staff", icon: UserCog, path: "/hrm" },
         { label: "Settings", icon: Settings, path: "/settings" },
       ],
     },
   ];
 
   const isActive = (path: string) => location.pathname === path;
-  const isChildActive = (children?: { path: string }[]) =>
-    children?.some((c) => location.pathname === c.path || location.pathname.startsWith(c.path + "/"));
 
   return (
     <aside className="flex flex-col h-screen w-[220px] bg-card text-foreground border-r border-border sticky top-0 shrink-0">
@@ -150,7 +109,7 @@ export function AppSidebar() {
         </div>
         <div className="min-w-0">
           <p className="font-bold text-sm text-foreground leading-tight">HeroShop</p>
-          <p className="text-[10px] text-muted-foreground leading-tight">ERP v3.0</p>
+          <p className="text-[10px] text-muted-foreground leading-tight">ERP v2.0</p>
         </div>
       </div>
 
@@ -160,72 +119,26 @@ export function AppSidebar() {
           <div key={group.title}>
             <p className="px-3 mb-1.5 text-[10px] font-semibold tracking-widest text-muted-foreground">{group.title}</p>
             <div className="space-y-0.5">
-              {group.items.map((item) =>
-                item.children ? (
-                  <div key={item.label}>
-                    <button
-                      onClick={() => toggleExpand(item.label)}
-                      className={cn(
-                        "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-200",
-                        isChildActive(item.children)
-                          ? "bg-primary/10 text-primary font-semibold"
-                          : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                      )}
-                    >
-                      <item.icon className="w-4 h-4 shrink-0" strokeWidth={1.8} />
-                      <span className="flex-1 text-left">{item.label}</span>
-                      {item.badge !== undefined && item.badge > 0 && (
-                        <span className={cn("text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full min-w-[20px] text-center", item.badgeColor)}>
-                          {item.badge}
-                        </span>
-                      )}
-                      {expandedItems.includes(item.label) ? (
-                        <ChevronDown className="w-3.5 h-3.5 shrink-0" />
-                      ) : (
-                        <ChevronRight className="w-3.5 h-3.5 shrink-0" />
-                      )}
-                    </button>
-                    {expandedItems.includes(item.label) && (
-                      <div className="ml-4 mt-0.5 space-y-0.5 border-l border-border pl-3">
-                        {item.children.map((child) => (
-                          <Link
-                            key={child.path}
-                            to={child.path}
-                            className={cn(
-                              "flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-all",
-                              isActive(child.path)
-                                ? "bg-primary/10 text-primary font-semibold"
-                                : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                            )}
-                          >
-                            <child.icon className="w-3.5 h-3.5 shrink-0" strokeWidth={1.8} />
-                            <span>{child.label}</span>
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <Link
-                    key={item.path}
-                    to={item.path!}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 relative",
-                      isActive(item.path!)
-                        ? "bg-primary/10 text-primary font-semibold border-l-2 border-primary"
-                        : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                    )}
-                  >
-                    <item.icon className="w-4 h-4 shrink-0" strokeWidth={1.8} />
-                    <span className="flex-1">{item.label}</span>
-                    {item.badge !== undefined && item.badge > 0 && (
-                      <span className={cn("text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full min-w-[20px] text-center", item.badgeColor)}>
-                        {item.badge}
-                      </span>
-                    )}
-                  </Link>
-                )
-              )}
+              {group.items.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path!}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 relative",
+                    isActive(item.path!)
+                      ? "bg-primary/10 text-primary font-semibold border-l-2 border-primary"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                  )}
+                >
+                  <item.icon className="w-4 h-4 shrink-0" strokeWidth={1.8} />
+                  <span className="flex-1">{item.label}</span>
+                  {item.badge !== undefined && item.badge > 0 && (
+                    <span className={cn("text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full min-w-[20px] text-center", item.badgeColor)}>
+                      {item.badge}
+                    </span>
+                  )}
+                </Link>
+              ))}
             </div>
           </div>
         ))}

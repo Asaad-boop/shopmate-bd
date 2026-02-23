@@ -23,13 +23,6 @@ import ImportDashboard from "./pages/ImportDashboard";
 import CRMPage from "./pages/CRM";
 import FinancePage from "./pages/Finance";
 import ReportsPage from "./pages/Reports";
-import AccountsPage from "./pages/Accounts";
-import ExpensesPage from "./pages/Expenses";
-import CourierCODPage from "./pages/CourierCOD";
-import AuditLogsPage from "./pages/AuditLogs";
-import ReportsPnLPage from "./pages/ReportsPnL";
-import ReportsCashflowPage from "./pages/ReportsCashflow";
-import ReportsStockPage from "./pages/ReportsStock";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -60,13 +53,6 @@ const App = () => (
             <Route path="/crm" element={<CRMPage />} />
             <Route path="/finance" element={<FinancePage />} />
             <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/accounts" element={<AccountsPage />} />
-            <Route path="/expenses" element={<ExpensesPage />} />
-            <Route path="/courier" element={<CourierCODPage />} />
-            <Route path="/audit-logs" element={<AuditLogsPage />} />
-            <Route path="/reports/pnl" element={<ReportsPnLPage />} />
-            <Route path="/reports/cashflow" element={<ReportsCashflowPage />} />
-            <Route path="/reports/stock" element={<ReportsStockPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/system-health" element={<SystemHealth />} />
           </Route>

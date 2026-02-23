@@ -14,73 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      account_ledger: {
-        Row: {
-          account_id: string
-          amount: number
-          created_at: string
-          created_by: string | null
-          direction: string
-          id: string
-          is_reversal: boolean | null
-          ledger_date: string
-          note: string | null
-          ref_id: string | null
-          ref_type: string
-          reversed_entry_id: string | null
-        }
-        Insert: {
-          account_id: string
-          amount: number
-          created_at?: string
-          created_by?: string | null
-          direction: string
-          id?: string
-          is_reversal?: boolean | null
-          ledger_date?: string
-          note?: string | null
-          ref_id?: string | null
-          ref_type: string
-          reversed_entry_id?: string | null
-        }
-        Update: {
-          account_id?: string
-          amount?: number
-          created_at?: string
-          created_by?: string | null
-          direction?: string
-          id?: string
-          is_reversal?: boolean | null
-          ledger_date?: string
-          note?: string | null
-          ref_id?: string | null
-          ref_type?: string
-          reversed_entry_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "account_ledger_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "accounts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "account_ledger_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "v_account_balances"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "account_ledger_reversed_entry_id_fkey"
-            columns: ["reversed_entry_id"]
-            isOneToOne: false
-            referencedRelation: "account_ledger"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       accounts: {
         Row: {
           account_number: string | null
@@ -302,45 +235,6 @@ export type Database = {
           },
         ]
       }
-      audit_logs: {
-        Row: {
-          action: string
-          after_json: Json | null
-          before_json: Json | null
-          created_at: string
-          entity_id: string
-          entity_type: string
-          id: string
-          ip_address: string | null
-          user_id: string | null
-          user_name: string | null
-        }
-        Insert: {
-          action: string
-          after_json?: Json | null
-          before_json?: Json | null
-          created_at?: string
-          entity_id: string
-          entity_type: string
-          id?: string
-          ip_address?: string | null
-          user_id?: string | null
-          user_name?: string | null
-        }
-        Update: {
-          action?: string
-          after_json?: Json | null
-          before_json?: Json | null
-          created_at?: string
-          entity_id?: string
-          entity_type?: string
-          id?: string
-          ip_address?: string | null
-          user_id?: string | null
-          user_name?: string | null
-        }
-        Relationships: []
-      }
       categories: {
         Row: {
           created_at: string | null
@@ -369,112 +263,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      cod_settlement_lines: {
-        Row: {
-          consignment_id: string | null
-          created_at: string
-          expected_amount: number | null
-          id: string
-          matched_status: string | null
-          mismatch_reason: string | null
-          order_id: string | null
-          paid_amount: number
-          settlement_id: string
-        }
-        Insert: {
-          consignment_id?: string | null
-          created_at?: string
-          expected_amount?: number | null
-          id?: string
-          matched_status?: string | null
-          mismatch_reason?: string | null
-          order_id?: string | null
-          paid_amount?: number
-          settlement_id: string
-        }
-        Update: {
-          consignment_id?: string | null
-          created_at?: string
-          expected_amount?: number | null
-          id?: string
-          matched_status?: string | null
-          mismatch_reason?: string | null
-          order_id?: string | null
-          paid_amount?: number
-          settlement_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "cod_settlement_lines_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "order_summary_view"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "cod_settlement_lines_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "cod_settlement_lines_settlement_id_fkey"
-            columns: ["settlement_id"]
-            isOneToOne: false
-            referencedRelation: "cod_settlements"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      cod_settlements: {
-        Row: {
-          courier_name: string
-          created_at: string
-          created_by: string | null
-          id: string
-          matched_count: number | null
-          mismatch_count: number | null
-          settlement_date: string
-          settlement_ref: string | null
-          statement_file_url: string | null
-          status: string | null
-          total_orders: number | null
-          total_paid_amount: number
-          unmatched_count: number | null
-        }
-        Insert: {
-          courier_name: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          matched_count?: number | null
-          mismatch_count?: number | null
-          settlement_date: string
-          settlement_ref?: string | null
-          statement_file_url?: string | null
-          status?: string | null
-          total_orders?: number | null
-          total_paid_amount?: number
-          unmatched_count?: number | null
-        }
-        Update: {
-          courier_name?: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          matched_count?: number | null
-          mismatch_count?: number | null
-          settlement_date?: string
-          settlement_ref?: string | null
-          statement_file_url?: string | null
-          status?: string | null
-          total_orders?: number | null
-          total_paid_amount?: number
-          unmatched_count?: number | null
-        }
-        Relationships: []
       }
       courier_history: {
         Row: {
@@ -523,45 +311,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      courier_rate_cards: {
-        Row: {
-          base_charge: number
-          cod_fee_percent: number | null
-          courier_name: string
-          created_at: string | null
-          extra_charge: number | null
-          id: string
-          is_active: boolean | null
-          service_area: string
-          weight_slab_max: number | null
-          weight_slab_min: number | null
-        }
-        Insert: {
-          base_charge?: number
-          cod_fee_percent?: number | null
-          courier_name: string
-          created_at?: string | null
-          extra_charge?: number | null
-          id?: string
-          is_active?: boolean | null
-          service_area: string
-          weight_slab_max?: number | null
-          weight_slab_min?: number | null
-        }
-        Update: {
-          base_charge?: number
-          cod_fee_percent?: number | null
-          courier_name?: string
-          created_at?: string | null
-          extra_charge?: number | null
-          id?: string
-          is_active?: boolean | null
-          service_area?: string
-          weight_slab_max?: number | null
-          weight_slab_min?: number | null
-        }
-        Relationships: []
       }
       customer_followups: {
         Row: {
@@ -761,13 +510,6 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "damage_log_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "v_stock_on_hand"
-            referencedColumns: ["product_id"]
-          },
         ]
       }
       import_batches: {
@@ -811,12 +553,9 @@ export type Database = {
           movement_type: string
           notes: string | null
           product_id: string | null
-          qty_in: number | null
-          qty_out: number | null
           quantity: number
           reference_id: string | null
           reference_type: string | null
-          unit_cost: number | null
         }
         Insert: {
           created_at?: string | null
@@ -825,12 +564,9 @@ export type Database = {
           movement_type: string
           notes?: string | null
           product_id?: string | null
-          qty_in?: number | null
-          qty_out?: number | null
           quantity: number
           reference_id?: string | null
           reference_type?: string | null
-          unit_cost?: number | null
         }
         Update: {
           created_at?: string | null
@@ -839,12 +575,9 @@ export type Database = {
           movement_type?: string
           notes?: string | null
           product_id?: string | null
-          qty_in?: number | null
-          qty_out?: number | null
           quantity?: number
           reference_id?: string | null
           reference_type?: string | null
-          unit_cost?: number | null
         }
         Relationships: [
           {
@@ -867,13 +600,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "inventory_movements_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "v_stock_on_hand"
-            referencedColumns: ["product_id"]
           },
         ]
       }
@@ -1038,66 +764,8 @@ export type Database = {
           },
         ]
       }
-      order_costs: {
-        Row: {
-          cod_fee: number | null
-          courier_actual_charge: number | null
-          courier_expected_charge: number | null
-          created_at: string | null
-          delivery_subsidy: number | null
-          id: string
-          order_id: string
-          packaging_cost: number | null
-          payment_gateway_fee: number | null
-          return_handling_cost: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          cod_fee?: number | null
-          courier_actual_charge?: number | null
-          courier_expected_charge?: number | null
-          created_at?: string | null
-          delivery_subsidy?: number | null
-          id?: string
-          order_id: string
-          packaging_cost?: number | null
-          payment_gateway_fee?: number | null
-          return_handling_cost?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          cod_fee?: number | null
-          courier_actual_charge?: number | null
-          courier_expected_charge?: number | null
-          created_at?: string | null
-          delivery_subsidy?: number | null
-          id?: string
-          order_id?: string
-          packaging_cost?: number | null
-          payment_gateway_fee?: number | null
-          return_handling_cost?: number | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "order_costs_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: true
-            referencedRelation: "order_summary_view"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "order_costs_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: true
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       order_items: {
         Row: {
-          cogs_total: number | null
           discount: number | null
           id: string
           order_id: string | null
@@ -1110,7 +778,6 @@ export type Database = {
           unit_price: number
         }
         Insert: {
-          cogs_total?: number | null
           discount?: number | null
           id?: string
           order_id?: string | null
@@ -1123,7 +790,6 @@ export type Database = {
           unit_price: number
         }
         Update: {
-          cogs_total?: number | null
           discount?: number | null
           id?: string
           order_id?: string | null
@@ -1164,20 +830,12 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "order_items_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "v_stock_on_hand"
-            referencedColumns: ["product_id"]
-          },
         ]
       }
       orders: {
         Row: {
           address_parse_log: Json | null
           assigned_to: string | null
-          cancelled_at: string | null
           channel: string
           cod_amount: number | null
           cost_of_goods: number | null
@@ -1186,7 +844,6 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           customer_id: string | null
-          delivered_at: string | null
           delivery_address: string | null
           delivery_charge: number | null
           delivery_district: string | null
@@ -1215,7 +872,6 @@ export type Database = {
         Insert: {
           address_parse_log?: Json | null
           assigned_to?: string | null
-          cancelled_at?: string | null
           channel: string
           cod_amount?: number | null
           cost_of_goods?: number | null
@@ -1224,7 +880,6 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           customer_id?: string | null
-          delivered_at?: string | null
           delivery_address?: string | null
           delivery_charge?: number | null
           delivery_district?: string | null
@@ -1253,7 +908,6 @@ export type Database = {
         Update: {
           address_parse_log?: Json | null
           assigned_to?: string | null
-          cancelled_at?: string | null
           channel?: string
           cod_amount?: number | null
           cost_of_goods?: number | null
@@ -1262,7 +916,6 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           customer_id?: string | null
-          delivered_at?: string | null
           delivery_address?: string | null
           delivery_charge?: number | null
           delivery_district?: string | null
@@ -1527,12 +1180,10 @@ export type Database = {
       products: {
         Row: {
           available_quantity: number | null
-          avg_cost: number | null
           category_id: string | null
           cbm: number | null
           china_price_cny: number | null
           china_price_usd: number | null
-          cost_method: string | null
           created_at: string | null
           customs_duty_per_unit: number | null
           description: string | null
@@ -1561,12 +1212,10 @@ export type Database = {
         }
         Insert: {
           available_quantity?: number | null
-          avg_cost?: number | null
           category_id?: string | null
           cbm?: number | null
           china_price_cny?: number | null
           china_price_usd?: number | null
-          cost_method?: string | null
           created_at?: string | null
           customs_duty_per_unit?: number | null
           description?: string | null
@@ -1595,12 +1244,10 @@ export type Database = {
         }
         Update: {
           available_quantity?: number | null
-          avg_cost?: number | null
           category_id?: string | null
           cbm?: number | null
           china_price_cny?: number | null
           china_price_usd?: number | null
-          cost_method?: string | null
           created_at?: string | null
           customs_duty_per_unit?: number | null
           description?: string | null
@@ -1710,13 +1357,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "purchase_order_items_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "v_stock_on_hand"
-            referencedColumns: ["product_id"]
           },
           {
             foreignKeyName: "purchase_order_items_purchase_order_id_fkey"
@@ -2022,84 +1662,6 @@ export type Database = {
         }
         Relationships: []
       }
-      shipments: {
-        Row: {
-          actual_charge: number | null
-          cod_expected_amount: number | null
-          consignment_id: string | null
-          courier_id: string | null
-          courier_name: string | null
-          courier_status: string | null
-          created_at: string
-          created_by: string | null
-          delivered_at: string | null
-          expected_charge: number | null
-          id: string
-          last_tracking_at: string | null
-          order_id: string
-          service_area: string | null
-          shipped_at: string | null
-          tracking_code: string | null
-          updated_at: string | null
-          weight_kg: number | null
-        }
-        Insert: {
-          actual_charge?: number | null
-          cod_expected_amount?: number | null
-          consignment_id?: string | null
-          courier_id?: string | null
-          courier_name?: string | null
-          courier_status?: string | null
-          created_at?: string
-          created_by?: string | null
-          delivered_at?: string | null
-          expected_charge?: number | null
-          id?: string
-          last_tracking_at?: string | null
-          order_id: string
-          service_area?: string | null
-          shipped_at?: string | null
-          tracking_code?: string | null
-          updated_at?: string | null
-          weight_kg?: number | null
-        }
-        Update: {
-          actual_charge?: number | null
-          cod_expected_amount?: number | null
-          consignment_id?: string | null
-          courier_id?: string | null
-          courier_name?: string | null
-          courier_status?: string | null
-          created_at?: string
-          created_by?: string | null
-          delivered_at?: string | null
-          expected_charge?: number | null
-          id?: string
-          last_tracking_at?: string | null
-          order_id?: string
-          service_area?: string | null
-          shipped_at?: string | null
-          tracking_code?: string | null
-          updated_at?: string | null
-          weight_kg?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "shipments_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "order_summary_view"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "shipments_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       staff: {
         Row: {
           created_at: string | null
@@ -2346,13 +1908,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "transactions_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "v_account_balances"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "transactions_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
@@ -2481,74 +2036,6 @@ export type Database = {
           selling_price?: number | null
           sku?: string | null
           stock_quantity?: number | null
-        }
-        Relationships: []
-      }
-      v_account_balances: {
-        Row: {
-          account_number: string | null
-          balance: number | null
-          id: string | null
-          name: string | null
-          total_in: number | null
-          total_out: number | null
-          type: string | null
-        }
-        Relationships: []
-      }
-      v_daily_cashflow: {
-        Row: {
-          account_name: string | null
-          account_type: string | null
-          cash_in: number | null
-          cash_out: number | null
-          ledger_date: string | null
-          net_flow: number | null
-        }
-        Relationships: []
-      }
-      v_daily_pnl: {
-        Row: {
-          cod_fee: number | null
-          cogs: number | null
-          courier_cost: number | null
-          courier_subsidy: number | null
-          delivered_orders: number | null
-          gateway_fee: number | null
-          gross_profit: number | null
-          packaging_cost: number | null
-          pnl_date: string | null
-          return_cost: number | null
-          revenue: number | null
-        }
-        Relationships: []
-      }
-      v_monthly_pnl: {
-        Row: {
-          cod_fee: number | null
-          cogs: number | null
-          courier_cost: number | null
-          courier_subsidy: number | null
-          delivered_orders: number | null
-          gateway_fee: number | null
-          gross_profit: number | null
-          packaging_cost: number | null
-          pnl_month: string | null
-          return_cost: number | null
-          revenue: number | null
-        }
-        Relationships: []
-      }
-      v_stock_on_hand: {
-        Row: {
-          available_qty: number | null
-          avg_cost: number | null
-          name: string | null
-          on_hand_qty: number | null
-          product_id: string | null
-          reserved_qty: number | null
-          sku: string | null
-          stock_value: number | null
         }
         Relationships: []
       }
