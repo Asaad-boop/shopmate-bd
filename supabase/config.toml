@@ -1,7 +1,1 @@
 project_id = "ywutobfdoqktfkakbcch"
-
-[functions.send-sms]
-verify_jwt = false
-
-[functions.sync-meta-ads]
-verify_jwt = false
