@@ -168,6 +168,96 @@ export type Database = {
         }
         Relationships: []
       }
+      ad_expenses: {
+        Row: {
+          allocation_type: string | null
+          amount_bdt: number
+          campaign_id: string | null
+          category: string
+          created_at: string | null
+          created_by: string | null
+          currency: string | null
+          exchange_rate: number | null
+          expense_date: string
+          id: string
+          metric_id: string | null
+          note: string | null
+          product_id: string | null
+          ref_id: string | null
+          sub_category: string | null
+        }
+        Insert: {
+          allocation_type?: string | null
+          amount_bdt?: number
+          campaign_id?: string | null
+          category?: string
+          created_at?: string | null
+          created_by?: string | null
+          currency?: string | null
+          exchange_rate?: number | null
+          expense_date: string
+          id?: string
+          metric_id?: string | null
+          note?: string | null
+          product_id?: string | null
+          ref_id?: string | null
+          sub_category?: string | null
+        }
+        Update: {
+          allocation_type?: string | null
+          amount_bdt?: number
+          campaign_id?: string | null
+          category?: string
+          created_at?: string | null
+          created_by?: string | null
+          currency?: string | null
+          exchange_rate?: number | null
+          expense_date?: string
+          id?: string
+          metric_id?: string | null
+          note?: string | null
+          product_id?: string | null
+          ref_id?: string | null
+          sub_category?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_expenses_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "meta_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_expenses_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "meta_campaign_metrics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_expenses_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_profit_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_expenses_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_expenses_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_on_hand"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
       address_corrections: {
         Row: {
           corrected_area: string | null
@@ -340,6 +430,65 @@ export type Database = {
           user_name?: string | null
         }
         Relationships: []
+      }
+      campaign_products: {
+        Row: {
+          allocation_pct: number | null
+          campaign_id: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          note: string | null
+          product_id: string | null
+        }
+        Insert: {
+          allocation_pct?: number | null
+          campaign_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          product_id?: string | null
+        }
+        Update: {
+          allocation_pct?: number | null
+          campaign_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          product_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_products_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "meta_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_profit_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_on_hand"
+            referencedColumns: ["product_id"]
+          },
+        ]
       }
       categories: {
         Row: {
@@ -1543,6 +1692,149 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      meta_ad_accounts: {
+        Row: {
+          access_token: string
+          account_name: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          meta_account_id: string
+        }
+        Insert: {
+          access_token: string
+          account_name: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          meta_account_id: string
+        }
+        Update: {
+          access_token?: string
+          account_name?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          meta_account_id?: string
+        }
+        Relationships: []
+      }
+      meta_campaign_metrics: {
+        Row: {
+          campaign_id: string | null
+          clicks: number | null
+          cpc: number | null
+          cpm: number | null
+          cpo: number | null
+          ctr: number | null
+          id: string
+          impressions: number | null
+          meta_campaign_id: string
+          metric_date: string
+          purchase_value: number | null
+          purchases: number | null
+          reach: number | null
+          roas: number | null
+          spend_bdt: number | null
+          spend_usd: number | null
+          synced_at: string | null
+          usd_rate: number | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          clicks?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          cpo?: number | null
+          ctr?: number | null
+          id?: string
+          impressions?: number | null
+          meta_campaign_id: string
+          metric_date: string
+          purchase_value?: number | null
+          purchases?: number | null
+          reach?: number | null
+          roas?: number | null
+          spend_bdt?: number | null
+          spend_usd?: number | null
+          synced_at?: string | null
+          usd_rate?: number | null
+        }
+        Update: {
+          campaign_id?: string | null
+          clicks?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          cpo?: number | null
+          ctr?: number | null
+          id?: string
+          impressions?: number | null
+          meta_campaign_id?: string
+          metric_date?: string
+          purchase_value?: number | null
+          purchases?: number | null
+          reach?: number | null
+          roas?: number | null
+          spend_bdt?: number | null
+          spend_usd?: number | null
+          synced_at?: string | null
+          usd_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_campaign_metrics_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "meta_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meta_campaigns: {
+        Row: {
+          campaign_name: string
+          created_at: string | null
+          daily_budget: number | null
+          end_date: string | null
+          id: string
+          lifetime_budget: number | null
+          meta_account_id: string
+          meta_campaign_id: string
+          objective: string | null
+          start_date: string | null
+          status: string | null
+          synced_at: string | null
+        }
+        Insert: {
+          campaign_name: string
+          created_at?: string | null
+          daily_budget?: number | null
+          end_date?: string | null
+          id?: string
+          lifetime_budget?: number | null
+          meta_account_id: string
+          meta_campaign_id: string
+          objective?: string | null
+          start_date?: string | null
+          status?: string | null
+          synced_at?: string | null
+        }
+        Update: {
+          campaign_name?: string
+          created_at?: string | null
+          daily_budget?: number | null
+          end_date?: string | null
+          id?: string
+          lifetime_budget?: number | null
+          meta_account_id?: string
+          meta_campaign_id?: string
+          objective?: string | null
+          start_date?: string | null
+          status?: string | null
+          synced_at?: string | null
+        }
+        Relationships: []
       }
       notifications: {
         Row: {

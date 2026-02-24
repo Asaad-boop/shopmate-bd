@@ -21,6 +21,7 @@ import {
   FileText,
   User,
   Activity,
+  Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -75,6 +76,14 @@ const navItems: NavItem[] = [
       { label: "Performance", path: "/hrm/performance", icon: BarChart3 },
       { label: "Leave", path: "/hrm/leave", icon: FileText },
       { label: "Tasks", path: "/hrm/tasks", icon: List },
+    ],
+  },
+  {
+    label: "Meta Ads",
+    icon: Megaphone,
+    children: [
+      { label: "Report", path: "/meta-ads/report", icon: BarChart3 },
+      { label: "Campaign Products", path: "/meta-ads/campaign-products", icon: List },
     ],
   },
   { label: "CRM", icon: Handshake, path: "/crm" },
