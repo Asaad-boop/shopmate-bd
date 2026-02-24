@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
-import { format, subDays } from "date-fns";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { format, subDays, startOfMonth, startOfDay, endOfDay } from "date-fns";
+import { toZonedTime, fromZonedTime } from "date-fns-tz";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,18 +19,111 @@ import {
   type MetaCampaign,
 } from "@/hooks/use-meta-ads";
 
+const DHAKA_TZ = "Asia/Dhaka";
+
+type DatePreset = "today" | "yesterday" | "last7" | "last30" | "this_month" | "custom";
+
+function getDhakaDate(offset = 0): Date {
+  const now = new Date();
+  const dhakaNow = toZonedTime(now, DHAKA_TZ);
+  return subDays(dhakaNow, -offset);
+}
+
+function getDateRange(preset: DatePreset): { from: string; to: string } {
+  const dhakaNow = toZonedTime(new Date(), DHAKA_TZ);
+  switch (preset) {
+    case "today":
+      return { from: format(dhakaNow, "yyyy-MM-dd"), to: format(dhakaNow, "yyyy-MM-dd") };
+    case "yesterday": {
+      const y = subDays(dhakaNow, 1);
+      return { from: format(y, "yyyy-MM-dd"), to: format(y, "yyyy-MM-dd") };
+    }
+    case "last7":
+      return { from: format(subDays(dhakaNow, 6), "yyyy-MM-dd"), to: format(dhakaNow, "yyyy-MM-dd") };
+    case "last30":
+      return { from: format(subDays(dhakaNow, 29), "yyyy-MM-dd"), to: format(dhakaNow, "yyyy-MM-dd") };
+    case "this_month":
+      return { from: format(startOfMonth(dhakaNow), "yyyy-MM-dd"), to: format(dhakaNow, "yyyy-MM-dd") };
+    default:
+      return { from: format(dhakaNow, "yyyy-MM-dd"), to: format(dhakaNow, "yyyy-MM-dd") };
+  }
+}
+
+const DATE_PRESETS: { key: DatePreset; label: string }[] = [
+  { key: "today", label: "Today" },
+  { key: "yesterday", label: "Yesterday" },
+  { key: "last7", label: "Last 7 Days" },
+  { key: "last30", label: "Last 30 Days" },
+  { key: "this_month", label: "This Month" },
+  { key: "custom", label: "Custom Range" },
+];
+
 export default function MetaAdsReport() {
-  const [dateFrom, setDateFrom] = useState(format(subDays(new Date(), 7), "yyyy-MM-dd"));
-  const [dateTo, setDateTo] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [activePreset, setActivePreset] = useState<DatePreset>("today");
+  const initialRange = getDateRange("today");
+  const [dateFrom, setDateFrom] = useState(initialRange.from);
+  const [dateTo, setDateTo] = useState(initialRange.to);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedCampaign, setSelectedCampaign] = useState<MetaCampaign | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
-  const { data: campaigns, isLoading: campsLoading } = useMetaCampaigns();
-  const { data: metrics, isLoading: metricsLoading } = useMetaCampaignMetrics(dateFrom, dateTo);
+  const { data: campaigns, isLoading: campsLoading, refetch: refetchCampaigns } = useMetaCampaigns();
+  const { data: metrics, isLoading: metricsLoading, refetch: refetchMetrics } = useMetaCampaignMetrics(dateFrom, dateTo);
   const { data: detailMetrics } = useMetaCampaignMetrics(dateFrom, dateTo, selectedCampaign?.id);
   const syncMutation = useSyncMetaAds();
 
   const isLoading = campsLoading || metricsLoading;
+
+  // Handle preset selection
+  const handlePresetChange = useCallback((preset: DatePreset) => {
+    setActivePreset(preset);
+    if (preset !== "custom") {
+      const range = getDateRange(preset);
+      setDateFrom(range.from);
+      setDateTo(range.to);
+    }
+  }, []);
+
+  // Handle custom date changes
+  const handleCustomDateFrom = useCallback((val: string) => {
+    setActivePreset("custom");
+    setDateFrom(val);
+  }, []);
+  const handleCustomDateTo = useCallback((val: string) => {
+    setActivePreset("custom");
+    setDateTo(val);
+  }, []);
+
+  // Auto-refresh every 30 mins, only when preset is "today"
+  useEffect(() => {
+    if (activePreset !== "today") return;
+
+    const refresh = () => {
+      refetchCampaigns();
+      refetchMetrics();
+      setLastUpdated(new Date());
+    };
+
+    const interval = setInterval(refresh, 30 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [activePreset, refetchCampaigns, refetchMetrics]);
+
+  // Update lastUpdated when data loads
+  useEffect(() => {
+    if (!metricsLoading && metrics) {
+      setLastUpdated(new Date());
+    }
+  }, [metrics, metricsLoading]);
+
+  const handleManualSync = useCallback(() => {
+    syncMutation.mutate(undefined, {
+      onSuccess: () => {
+        refetchCampaigns();
+        refetchMetrics();
+        setLastUpdated(new Date());
+      },
+    });
+  }, [syncMutation, refetchCampaigns, refetchMetrics]);
 
   // Summary
   const summary = useMemo(() => computeMetricsSummary(metrics || []), [metrics]);
@@ -48,7 +142,7 @@ export default function MetaAdsReport() {
     return Object.values(grouped).sort((a, b) => a.date.localeCompare(b.date));
   }, [metrics]);
 
-  // Campaign table data (aggregated)
+  // Campaign table data
   const campaignTableData = useMemo(() => {
     if (!campaigns || !metrics) return [];
     return campaigns
@@ -69,6 +163,8 @@ export default function MetaAdsReport() {
     return "bg-muted text-muted-foreground";
   };
 
+  const lastUpdatedStr = format(toZonedTime(lastUpdated, DHAKA_TZ), "h:mm a");
+
   if (isLoading) {
     return (
       <div className="space-y-4 p-1">
@@ -83,33 +179,61 @@ export default function MetaAdsReport() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
+      {/* Header with last updated */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Meta Ads Report</h1>
           <p className="text-sm text-muted-foreground">Campaign performance & spend tracking</p>
         </div>
-        <Button onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}>
-          {syncMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-          Sync Now
-        </Button>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            🔄 Last updated: {lastUpdatedStr}
+            {activePreset === "today" && (
+              <span className="text-[10px] text-muted-foreground/60 ml-1">(auto-refresh 30m)</span>
+            )}
+          </span>
+          <Button onClick={handleManualSync} disabled={syncMutation.isPending} size="sm">
+            {syncMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1" />}
+            Sync Now
+          </Button>
+        </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-3 flex-wrap">
-        <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-40" />
-        <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-40" />
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="ACTIVE">Active</SelectItem>
-            <SelectItem value="PAUSED">Paused</SelectItem>
-            <SelectItem value="ARCHIVED">Archived</SelectItem>
-          </SelectContent>
-        </Select>
+      {/* Date Filter Pills + Custom Range + Status */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap gap-2">
+          {DATE_PRESETS.map((p) => (
+            <Button
+              key={p.key}
+              variant={activePreset === p.key ? "default" : "outline"}
+              size="sm"
+              onClick={() => handlePresetChange(p.key)}
+              className="h-8 text-xs"
+            >
+              {p.label}
+            </Button>
+          ))}
+        </div>
+        {activePreset === "custom" && (
+          <div className="flex gap-2 items-center">
+            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-40 h-8 text-xs" />
+            <span className="text-xs text-muted-foreground">to</span>
+            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-40 h-8 text-xs" />
+          </div>
+        )}
+        <div className="flex gap-3">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-36 h-8 text-xs">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="ACTIVE">Active</SelectItem>
+              <SelectItem value="PAUSED">Paused</SelectItem>
+              <SelectItem value="ARCHIVED">Archived</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Summary Cards */}
