@@ -3855,6 +3855,7 @@ export type Database = {
           legacy_finalized: boolean | null
           legacy_finalized_at: string | null
           legacy_import_batch_id: string | null
+          legacy_invoice_no: string | null
           legacy_order_id: string | null
           legacy_returned_date: string | null
           legacy_status: string | null
@@ -3874,6 +3875,8 @@ export type Database = {
           payment_status: string | null
           posting_mode: string | null
           return_condition: string | null
+          settlement_batch_id: string | null
+          settlement_posted: boolean | null
           shopify_order_id: string | null
           shopify_order_number: string | null
           status: string | null
@@ -3916,6 +3919,7 @@ export type Database = {
           legacy_finalized?: boolean | null
           legacy_finalized_at?: string | null
           legacy_import_batch_id?: string | null
+          legacy_invoice_no?: string | null
           legacy_order_id?: string | null
           legacy_returned_date?: string | null
           legacy_status?: string | null
@@ -3935,6 +3939,8 @@ export type Database = {
           payment_status?: string | null
           posting_mode?: string | null
           return_condition?: string | null
+          settlement_batch_id?: string | null
+          settlement_posted?: boolean | null
           shopify_order_id?: string | null
           shopify_order_number?: string | null
           status?: string | null
@@ -3977,6 +3983,7 @@ export type Database = {
           legacy_finalized?: boolean | null
           legacy_finalized_at?: string | null
           legacy_import_batch_id?: string | null
+          legacy_invoice_no?: string | null
           legacy_order_id?: string | null
           legacy_returned_date?: string | null
           legacy_status?: string | null
@@ -3996,6 +4003,8 @@ export type Database = {
           payment_status?: string | null
           posting_mode?: string | null
           return_condition?: string | null
+          settlement_batch_id?: string | null
+          settlement_posted?: boolean | null
           shopify_order_id?: string | null
           shopify_order_number?: string | null
           status?: string | null
