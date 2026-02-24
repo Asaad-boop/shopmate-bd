@@ -4,12 +4,15 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatBDT, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useLegacyCourierSync } from "@/hooks/use-legacy-courier-sync";
+import { calculateNetPayable } from "@/lib/courier-calc";
 import {
   Package, User, MapPin, Truck, Receipt, ShieldAlert,
-  RefreshCw, FileText, Clock, CheckCircle, XCircle, Loader2
+  RefreshCw, FileText, Clock, CheckCircle, XCircle, Loader2,
+  AlertTriangle, Info
 } from "lucide-react";
 
 interface LegacyOrderDrawerProps {
@@ -191,20 +194,61 @@ export function LegacyOrderDrawer({ open, onOpenChange, orderId }: LegacyOrderDr
             <Separator />
 
             {/* Charges (read-only auto-fill) */}
-            <div className="bg-muted/30 rounded-xl border p-4">
-              <SectionTitle icon={Receipt} title="Courier Charges (Auto-filled)" />
-              <InfoRow label="Delivery Fee" value={formatBDT(o.courier_delivery_fee)} />
-              <InfoRow label="COD Fee" value={formatBDT(o.courier_cod_fee)} />
-              <InfoRow label="Discount" value={formatBDT(o.courier_discount)} />
-              <InfoRow label="Total Cost" value={formatBDT(o.courier_total_cost)} />
-              <InfoRow label="Net Payable" value={formatBDT(o.courier_net_payable)} />
-              <InfoRow label="Return Cost" value={formatBDT(o.courier_return_cost)} />
-              {!o.courier_total_cost && (
-                <p className="text-[10px] text-amber-600 mt-2 flex items-center gap-1">
-                  <Clock className="w-3 h-3" /> Awaiting courier sync or statement import
-                </p>
-              )}
-            </div>
+            {(() => {
+              const calcResult = calculateNetPayable({
+                collectable_amount: o.total_amount,
+                courier_delivery_fee: o.courier_delivery_fee,
+                courier_cod_fee: o.courier_cod_fee,
+                courier_discount: o.courier_discount,
+                courier_promo_discount: o.courier_promo_discount,
+                courier_additional_charge: o.courier_additional_charge,
+                courier_compensation_cost: o.courier_compensation_cost,
+                is_return: o.courier_final_status === "RETURNED",
+              });
+              return (
+                <div className="bg-muted/30 rounded-xl border p-4">
+                  <SectionTitle icon={Receipt} title="Courier Charges (Auto-filled)" />
+                  {calcResult.warning && (
+                    <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded-md p-2 mb-2 border border-amber-200">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                      {calcResult.warning}
+                    </div>
+                  )}
+                  <InfoRow label="Delivery Fee" value={formatBDT(o.courier_delivery_fee)} />
+                  <InfoRow label="COD Fee" value={formatBDT(o.courier_cod_fee)} />
+                  <InfoRow label="Discount" value={formatBDT(o.courier_discount)} />
+                  <InfoRow label="Promo Discount" value={formatBDT(o.courier_promo_discount)} />
+                  <InfoRow label="Additional Charge" value={formatBDT(o.courier_additional_charge)} />
+                  <InfoRow label="Compensation Cost" value={formatBDT(o.courier_compensation_cost)} />
+                  <InfoRow label="Total Cost" value={formatBDT(calcResult.totalCost)} />
+                  <InfoRow label="Net Payable" value={
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex items-center gap-1 cursor-help text-primary font-semibold">
+                            {formatBDT(calcResult.netPayable)}
+                            <Info className="w-3 h-3 text-muted-foreground" />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="max-w-xs">
+                          <div className="text-xs space-y-0.5 font-mono">
+                            {calcResult.breakdown.map((line, i) => (
+                              <p key={i}>{line}</p>
+                            ))}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  } />
+                  <InfoRow label="Return Cost" value={formatBDT(o.courier_return_cost)} />
+                  {!o.courier_total_cost && (
+                    <p className="text-[10px] text-amber-600 mt-2 flex items-center gap-1">
+                      <Clock className="w-3 h-3" /> Awaiting courier sync or statement import
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
 
             <Separator />
 
