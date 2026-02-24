@@ -712,7 +712,19 @@ export default function OrdersPage() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <StatusBadge config={orderStatusConfig} status={order.status} />
+                          <div className="flex flex-col gap-0.5">
+                            <StatusBadge config={orderStatusConfig} status={order.status} />
+                            {(order as any).order_source === "LEGACY" && (
+                              <>
+                                {(order as any).legacy_status && (
+                                  <span className="text-[9px] text-muted-foreground">Legacy: {(order as any).legacy_status}</span>
+                                )}
+                                {(order as any).courier_final_status && (
+                                  <span className="text-[9px] text-blue-600">Courier: {(order as any).courier_final_status}</span>
+                                )}
+                              </>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <DropdownMenu>
