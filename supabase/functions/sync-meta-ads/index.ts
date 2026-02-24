@@ -20,12 +20,16 @@ Deno.serve(async (req) => {
     );
 
     // Parse optional body params
-    let datePreset = "yesterday";
+    let datePreset = "today";
+    let dateFrom = "";
+    let dateTo = "";
     let manualUsdRate: number | null = null;
     try {
       const body = await req.json();
       if (body.date_preset) datePreset = body.date_preset;
       if (body.date_from && body.date_to) {
+        dateFrom = body.date_from;
+        dateTo = body.date_to;
         datePreset = ""; // will use time_range instead
       }
       if (body.usd_rate) manualUsdRate = body.usd_rate;
@@ -109,7 +113,13 @@ Deno.serve(async (req) => {
         // 4. Fetch insights for each campaign
         for (const camp of campaigns) {
           try {
-            const insightsUrl = `${META_BASE_URL}/${camp.id}/insights?fields=campaign_id,campaign_name,spend,impressions,clicks,reach,actions,action_values,purchase_roas,cost_per_action_type,cpc,cpm,ctr&date_preset=${datePreset}&access_token=${account.access_token}`;
+            let insightsParams = `fields=campaign_id,campaign_name,spend,impressions,clicks,reach,actions,action_values,purchase_roas,cost_per_action_type,cpc,cpm,ctr&access_token=${account.access_token}`;
+            if (dateFrom && dateTo) {
+              insightsParams += `&time_range={"since":"${dateFrom}","until":"${dateTo}"}&time_increment=1`;
+            } else {
+              insightsParams += `&date_preset=${datePreset}`;
+            }
+            const insightsUrl = `${META_BASE_URL}/${camp.id}/insights?${insightsParams}`;
             const insResp = await fetch(insightsUrl);
             
             if (!insResp.ok) continue;
