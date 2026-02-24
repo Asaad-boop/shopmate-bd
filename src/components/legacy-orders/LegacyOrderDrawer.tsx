@@ -265,26 +265,71 @@ export function LegacyOrderDrawer({ open, onOpenChange, orderId }: LegacyOrderDr
             </div>
 
             {/* Financial Summary */}
-            <div className="bg-primary/5 rounded-xl border border-primary/10 p-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-[10px] text-muted-foreground">Subtotal</p>
-                  <p className="text-sm font-bold">{formatBDT(o.subtotal)}</p>
+            {(() => {
+              const isLegacy = o.order_source === "LEGACY";
+              const collectableAmount = isLegacy ? o.total_amount : o.subtotal;
+              const summaryCalc = calculateNetPayable({
+                collectable_amount: collectableAmount,
+                courier_delivery_fee: o.courier_delivery_fee,
+                courier_cod_fee: o.courier_cod_fee,
+                courier_discount: o.courier_discount,
+                courier_promo_discount: o.courier_promo_discount,
+                courier_additional_charge: o.courier_additional_charge,
+                courier_compensation_cost: o.courier_compensation_cost,
+                is_return: o.courier_final_status === "RETURNED",
+              });
+              return (
+                <div className="bg-primary/5 rounded-xl border border-primary/10 p-4">
+                  {summaryCalc.warning && (
+                    <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded-md p-2 mb-3 border border-amber-200">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                      {summaryCalc.warning}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    {!isLegacy && (
+                      <div>
+                        <p className="text-[10px] text-muted-foreground">Subtotal</p>
+                        <p className="text-sm font-bold">{formatBDT(o.subtotal)}</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-[10px] text-muted-foreground">Shipping</p>
+                      <p className="text-sm font-bold">{formatBDT(o.delivery_charge)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground">Customer Total</p>
+                      <p className="text-sm font-bold text-primary">{formatBDT(o.total_amount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground">Net Payable</p>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <p className="text-sm font-bold inline-flex items-center gap-1 cursor-help">
+                              {summaryCalc.warning ? (
+                                <span className="text-amber-600">N/A</span>
+                              ) : (
+                                <span className="text-primary">{formatBDT(summaryCalc.netPayable)}</span>
+                              )}
+                              <Info className="w-3 h-3 text-muted-foreground" />
+                            </p>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-xs">
+                            <div className="text-xs space-y-0.5 font-mono">
+                              <p className="font-semibold mb-1">{isLegacy ? "Legacy: uses Customer Total" : "Uses Subtotal"}</p>
+                              {summaryCalc.breakdown.map((line, i) => (
+                                <p key={i}>{line}</p>
+                              ))}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground">Shipping</p>
-                  <p className="text-sm font-bold">{formatBDT(o.delivery_charge)}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground">Customer Total</p>
-                  <p className="text-sm font-bold text-primary">{formatBDT(o.total_amount)}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground">Net Payable</p>
-                  <p className="text-sm font-bold">{formatBDT(o.courier_net_payable)}</p>
-                </div>
-              </div>
-            </div>
+              );
+            })()}
 
             {/* Posting modes */}
             <div className="flex gap-2 flex-wrap">
