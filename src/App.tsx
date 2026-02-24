@@ -25,6 +25,7 @@ import FinancePage from "./pages/Finance";
 import HRMPage from "./pages/HRM";
 import MetaAdsReport from "./pages/MetaAdsReport";
 import MetaAdsCampaignProducts from "./pages/MetaAdsCampaignProducts";
+import ReportsPage from "./pages/Reports";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -61,6 +62,7 @@ const App = () => (
             <Route path="/hrm/performance" element={<HRMPage />} />
             <Route path="/hrm/leave" element={<HRMPage />} />
             <Route path="/hrm/tasks" element={<HRMPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
             <Route path="/meta-ads/report" element={<MetaAdsReport />} />
             <Route path="/meta-ads/campaign-products" element={<MetaAdsCampaignProducts />} />
             <Route path="/settings" element={<SettingsPage />} />
