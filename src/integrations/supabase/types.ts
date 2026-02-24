@@ -3420,6 +3420,45 @@ export type Database = {
           },
         ]
       }
+      legacy_import_batches: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          duplicate_count: number | null
+          errors: Json | null
+          failed_count: number | null
+          file_name: string
+          id: string
+          imported_count: number | null
+          status: string | null
+          total_rows: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          duplicate_count?: number | null
+          errors?: Json | null
+          failed_count?: number | null
+          file_name: string
+          id?: string
+          imported_count?: number | null
+          status?: string | null
+          total_rows?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          duplicate_count?: number | null
+          errors?: Json | null
+          failed_count?: number | null
+          file_name?: string
+          id?: string
+          imported_count?: number | null
+          status?: string | null
+          total_rows?: number | null
+        }
+        Relationships: []
+      }
       meta_ad_accounts: {
         Row: {
           access_token: string
@@ -3794,6 +3833,7 @@ export type Database = {
           confirmed_by: string | null
           cost_of_goods: number | null
           courier_charge: number | null
+          courier_mode: string | null
           courier_status: string | null
           created_at: string | null
           created_by: string | null
@@ -3806,7 +3846,17 @@ export type Database = {
           discount: number | null
           gross_profit: number | null
           id: string
+          inventory_mode: string | null
           invoice_id: string | null
+          legacy_courier_name: string | null
+          legacy_courier_status: string | null
+          legacy_delivered_date: string | null
+          legacy_finalized: boolean | null
+          legacy_finalized_at: string | null
+          legacy_import_batch_id: string | null
+          legacy_order_id: string | null
+          legacy_returned_date: string | null
+          legacy_tracking_id: string | null
           needs_address_review: boolean
           notes: string | null
           order_date: string | null
@@ -3820,6 +3870,7 @@ export type Database = {
           pathao_tracking_code: string | null
           payment_method: string | null
           payment_status: string | null
+          posting_mode: string | null
           return_condition: string | null
           shopify_order_id: string | null
           shopify_order_number: string | null
@@ -3841,6 +3892,7 @@ export type Database = {
           confirmed_by?: string | null
           cost_of_goods?: number | null
           courier_charge?: number | null
+          courier_mode?: string | null
           courier_status?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -3853,7 +3905,17 @@ export type Database = {
           discount?: number | null
           gross_profit?: number | null
           id?: string
+          inventory_mode?: string | null
           invoice_id?: string | null
+          legacy_courier_name?: string | null
+          legacy_courier_status?: string | null
+          legacy_delivered_date?: string | null
+          legacy_finalized?: boolean | null
+          legacy_finalized_at?: string | null
+          legacy_import_batch_id?: string | null
+          legacy_order_id?: string | null
+          legacy_returned_date?: string | null
+          legacy_tracking_id?: string | null
           needs_address_review?: boolean
           notes?: string | null
           order_date?: string | null
@@ -3867,6 +3929,7 @@ export type Database = {
           pathao_tracking_code?: string | null
           payment_method?: string | null
           payment_status?: string | null
+          posting_mode?: string | null
           return_condition?: string | null
           shopify_order_id?: string | null
           shopify_order_number?: string | null
@@ -3888,6 +3951,7 @@ export type Database = {
           confirmed_by?: string | null
           cost_of_goods?: number | null
           courier_charge?: number | null
+          courier_mode?: string | null
           courier_status?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -3900,7 +3964,17 @@ export type Database = {
           discount?: number | null
           gross_profit?: number | null
           id?: string
+          inventory_mode?: string | null
           invoice_id?: string | null
+          legacy_courier_name?: string | null
+          legacy_courier_status?: string | null
+          legacy_delivered_date?: string | null
+          legacy_finalized?: boolean | null
+          legacy_finalized_at?: string | null
+          legacy_import_batch_id?: string | null
+          legacy_order_id?: string | null
+          legacy_returned_date?: string | null
+          legacy_tracking_id?: string | null
           needs_address_review?: boolean
           notes?: string | null
           order_date?: string | null
@@ -3914,6 +3988,7 @@ export type Database = {
           pathao_tracking_code?: string | null
           payment_method?: string | null
           payment_status?: string | null
+          posting_mode?: string | null
           return_condition?: string | null
           shopify_order_id?: string | null
           shopify_order_number?: string | null
