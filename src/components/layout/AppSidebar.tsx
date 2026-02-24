@@ -64,6 +64,17 @@ const navItems: NavItem[] = [
   },
   { label: "Customers", icon: Users, path: "/customers" },
   { label: "Finance", icon: Wallet, path: "/finance" },
+  {
+    label: "Accounting",
+    icon: ClipboardList,
+    children: [
+      { label: "Chart of Accounts", path: "/accounting?tab=coa", icon: List },
+      { label: "Journal Entries", path: "/accounting?tab=journals", icon: FileText },
+      { label: "Trial Balance", path: "/accounting?tab=trial_balance", icon: BarChart3 },
+      { label: "General Ledger", path: "/accounting?tab=general_ledger", icon: FileText },
+      { label: "Period Close", path: "/accounting?tab=period_close", icon: ClipboardList },
+    ],
+  },
   { label: "Reports", icon: BarChart3, path: "/reports" },
   {
     label: "HRM",
@@ -102,9 +113,18 @@ export function AppSidebar() {
     );
   };
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => {
+    const [pathPart, queryPart] = path.split('?');
+    if (queryPart) {
+      return location.pathname === pathPart && location.search === '?' + queryPart;
+    }
+    return location.pathname === path;
+  };
   const isGroupActive = (item: NavItem) =>
-    item.children?.some((c) => location.pathname === c.path || location.pathname.startsWith(c.path + '/'));
+    item.children?.some((c) => {
+      const [pathPart] = c.path.split('?');
+      return location.pathname === pathPart || location.pathname.startsWith(pathPart + '/');
+    });
 
   return (
     <aside className="flex flex-col h-screen w-[260px] bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 sticky top-0">

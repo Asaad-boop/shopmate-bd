@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useTrialBalance } from "@/hooks/use-accounting";
 import { formatBDT } from "@/lib/format";
-import { format } from "date-fns";
+import { format, startOfMonth } from "date-fns";
 
 const heading = { fontFamily: "'Playfair Display', serif" };
 const mono = { fontFamily: "'DM Mono', monospace" };
@@ -20,19 +20,26 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 export function TrialBalanceTab() {
-  const [asOf, setAsOf] = useState(format(new Date(), "yyyy-MM-dd"));
-  const { data: rows, isLoading } = useTrialBalance(asOf);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState(format(new Date(), "yyyy-MM-dd"));
+  const { data: rows, isLoading } = useTrialBalance(dateFrom || undefined, dateTo);
 
   const totalDr = (rows || []).reduce((s, r) => s + r.total_debit, 0);
   const totalCr = (rows || []).reduce((s, r) => s + r.total_credit, 0);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h3 className="text-lg font-bold" style={heading}>Trial Balance</h3>
-        <div className="flex items-center gap-2">
-          <Label className="text-xs">As of:</Label>
-          <Input type="date" value={asOf} onChange={(e) => setAsOf(e.target.value)} className="w-[160px] h-8 text-xs" />
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <Label className="text-xs">From:</Label>
+            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-[150px] h-8 text-xs" />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Label className="text-xs">To:</Label>
+            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-[150px] h-8 text-xs" />
+          </div>
         </div>
       </div>
 

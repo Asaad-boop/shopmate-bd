@@ -87,6 +87,38 @@ export type Database = {
           },
         ]
       }
+      account_mappings: {
+        Row: {
+          account_id: string | null
+          description: string | null
+          id: string
+          mapping_key: string
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          description?: string | null
+          id?: string
+          mapping_key: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          description?: string | null
+          id?: string
+          mapping_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_mappings_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accounting_period_locks: {
         Row: {
           id: string
@@ -108,6 +140,39 @@ export type Database = {
           locked_by?: string | null
           note?: string | null
           period_end?: string
+        }
+        Relationships: []
+      }
+      accounting_periods: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          end_date: string
+          id: string
+          period_key: string
+          start_date: string
+          status: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          end_date: string
+          id?: string
+          period_key: string
+          start_date: string
+          status?: string
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          end_date?: string
+          id?: string
+          period_key?: string
+          start_date?: string
+          status?: string
         }
         Relationships: []
       }
@@ -2095,6 +2160,7 @@ export type Database = {
           entry_number: number
           id: string
           is_auto: boolean
+          period_key: string | null
           posted_at: string | null
           posted_by: string | null
           reference_id: string | null
@@ -2111,6 +2177,7 @@ export type Database = {
           entry_number?: number
           id?: string
           is_auto?: boolean
+          period_key?: string | null
           posted_at?: string | null
           posted_by?: string | null
           reference_id?: string | null
@@ -2127,6 +2194,7 @@ export type Database = {
           entry_number?: number
           id?: string
           is_auto?: boolean
+          period_key?: string | null
           posted_at?: string | null
           posted_by?: string | null
           reference_id?: string | null
@@ -4304,10 +4372,52 @@ export type Database = {
         Args: { p_new_cost: number; p_new_qty: number; p_product_id: string }
         Returns: number
       }
+      close_accounting_period: {
+        Args: { p_closed_by?: string; p_period_key: string }
+        Returns: undefined
+      }
       generate_invoice_id: { Args: never; Returns: string }
       get_exchange_rate: {
         Args: { p_currency: string; p_date: string }
         Returns: number
+      }
+      post_cod_received: {
+        Args: {
+          p_amount: number
+          p_cash_account?: string
+          p_entry_date?: string
+          p_order_id: string
+        }
+        Returns: string
+      }
+      post_expense_entry: {
+        Args: {
+          p_amount: number
+          p_entry_date?: string
+          p_expense_account_id?: string
+          p_expense_id: string
+          p_pay_account?: string
+        }
+        Returns: string
+      }
+      post_order_delivered: {
+        Args: {
+          p_cogs: number
+          p_courier_receivable: number
+          p_entry_date?: string
+          p_order_id: string
+          p_product_sales: number
+          p_shipping_income: number
+        }
+        Returns: string
+      }
+      post_purchase_receive: {
+        Args: { p_amount: number; p_entry_date?: string; p_grn_id: string }
+        Returns: string
+      }
+      reopen_accounting_period: {
+        Args: { p_period_key: string }
+        Returns: undefined
       }
       reverse_journal_entry: {
         Args: { p_journal_id: string; p_reason?: string }
