@@ -87,6 +87,10 @@ export function DashboardCharts() {
         <CardContent>
           {l1 ? (
             <Skeleton className="h-[250px] w-full" />
+          ) : !dailySales?.length ? (
+            <div className="h-[250px] flex items-center justify-center text-muted-foreground text-sm">
+              No sales data yet. Start by creating orders.
+            </div>
           ) : (
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={dailySales}>
@@ -109,6 +113,10 @@ export function DashboardCharts() {
         <CardContent>
           {l2 ? (
             <Skeleton className="h-[250px] w-full" />
+          ) : !statusData?.length ? (
+            <div className="h-[250px] flex items-center justify-center text-muted-foreground text-sm">
+              No orders yet. Status distribution will appear here.
+            </div>
           ) : (
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
@@ -141,6 +149,10 @@ export function DashboardCharts() {
         <CardContent>
           {l3 ? (
             <Skeleton className="h-[250px] w-full" />
+          ) : !topProducts?.length ? (
+            <div className="h-[250px] flex items-center justify-center text-muted-foreground text-sm">
+              No product sales yet. Top sellers will appear here.
+            </div>
           ) : (
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={topProducts} layout="vertical">
