@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -61,6 +62,8 @@ export default function SettingsPage() {
   const [storeUrl, setStoreUrl] = useState("");
   const [apiToken, setApiToken] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
+  const [shopifySyncEnabled, setShopifySyncEnabled] = useState(false);
+  const [shopifySyncFromDate, setShopifySyncFromDate] = useState("");
   const [bdCourierApiKey, setBdCourierApiKey] = useState("");
   const [testing, setTesting] = useState(false);
   const [testingBD, setTestingBD] = useState(false);
@@ -86,6 +89,8 @@ export default function SettingsPage() {
       setStoreUrl(settings["shopify_store_url"] || "");
       setApiToken(settings["shopify_api_token"] || "");
       setWebhookSecret(settings["shopify_webhook_secret"] || "");
+      setShopifySyncEnabled(settings["shopify_sync_enabled"] === "true");
+      setShopifySyncFromDate(settings["shopify_sync_from_date"] || "");
       setBdCourierApiKey(settings["bdcourier_api_key"] || "");
       if (settings["shopify_store_url"] && settings["shopify_api_token"]) setConnectionStatus("connected");
       if (settings["bdcourier_api_key"]) setBdStatus("connected");
@@ -98,6 +103,8 @@ export default function SettingsPage() {
         { key: "shopify_store_url", value: storeUrl },
         { key: "shopify_api_token", value: apiToken },
         { key: "shopify_webhook_secret", value: webhookSecret },
+        { key: "shopify_sync_enabled", value: shopifySyncEnabled ? "true" : "false" },
+        { key: "shopify_sync_from_date", value: shopifySyncFromDate },
         { key: "bdcourier_api_key", value: bdCourierApiKey },
       ];
       for (const pair of pairs) {
@@ -291,6 +298,22 @@ export default function SettingsPage() {
                         https://ywutobfdoqktfkakbcch.supabase.co/functions/v1/shopify-webhook
                       </code>
                     </p>
+                  </div>
+                  <Separator />
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-semibold text-foreground">Sync Control</h4>
+                    <div className="flex items-center justify-between rounded-xl border p-4">
+                      <div>
+                        <p className="text-sm font-medium">Enable Shopify Sync</p>
+                        <p className="text-xs text-muted-foreground">When disabled, webhook will accept but ignore incoming orders</p>
+                      </div>
+                      <Switch checked={shopifySyncEnabled} onCheckedChange={setShopifySyncEnabled} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Sync From Date (optional)</Label>
+                      <Input type="date" value={shopifySyncFromDate} onChange={(e) => setShopifySyncFromDate(e.target.value)} className="h-11 max-w-[220px]" />
+                      <p className="text-xs text-muted-foreground">Only sync orders created on or after this date. Leave empty to sync all.</p>
+                    </div>
                   </div>
                   <Separator />
                   <div className="flex gap-3 justify-end">
