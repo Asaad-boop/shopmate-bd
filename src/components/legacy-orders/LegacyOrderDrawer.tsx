@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { formatBDT, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useLegacyCourierSync } from "@/hooks/use-legacy-courier-sync";
 import {
   Package, User, MapPin, Truck, Receipt, ShieldAlert,
-  RefreshCw, FileText, Clock, CheckCircle, XCircle
+  RefreshCw, FileText, Clock, CheckCircle, XCircle, Loader2
 } from "lucide-react";
 
 interface LegacyOrderDrawerProps {
@@ -54,6 +55,8 @@ function InfoRow({ label, value, mono }: { label: string; value: any; mono?: boo
 }
 
 export function LegacyOrderDrawer({ open, onOpenChange, orderId }: LegacyOrderDrawerProps) {
+  const { syncSingleOrder, syncing } = useLegacyCourierSync();
+
   const { data: order, isLoading } = useQuery({
     queryKey: ["legacy-order-detail", orderId],
     queryFn: async () => {
@@ -67,8 +70,6 @@ export function LegacyOrderDrawer({ open, onOpenChange, orderId }: LegacyOrderDr
     },
     enabled: !!orderId && open,
   });
-
-  if (!orderId) return null;
 
   const o = order as any;
   const customer = o?.customers;
@@ -162,7 +163,24 @@ export function LegacyOrderDrawer({ open, onOpenChange, orderId }: LegacyOrderDr
 
             {/* Courier Panel */}
             <div>
-              <SectionTitle icon={Truck} title="Courier" />
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Truck className="w-4 h-4 text-primary" />
+                  <h3 className="text-sm font-semibold">Courier</h3>
+                </div>
+                {o.legacy_tracking_id && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1.5"
+                    disabled={syncing}
+                    onClick={() => syncSingleOrder(o.id, o.legacy_tracking_id)}
+                  >
+                    {syncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                    Sync Pathao
+                  </Button>
+                )}
+              </div>
               <InfoRow label="Courier Name" value={o.legacy_courier_name} />
               <InfoRow label="Tracking ID" value={o.legacy_tracking_id} mono />
               <InfoRow label="Courier Final Status" value={

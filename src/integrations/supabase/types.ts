@@ -3834,9 +3834,15 @@ export type Database = {
           confirmed_by: string | null
           cost_of_goods: number | null
           courier_charge: number | null
+          courier_cod_fee: number | null
+          courier_delivery_fee: number | null
+          courier_discount: number | null
           courier_final_status: string | null
           courier_mode: string | null
+          courier_net_payable: number | null
+          courier_return_cost: number | null
           courier_status: string | null
+          courier_total_cost: number | null
           created_at: string | null
           created_by: string | null
           customer_id: string | null
@@ -3899,9 +3905,15 @@ export type Database = {
           confirmed_by?: string | null
           cost_of_goods?: number | null
           courier_charge?: number | null
+          courier_cod_fee?: number | null
+          courier_delivery_fee?: number | null
+          courier_discount?: number | null
           courier_final_status?: string | null
           courier_mode?: string | null
+          courier_net_payable?: number | null
+          courier_return_cost?: number | null
           courier_status?: string | null
+          courier_total_cost?: number | null
           created_at?: string | null
           created_by?: string | null
           customer_id?: string | null
@@ -3964,9 +3976,15 @@ export type Database = {
           confirmed_by?: string | null
           cost_of_goods?: number | null
           courier_charge?: number | null
+          courier_cod_fee?: number | null
+          courier_delivery_fee?: number | null
+          courier_discount?: number | null
           courier_final_status?: string | null
           courier_mode?: string | null
+          courier_net_payable?: number | null
+          courier_return_cost?: number | null
           courier_status?: string | null
+          courier_total_cost?: number | null
           created_at?: string | null
           created_by?: string | null
           customer_id?: string | null
