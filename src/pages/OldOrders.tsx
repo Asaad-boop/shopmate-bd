@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useLegacyOrders, useLegacyStats, useLegacyBatchList } from "@/hooks/use-legacy-orders";
+import { useLegacyCourierSync } from "@/hooks/use-legacy-courier-sync";
 import { LegacyOrderDrawer } from "@/components/legacy-orders/LegacyOrderDrawer";
 import { cn } from "@/lib/utils";
 import { formatBDT, formatDate } from "@/lib/format";
@@ -69,7 +70,7 @@ export default function OldOrdersPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [bulkSyncing, setBulkSyncing] = useState(false);
-
+  const { syncOrders, syncing: courierSyncing, progress: syncProgress } = useLegacyCourierSync();
   const { data: orders, isLoading } = useLegacyOrders(filters);
   const { data: stats, isLoading: statsLoading } = useLegacyStats();
   const { data: batches } = useLegacyBatchList();
@@ -130,13 +131,16 @@ export default function OldOrdersPage() {
 
   // Bulk sync (placeholder)
   const handleBulkSync = async () => {
-    setBulkSyncing(true);
-    toast({ title: "Courier sync initiated", description: `${selectedIds.size} orders queued for sync` });
-    // In real implementation, this would call courier API for each tracking ID
-    setTimeout(() => {
-      setBulkSyncing(false);
-      toast({ title: "Sync complete" });
-    }, 2000);
+    if (!orders) return;
+    const toSync = orders
+      .filter((o: any) => selectedIds.has(o.id) && o.legacy_tracking_id)
+      .map((o: any) => ({ id: o.id, trackingId: o.legacy_tracking_id }));
+    if (toSync.length === 0) {
+      toast({ title: "No tracking IDs", description: "Selected orders have no tracking IDs to sync", variant: "destructive" });
+      return;
+    }
+    await syncOrders(toSync);
+    setSelectedIds(new Set());
   };
 
   return (
@@ -211,9 +215,9 @@ export default function OldOrdersPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem onClick={handleBulkSync} disabled={bulkSyncing}>
-                    <RefreshCw className={cn("w-4 h-4 mr-2", bulkSyncing && "animate-spin")} />
-                    Sync Courier Status
+                  <DropdownMenuItem onClick={handleBulkSync} disabled={courierSyncing}>
+                    <RefreshCw className={cn("w-4 h-4 mr-2", courierSyncing && "animate-spin")} />
+                    Sync Courier Status {courierSyncing && syncProgress.total > 0 ? `(${syncProgress.done}/${syncProgress.total})` : ""}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => toast({ title: "Settlement matching queued" })}>
                     <Receipt className="w-4 h-4 mr-2" /> Mark for Settlement
@@ -426,7 +430,15 @@ export default function OldOrdersPage() {
                               <DropdownMenuItem onClick={() => openDrawer(o.id)}>
                                 <Eye className="w-4 h-4 mr-2" /> View Details
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => toast({ title: "Sync queued", description: o.legacy_tracking_id || "No tracking" })}>
+                              <DropdownMenuItem
+                                disabled={courierSyncing || !o.legacy_tracking_id}
+                                onClick={async () => {
+                                  const { syncSingleOrder: syncOne } = { syncSingleOrder: async (id: string, tid: string) => {
+                                    await syncOrders([{ id, trackingId: tid }]);
+                                  }};
+                                  await syncOne(o.id, o.legacy_tracking_id);
+                                }}
+                              >
                                 <RefreshCw className="w-4 h-4 mr-2" /> Sync Courier
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => toast({ title: "Marked for settlement" })}>
