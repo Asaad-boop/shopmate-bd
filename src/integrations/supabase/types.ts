@@ -3824,6 +3824,7 @@ export type Database = {
       orders: {
         Row: {
           address_parse_log: Json | null
+          advance_amount: number | null
           assigned_to: string | null
           cancelled_at: string | null
           cancelled_reason: string | null
@@ -3888,6 +3889,7 @@ export type Database = {
         }
         Insert: {
           address_parse_log?: Json | null
+          advance_amount?: number | null
           assigned_to?: string | null
           cancelled_at?: string | null
           cancelled_reason?: string | null
@@ -3952,6 +3954,7 @@ export type Database = {
         }
         Update: {
           address_parse_log?: Json | null
+          advance_amount?: number | null
           assigned_to?: string | null
           cancelled_at?: string | null
           cancelled_reason?: string | null
