@@ -611,7 +611,12 @@ export default function OrdersPage() {
                           className="font-medium text-primary cursor-pointer"
                           onClick={() => navigate(`/orders/${order.id}`)}
                         >
-                          {order.order_number}
+                          <span className="flex items-center gap-1.5">
+                            {order.order_number}
+                            {(order as any).order_source === "LEGACY" && (
+                              <Badge variant="outline" className="text-[9px] px-1 py-0 border-amber-300 bg-amber-50 text-amber-700 font-semibold">LEGACY</Badge>
+                            )}
+                          </span>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {formatDate(order.order_date)}

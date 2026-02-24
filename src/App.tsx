@@ -33,6 +33,8 @@ import ExpensesPage from "./pages/Expenses";
 import ExceptionsPage from "./pages/Exceptions";
 import AuditLogsPage from "./pages/AuditLogs";
 import RolesPermissionsPage from "./pages/RolesPermissions";
+import ImportLegacyOrders from "./pages/ImportLegacyOrders";
+import LegacyBatches from "./pages/LegacyBatches";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +50,8 @@ const App = () => (
             <Route path="/" element={<Dashboard />} />
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/orders/new" element={<NewOrder />} />
+            <Route path="/orders/import-legacy" element={<ImportLegacyOrders />} />
+            <Route path="/orders/legacy-batches" element={<LegacyBatches />} />
             <Route path="/orders/:id" element={<OrderDetail />} />
             <Route path="/web-orders" element={<WebOrdersPage />} />
             <Route path="/web-orders/:id" element={<WebOrderDetail />} />

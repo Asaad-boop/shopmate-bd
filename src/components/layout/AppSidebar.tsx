@@ -34,6 +34,7 @@ import {
   Calculator,
   ShieldAlert,
   Shield,
+  Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -52,6 +53,8 @@ const navItems: NavItem[] = [
     children: [
       { label: "All Orders", path: "/orders", icon: List },
       { label: "Add New Order", path: "/orders/new", icon: Plus },
+      { label: "Import Legacy", path: "/orders/import-legacy", icon: Upload },
+      { label: "Legacy Batches", path: "/orders/legacy-batches", icon: FileText },
     ],
   },
   { label: "Web Orders", icon: Globe, path: "/web-orders" },

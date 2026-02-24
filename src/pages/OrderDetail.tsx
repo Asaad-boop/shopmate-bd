@@ -9,7 +9,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTime, formatBDT } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Printer, Save } from "lucide-react";
+import { ArrowLeft, Printer, Save, ShieldCheck, Loader2 } from "lucide-react";
+import { finalizeLegacyOrder } from "@/hooks/use-legacy-finalize";
 import { useBDCourierSingle, getRiskLevel } from "@/hooks/use-bd-courier";
 import { useCompanySettings } from "@/hooks/use-company-settings";
 import { useInvoiceSettings } from "@/hooks/use-invoice-settings";
@@ -49,6 +50,7 @@ export default function OrderDetail() {
 
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
   const [orderItems, setOrderItems] = useState<any[]>([]);
+  const [finalizing, setFinalizing] = useState(false);
   const [deliveryForm, setDeliveryForm] = useState({
     city: "", zone: "", area: "", fullName: "", phone: "",
     address: "", note: "", advanceEnabled: false, advanceVia: "",
@@ -223,6 +225,20 @@ export default function OrderDetail() {
 
   const currentStatus = pendingStatus || order.web_order_status || order.status || "pending";
   const statusCfg = STATUS_LABELS[currentStatus] || { label: currentStatus, color: "bg-muted text-muted-foreground" };
+  const isLegacy = (order as any).order_source === "LEGACY";
+  const isLegacyFinalized = (order as any).legacy_finalized === true;
+
+  const handleFinalizeLegacy = async () => {
+    setFinalizing(true);
+    const result = await finalizeLegacyOrder(order.id);
+    setFinalizing(false);
+    if (result.success) {
+      toast({ title: "✅ Legacy order finalized", description: `${result.journalIds.length} GL entries posted` });
+      queryClient.invalidateQueries({ queryKey: ["order", id] });
+    } else {
+      toast({ title: "⚠️ Finalize incomplete", description: result.exceptions.join("; "), variant: "destructive" });
+    }
+  };
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -239,11 +255,28 @@ export default function OrderDetail() {
                 <div className="flex items-center gap-2.5">
                   <h1 className="text-xl font-bold tracking-tight">#{order.order_number}</h1>
                   <Badge className={cn("text-xs", statusCfg.color)}>{statusCfg.label}</Badge>
+                  {isLegacy && (
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-amber-300 bg-amber-50 text-amber-700 font-semibold">
+                      LEGACY {isLegacyFinalized ? "✓ FINALIZED" : "• UNPOSTED"}
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">{formatDateTime(order.created_at)}</p>
               </div>
             </div>
             <div className="flex gap-2">
+              {isLegacy && !isLegacyFinalized && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs h-9 rounded-xl border-amber-300 text-amber-700 hover:bg-amber-50"
+                  onClick={handleFinalizeLegacy}
+                  disabled={finalizing}
+                >
+                  {finalizing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
+                  Finalize Legacy Posting
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -256,7 +289,7 @@ export default function OrderDetail() {
                 size="sm"
                 className="gap-1.5 text-xs h-9 rounded-xl bg-[#6c63ff] hover:bg-[#5a52d5] text-white"
                 onClick={() => saveMutation.mutate()}
-                disabled={saveMutation.isPending}
+                disabled={saveMutation.isPending || (isLegacy && !isLegacyFinalized)}
               >
                 <Save className="w-3.5 h-3.5" /> Save Changes
               </Button>
