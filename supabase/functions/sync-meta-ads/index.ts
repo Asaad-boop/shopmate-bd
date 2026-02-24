@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
       if (body.date_from && body.date_to) {
         dateFrom = body.date_from;
         dateTo = body.date_to;
-        datePreset = ""; // will use time_range instead
+        datePreset = "";
       }
       if (body.usd_rate) manualUsdRate = body.usd_rate;
     } catch { /* no body is fine */ }
@@ -55,17 +55,14 @@ Deno.serve(async (req) => {
       if (manualUsdRate) {
         usdRate = manualUsdRate;
       } else {
-        // Check settings for default rate
         const { data: rateSetting } = await supabase
           .from("settings")
           .select("value")
           .eq("key", "meta_default_usd_rate")
           .maybeSingle();
-        
         if (rateSetting?.value) {
           usdRate = parseFloat(rateSetting.value);
         } else {
-          // Fetch from API
           const rateResp = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
           if (rateResp.ok) {
             const rateData = await rateResp.json();
@@ -84,7 +81,7 @@ Deno.serve(async (req) => {
         // 3. Fetch campaigns
         const campaignsUrl = `${META_BASE_URL}/act_${account.meta_account_id}/campaigns?fields=id,name,objective,status,daily_budget,lifetime_budget,start_time,stop_time&access_token=${account.access_token}&limit=500`;
         const campResp = await fetch(campaignsUrl);
-        
+
         if (!campResp.ok) {
           const errData = await campResp.json();
           results.push({ account: account.meta_account_id, error: errData.error?.message || "API error" });
@@ -94,9 +91,9 @@ Deno.serve(async (req) => {
         const campData = await campResp.json();
         const campaigns = campData.data || [];
 
-        // Upsert campaigns
-        for (const camp of campaigns) {
-          await supabase.from("meta_campaigns").upsert({
+        // Batch upsert all campaigns at once
+        if (campaigns.length > 0) {
+          const campaignRows = campaigns.map((camp: any) => ({
             meta_campaign_id: camp.id,
             meta_account_id: account.meta_account_id,
             campaign_name: camp.name,
@@ -107,146 +104,15 @@ Deno.serve(async (req) => {
             start_date: camp.start_time ? camp.start_time.split("T")[0] : null,
             end_date: camp.stop_time ? camp.stop_time.split("T")[0] : null,
             synced_at: new Date().toISOString(),
-          }, { onConflict: "meta_campaign_id" });
+          }));
+          await supabase.from("meta_campaigns").upsert(campaignRows, { onConflict: "meta_campaign_id" });
         }
 
-        // 4. Fetch insights for each campaign
-        for (const camp of campaigns) {
-          try {
-            let insightsParams = `fields=campaign_id,campaign_name,spend,impressions,clicks,reach,actions,action_values,purchase_roas,cost_per_action_type,cpc,cpm,ctr&access_token=${account.access_token}`;
-            if (dateFrom && dateTo) {
-              insightsParams += `&time_range={"since":"${dateFrom}","until":"${dateTo}"}&time_increment=1`;
-            } else {
-              insightsParams += `&date_preset=${datePreset}`;
-            }
-            const insightsUrl = `${META_BASE_URL}/${camp.id}/insights?${insightsParams}`;
-            const insResp = await fetch(insightsUrl);
-            
-            if (!insResp.ok) continue;
-            
-            const insData = await insResp.json();
-            const insights = insData.data || [];
-
-            for (const insight of insights) {
-              const spendUsd = parseFloat(insight.spend || "0");
-              const spendBdt = spendUsd * usdRate;
-              const impressions = parseInt(insight.impressions || "0");
-              const clicks = parseInt(insight.clicks || "0");
-              const reach = parseInt(insight.reach || "0");
-              const cpc = parseFloat(insight.cpc || "0");
-              const cpm = parseFloat(insight.cpm || "0");
-              const ctr = parseFloat(insight.ctr || "0");
-
-              // Extract purchases from actions
-              let purchases = 0;
-              let purchaseValue = 0;
-              if (insight.actions) {
-                const purchaseAction = insight.actions.find(
-                  (a: any) => a.action_type === "offsite_conversion.fb_pixel_purchase" || a.action_type === "purchase"
-                );
-                if (purchaseAction) purchases = parseInt(purchaseAction.value || "0");
-              }
-              if (insight.action_values) {
-                const purchaseVal = insight.action_values.find(
-                  (a: any) => a.action_type === "offsite_conversion.fb_pixel_purchase" || a.action_type === "purchase"
-                );
-                if (purchaseVal) purchaseValue = parseFloat(purchaseVal.value || "0");
-              }
-
-              const roas = spendUsd > 0 ? purchaseValue / spendUsd : 0;
-              const cpo = purchases > 0 ? spendBdt / purchases : 0;
-              const metricDate = insight.date_start || new Date().toISOString().split("T")[0];
-
-              // Get campaign internal ID
-              const { data: campRow } = await supabase
-                .from("meta_campaigns")
-                .select("id")
-                .eq("meta_campaign_id", camp.id)
-                .maybeSingle();
-
-              // Upsert metric
-              const { data: metricRow } = await supabase
-                .from("meta_campaign_metrics")
-                .upsert({
-                  campaign_id: campRow?.id,
-                  meta_campaign_id: camp.id,
-                  metric_date: metricDate,
-                  spend_usd: spendUsd,
-                  spend_bdt: spendBdt,
-                  usd_rate: usdRate,
-                  impressions,
-                  clicks,
-                  reach,
-                  purchases,
-                  purchase_value: purchaseValue,
-                  cpc,
-                  cpm,
-                  ctr,
-                  roas,
-                  cpo,
-                  synced_at: new Date().toISOString(),
-                }, { onConflict: "meta_campaign_id,metric_date" })
-                .select("id")
-                .maybeSingle();
-
-              // 5. Auto expense creation
-              if (campRow && spendUsd > 0) {
-                // Check if expense already exists
-                const { data: existingExpense } = await supabase
-                  .from("ad_expenses")
-                  .select("id")
-                  .eq("campaign_id", campRow.id)
-                  .eq("expense_date", metricDate)
-                  .limit(1);
-
-                if (!existingExpense || existingExpense.length === 0) {
-                  // Get campaign product links
-                  const { data: productLinks } = await supabase
-                    .from("campaign_products")
-                    .select("*")
-                    .eq("campaign_id", campRow.id);
-
-                  if (productLinks && productLinks.length > 0) {
-                    for (const link of productLinks) {
-                      const allocatedSpend = spendBdt * (link.allocation_pct / 100);
-                      await supabase.from("ad_expenses").insert({
-                        expense_date: metricDate,
-                        category: "meta_ads",
-                        sub_category: camp.name,
-                        amount_bdt: allocatedSpend,
-                        currency: "USD",
-                        exchange_rate: usdRate,
-                        product_id: link.product_id,
-                        campaign_id: campRow.id,
-                        metric_id: metricRow?.id,
-                        allocation_type: "campaign",
-                        ref_id: metricRow?.id,
-                        note: "Auto-synced from Meta Ads",
-                        created_by: "system",
-                      });
-                    }
-                  } else {
-                    // No product link — unassigned
-                    await supabase.from("ad_expenses").insert({
-                      expense_date: metricDate,
-                      category: "meta_ads_unassigned",
-                      sub_category: camp.name,
-                      amount_bdt: spendBdt,
-                      currency: "USD",
-                      exchange_rate: usdRate,
-                      campaign_id: campRow.id,
-                      metric_id: metricRow?.id,
-                      ref_id: metricRow?.id,
-                      note: "Auto-synced from Meta Ads (no product linked)",
-                      created_by: "system",
-                    });
-                  }
-                }
-              }
-            }
-          } catch (campErr) {
-            console.error(`Error fetching insights for campaign ${camp.id}:`, campErr);
-          }
+        // 4. Fetch insights for ALL campaigns in PARALLEL (batches of 5)
+        const BATCH_SIZE = 5;
+        for (let i = 0; i < campaigns.length; i += BATCH_SIZE) {
+          const batch = campaigns.slice(i, i + BATCH_SIZE);
+          await Promise.all(batch.map((camp: any) => fetchAndStoreInsights(supabase, camp, account, datePreset, dateFrom, dateTo, usdRate)));
         }
 
         results.push({
@@ -270,3 +136,143 @@ Deno.serve(async (req) => {
     );
   }
 });
+
+async function fetchAndStoreInsights(
+  supabase: any, camp: any, account: any,
+  datePreset: string, dateFrom: string, dateTo: string, usdRate: number
+) {
+  try {
+    let insightsParams = `fields=campaign_id,campaign_name,spend,impressions,clicks,reach,actions,action_values,purchase_roas,cost_per_action_type,cpc,cpm,ctr&access_token=${account.access_token}`;
+    if (dateFrom && dateTo) {
+      insightsParams += `&time_range={"since":"${dateFrom}","until":"${dateTo}"}&time_increment=1`;
+    } else {
+      insightsParams += `&date_preset=${datePreset}`;
+    }
+    const insResp = await fetch(`${META_BASE_URL}/${camp.id}/insights?${insightsParams}`);
+    if (!insResp.ok) { await insResp.text(); return; }
+
+    const insData = await insResp.json();
+    const insights = insData.data || [];
+    if (insights.length === 0) return;
+
+    // Get campaign internal ID once
+    const { data: campRow } = await supabase
+      .from("meta_campaigns")
+      .select("id")
+      .eq("meta_campaign_id", camp.id)
+      .maybeSingle();
+
+    // Prepare all metrics for batch upsert
+    const metricRows: any[] = [];
+    for (const insight of insights) {
+      const spendUsd = parseFloat(insight.spend || "0");
+      const spendBdt = spendUsd * usdRate;
+      const impressions = parseInt(insight.impressions || "0");
+      const clicks = parseInt(insight.clicks || "0");
+      const reach = parseInt(insight.reach || "0");
+      const cpc = parseFloat(insight.cpc || "0");
+      const cpm = parseFloat(insight.cpm || "0");
+      const ctr = parseFloat(insight.ctr || "0");
+
+      let purchases = 0, purchaseValue = 0;
+      if (insight.actions) {
+        const pa = insight.actions.find((a: any) => a.action_type === "offsite_conversion.fb_pixel_purchase" || a.action_type === "purchase");
+        if (pa) purchases = parseInt(pa.value || "0");
+      }
+      if (insight.action_values) {
+        const pv = insight.action_values.find((a: any) => a.action_type === "offsite_conversion.fb_pixel_purchase" || a.action_type === "purchase");
+        if (pv) purchaseValue = parseFloat(pv.value || "0");
+      }
+
+      const roas = spendUsd > 0 ? purchaseValue / spendUsd : 0;
+      const cpo = purchases > 0 ? spendBdt / purchases : 0;
+      const metricDate = insight.date_start || new Date().toISOString().split("T")[0];
+
+      metricRows.push({
+        campaign_id: campRow?.id,
+        meta_campaign_id: camp.id,
+        metric_date: metricDate,
+        spend_usd: spendUsd,
+        spend_bdt: spendBdt,
+        usd_rate: usdRate,
+        impressions, clicks, reach, purchases, purchase_value: purchaseValue,
+        cpc, cpm, ctr, roas, cpo,
+        synced_at: new Date().toISOString(),
+      });
+    }
+
+    // Batch upsert all metrics at once
+    const { data: upsertedMetrics } = await supabase
+      .from("meta_campaign_metrics")
+      .upsert(metricRows, { onConflict: "meta_campaign_id,metric_date" })
+      .select("id,meta_campaign_id,metric_date,spend_bdt,spend_usd");
+
+    // 5. Auto expense creation - batch check & insert
+    if (campRow && upsertedMetrics) {
+      const spendMetrics = upsertedMetrics.filter((m: any) => m.spend_usd > 0);
+      if (spendMetrics.length === 0) return;
+
+      const metricDates = spendMetrics.map((m: any) => m.metric_date);
+
+      // Check existing expenses in one query
+      const { data: existingExpenses } = await supabase
+        .from("ad_expenses")
+        .select("expense_date")
+        .eq("campaign_id", campRow.id)
+        .in("expense_date", metricDates);
+
+      const existingDates = new Set((existingExpenses || []).map((e: any) => e.expense_date));
+      const newMetrics = spendMetrics.filter((m: any) => !existingDates.has(m.metric_date));
+      if (newMetrics.length === 0) return;
+
+      // Get product links once
+      const { data: productLinks } = await supabase
+        .from("campaign_products")
+        .select("*")
+        .eq("campaign_id", campRow.id);
+
+      const expenseRows: any[] = [];
+      for (const metric of newMetrics) {
+        if (productLinks && productLinks.length > 0) {
+          for (const link of productLinks) {
+            expenseRows.push({
+              expense_date: metric.metric_date,
+              category: "meta_ads",
+              sub_category: camp.name,
+              amount_bdt: metric.spend_bdt * (link.allocation_pct / 100),
+              currency: "USD",
+              exchange_rate: usdRate,
+              product_id: link.product_id,
+              campaign_id: campRow.id,
+              metric_id: metric.id,
+              allocation_type: "campaign",
+              ref_id: metric.id,
+              note: "Auto-synced from Meta Ads",
+              created_by: "system",
+            });
+          }
+        } else {
+          expenseRows.push({
+            expense_date: metric.metric_date,
+            category: "meta_ads_unassigned",
+            sub_category: camp.name,
+            amount_bdt: metric.spend_bdt,
+            currency: "USD",
+            exchange_rate: usdRate,
+            campaign_id: campRow.id,
+            metric_id: metric.id,
+            ref_id: metric.id,
+            note: "Auto-synced from Meta Ads (no product linked)",
+            created_by: "system",
+          });
+        }
+      }
+
+      if (expenseRows.length > 0) {
+        await supabase.from("ad_expenses").insert(expenseRows);
+      }
+    }
+  } catch (err) {
+    console.error(`Error fetching insights for campaign ${camp.id}:`, err);
+  }
+}
