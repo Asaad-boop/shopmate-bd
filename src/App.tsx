@@ -31,6 +31,8 @@ import AccountingPage from "./pages/Accounting";
 import CourierCODPage from "./pages/CourierCOD";
 import ExpensesPage from "./pages/Expenses";
 import ExceptionsPage from "./pages/Exceptions";
+import AuditLogsPage from "./pages/AuditLogs";
+import RolesPermissionsPage from "./pages/RolesPermissions";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -74,6 +76,8 @@ const App = () => (
             <Route path="/courier-cod" element={<CourierCODPage />} />
             <Route path="/expenses" element={<ExpensesPage />} />
             <Route path="/exceptions" element={<ExceptionsPage />} />
+            <Route path="/security/roles" element={<RolesPermissionsPage />} />
+            <Route path="/security/audit-logs" element={<AuditLogsPage />} />
             <Route path="/meta-ads/campaign-products" element={<MetaAdsCampaignProducts />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/system-health" element={<SystemHealth />} />
