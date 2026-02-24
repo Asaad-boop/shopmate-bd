@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { calculateNetPayable } from "@/lib/courier-calc";
 
 // ── Couriers ──
 export function useCouriers() {
@@ -79,11 +80,23 @@ export function useUpdateShipmentCosts() {
       courier_delivery_fee: number;
       courier_cod_fee: number;
       courier_discount: number;
+      courier_promo_discount?: number;
+      courier_additional_charge?: number;
+      courier_compensation_cost?: number;
       customer_total_amount: number;
+      is_return?: boolean;
       source?: string;
     }) => {
-      const total_cost = payload.courier_delivery_fee + payload.courier_cod_fee - payload.courier_discount;
-      const net_payable = payload.customer_total_amount - total_cost;
+      const { totalCost, netPayable } = calculateNetPayable({
+        collectable_amount: payload.customer_total_amount,
+        courier_delivery_fee: payload.courier_delivery_fee,
+        courier_cod_fee: payload.courier_cod_fee,
+        courier_discount: payload.courier_discount,
+        courier_promo_discount: payload.courier_promo_discount,
+        courier_additional_charge: payload.courier_additional_charge,
+        courier_compensation_cost: payload.courier_compensation_cost,
+        is_return: payload.is_return,
+      });
 
       const { error } = await supabase
         .from("courier_shipments")
@@ -91,8 +104,11 @@ export function useUpdateShipmentCosts() {
           courier_delivery_fee: payload.courier_delivery_fee,
           courier_cod_fee: payload.courier_cod_fee,
           courier_discount: payload.courier_discount,
-          courier_total_cost: total_cost,
-          courier_net_payable: net_payable,
+          courier_promo_discount: payload.courier_promo_discount || 0,
+          courier_additional_charge: payload.courier_additional_charge || 0,
+          courier_compensation_cost: payload.courier_compensation_cost || 0,
+          courier_total_cost: totalCost,
+          courier_net_payable: netPayable,
           last_cost_updated_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -106,7 +122,7 @@ export function useUpdateShipmentCosts() {
         delivery_fee: payload.courier_delivery_fee,
         cod_fee: payload.courier_cod_fee,
         discount: payload.courier_discount,
-        total_cost,
+        total_cost: totalCost,
         source: payload.source || "manual",
       });
     },

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useCouriers, useCourierShipments, useUpdateShipmentCosts } from "@/hooks/use-courier";
+import { calculateNetPayable } from "@/lib/courier-calc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,8 +10,55 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatBDT } from "@/lib/format";
-import { Edit2, Save } from "lucide-react";
+import { Edit2, Save, AlertTriangle, Info } from "lucide-react";
+
+function NetPayableCell({ shipment }: { shipment: any }) {
+  const result = calculateNetPayable({
+    collectable_amount: shipment.customer_total_amount,
+    courier_delivery_fee: shipment.courier_delivery_fee,
+    courier_cod_fee: shipment.courier_cod_fee,
+    courier_discount: shipment.courier_discount,
+    courier_promo_discount: shipment.courier_promo_discount,
+    courier_additional_charge: shipment.courier_additional_charge,
+    courier_compensation_cost: shipment.courier_compensation_cost,
+    is_return: shipment.booking_status === "returned",
+  });
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="text-xs font-semibold text-primary cursor-help inline-flex items-center gap-1">
+            {result.warning ? (
+              <>
+                <AlertTriangle className="w-3 h-3 text-amber-500" />
+                <span className="text-amber-600">N/A</span>
+              </>
+            ) : (
+              <>
+                {formatBDT(result.netPayable)}
+                <Info className="w-3 h-3 text-muted-foreground" />
+              </>
+            )}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="left" className="max-w-xs">
+          {result.warning ? (
+            <p className="text-xs text-amber-600">{result.warning}</p>
+          ) : (
+            <div className="text-xs space-y-0.5 font-mono">
+              {result.breakdown.map((line, i) => (
+                <p key={i}>{line}</p>
+              ))}
+            </div>
+          )}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
 
 export function CourierChargesTab() {
   const { data: couriers } = useCouriers();
@@ -20,7 +68,10 @@ export function CourierChargesTab() {
   const updateCosts = useUpdateShipmentCosts();
 
   const [editing, setEditing] = useState<any>(null);
-  const [form, setForm] = useState({ delivery_fee: 0, cod_fee: 0, discount: 0 });
+  const [form, setForm] = useState({
+    delivery_fee: 0, cod_fee: 0, discount: 0,
+    promo_discount: 0, additional_charge: 0, compensation_cost: 0,
+  });
 
   const openEdit = (shipment: any) => {
     setEditing(shipment);
@@ -28,6 +79,9 @@ export function CourierChargesTab() {
       delivery_fee: shipment.courier_delivery_fee || 0,
       cod_fee: shipment.courier_cod_fee || 0,
       discount: shipment.courier_discount || 0,
+      promo_discount: shipment.courier_promo_discount || 0,
+      additional_charge: shipment.courier_additional_charge || 0,
+      compensation_cost: shipment.courier_compensation_cost || 0,
     });
   };
 
@@ -38,13 +92,25 @@ export function CourierChargesTab() {
       courier_delivery_fee: form.delivery_fee,
       courier_cod_fee: form.cod_fee,
       courier_discount: form.discount,
+      courier_promo_discount: form.promo_discount,
+      courier_additional_charge: form.additional_charge,
+      courier_compensation_cost: form.compensation_cost,
       customer_total_amount: editing.customer_total_amount,
+      is_return: editing.booking_status === "returned",
     });
     setEditing(null);
   };
 
-  const totalCost = form.delivery_fee + form.cod_fee - form.discount;
-  const netPayable = editing ? editing.customer_total_amount - totalCost : 0;
+  const editCalc = editing ? calculateNetPayable({
+    collectable_amount: editing.customer_total_amount,
+    courier_delivery_fee: form.delivery_fee,
+    courier_cod_fee: form.cod_fee,
+    courier_discount: form.discount,
+    courier_promo_discount: form.promo_discount,
+    courier_additional_charge: form.additional_charge,
+    courier_compensation_cost: form.compensation_cost,
+    is_return: editing.booking_status === "returned",
+  }) : null;
 
   return (
     <>
@@ -102,7 +168,7 @@ export function CourierChargesTab() {
                       <TableCell className="text-xs">{formatBDT(s.courier_cod_fee)}</TableCell>
                       <TableCell className="text-xs">{formatBDT(s.courier_discount)}</TableCell>
                       <TableCell className="text-xs font-semibold">{formatBDT(s.courier_total_cost)}</TableCell>
-                      <TableCell className="text-xs font-semibold text-primary">{formatBDT(s.courier_net_payable)}</TableCell>
+                      <TableCell><NetPayableCell shipment={s} /></TableCell>
                       <TableCell>
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(s)}>
                           <Edit2 className="w-3.5 h-3.5" />
@@ -128,6 +194,12 @@ export function CourierChargesTab() {
               <span className="text-muted-foreground">Customer Total</span>
               <Badge variant="outline">{formatBDT(editing?.customer_total_amount)}</Badge>
             </div>
+            {editCalc?.warning && (
+              <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded-md p-2 border border-amber-200">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                {editCalc.warning}
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <Label className="text-xs">Delivery Fee</Label>
@@ -141,10 +213,22 @@ export function CourierChargesTab() {
                 <Label className="text-xs">Discount</Label>
                 <Input type="number" value={form.discount} onChange={(e) => setForm({ ...form, discount: +e.target.value })} />
               </div>
+              <div>
+                <Label className="text-xs">Promo Discount</Label>
+                <Input type="number" value={form.promo_discount} onChange={(e) => setForm({ ...form, promo_discount: +e.target.value })} />
+              </div>
+              <div>
+                <Label className="text-xs">Additional Charge</Label>
+                <Input type="number" value={form.additional_charge} onChange={(e) => setForm({ ...form, additional_charge: +e.target.value })} />
+              </div>
+              <div>
+                <Label className="text-xs">Compensation</Label>
+                <Input type="number" value={form.compensation_cost} onChange={(e) => setForm({ ...form, compensation_cost: +e.target.value })} />
+              </div>
             </div>
             <div className="flex justify-between text-sm pt-2 border-t">
-              <span>Total Cost: <strong>{formatBDT(totalCost)}</strong></span>
-              <span>Net Payable: <strong className="text-primary">{formatBDT(netPayable)}</strong></span>
+              <span>Total Cost: <strong>{editCalc ? formatBDT(editCalc.totalCost) : "—"}</strong></span>
+              <span>Net Payable: <strong className="text-primary">{editCalc ? formatBDT(editCalc.netPayable) : "—"}</strong></span>
             </div>
           </div>
           <DialogFooter>

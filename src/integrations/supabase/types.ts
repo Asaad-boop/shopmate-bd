@@ -1108,11 +1108,14 @@ export type Database = {
       courier_shipments: {
         Row: {
           booking_status: string
+          courier_additional_charge: number | null
           courier_cod_fee: number
+          courier_compensation_cost: number | null
           courier_delivery_fee: number
           courier_discount: number
           courier_id: string
           courier_net_payable: number
+          courier_promo_discount: number | null
           courier_return_cost: number
           courier_total_cost: number
           created_at: string
@@ -1132,11 +1135,14 @@ export type Database = {
         }
         Insert: {
           booking_status?: string
+          courier_additional_charge?: number | null
           courier_cod_fee?: number
+          courier_compensation_cost?: number | null
           courier_delivery_fee?: number
           courier_discount?: number
           courier_id: string
           courier_net_payable?: number
+          courier_promo_discount?: number | null
           courier_return_cost?: number
           courier_total_cost?: number
           created_at?: string
@@ -1156,11 +1162,14 @@ export type Database = {
         }
         Update: {
           booking_status?: string
+          courier_additional_charge?: number | null
           courier_cod_fee?: number
+          courier_compensation_cost?: number | null
           courier_delivery_fee?: number
           courier_discount?: number
           courier_id?: string
           courier_net_payable?: number
+          courier_promo_discount?: number | null
           courier_return_cost?: number
           courier_total_cost?: number
           created_at?: string
@@ -3833,13 +3842,16 @@ export type Database = {
           confirmed_at: string | null
           confirmed_by: string | null
           cost_of_goods: number | null
+          courier_additional_charge: number | null
           courier_charge: number | null
           courier_cod_fee: number | null
+          courier_compensation_cost: number | null
           courier_delivery_fee: number | null
           courier_discount: number | null
           courier_final_status: string | null
           courier_mode: string | null
           courier_net_payable: number | null
+          courier_promo_discount: number | null
           courier_return_cost: number | null
           courier_status: string | null
           courier_total_cost: number | null
@@ -3904,13 +3916,16 @@ export type Database = {
           confirmed_at?: string | null
           confirmed_by?: string | null
           cost_of_goods?: number | null
+          courier_additional_charge?: number | null
           courier_charge?: number | null
           courier_cod_fee?: number | null
+          courier_compensation_cost?: number | null
           courier_delivery_fee?: number | null
           courier_discount?: number | null
           courier_final_status?: string | null
           courier_mode?: string | null
           courier_net_payable?: number | null
+          courier_promo_discount?: number | null
           courier_return_cost?: number | null
           courier_status?: string | null
           courier_total_cost?: number | null
@@ -3975,13 +3990,16 @@ export type Database = {
           confirmed_at?: string | null
           confirmed_by?: string | null
           cost_of_goods?: number | null
+          courier_additional_charge?: number | null
           courier_charge?: number | null
           courier_cod_fee?: number | null
+          courier_compensation_cost?: number | null
           courier_delivery_fee?: number | null
           courier_discount?: number | null
           courier_final_status?: string | null
           courier_mode?: string | null
           courier_net_payable?: number | null
+          courier_promo_discount?: number | null
           courier_return_cost?: number | null
           courier_status?: string | null
           courier_total_cost?: number | null

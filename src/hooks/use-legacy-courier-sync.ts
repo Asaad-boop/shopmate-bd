@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { calculateNetPayable } from "@/lib/courier-calc";
 
 /**
  * Map Pathao order status string to our courier_final_status enum.
@@ -61,11 +62,23 @@ export function useLegacyCourierSync() {
       // Extract charges from Pathao response
       const deliveryFee = parseFloat(orderData?.delivery_fee || orderData?.delivery_charge || 0);
       const codFee = parseFloat(orderData?.cod_fee || 0);
-      const discount = parseFloat(orderData?.discount || orderData?.promo_discount || 0);
-      const totalCost = deliveryFee + codFee - discount;
+      const discount = parseFloat(orderData?.discount || 0);
+      const promoDiscount = parseFloat(orderData?.promo_discount || 0);
+      const additionalCharge = parseFloat(orderData?.additional_charge || 0);
+      const compensationCost = parseFloat(orderData?.compensation_cost || 0);
       const customerTotal = parseFloat(orderData?.item_price || orderData?.amount_to_collect || 0);
-      const netPayable = customerTotal - totalCost;
       const returnCost = courierFinal === "RETURNED" ? parseFloat(orderData?.return_fee || deliveryFee || 0) : 0;
+
+      const { totalCost, netPayable } = calculateNetPayable({
+        collectable_amount: customerTotal,
+        courier_delivery_fee: deliveryFee,
+        courier_cod_fee: codFee,
+        courier_discount: discount,
+        courier_promo_discount: promoDiscount,
+        courier_additional_charge: additionalCharge,
+        courier_compensation_cost: compensationCost,
+        is_return: courierFinal === "RETURNED",
+      });
 
       // Build update payload
       const updatePayload: Record<string, any> = {
@@ -73,6 +86,9 @@ export function useLegacyCourierSync() {
         courier_delivery_fee: deliveryFee,
         courier_cod_fee: codFee,
         courier_discount: discount,
+        courier_promo_discount: promoDiscount,
+        courier_additional_charge: additionalCharge,
+        courier_compensation_cost: compensationCost,
         courier_total_cost: totalCost,
         courier_net_payable: netPayable,
         courier_return_cost: returnCost,
