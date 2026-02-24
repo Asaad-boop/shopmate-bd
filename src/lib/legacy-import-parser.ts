@@ -96,7 +96,15 @@ export interface ValidatedOrder {
   row: ParsedOrderRow;
   rowIndex: number;
   errors: ValidationError[];
+  warnings: ValidationWarning[];
   isValid: boolean;
+}
+
+export interface ValidationWarning {
+  row: number;
+  invoiceNumber: string;
+  field: string;
+  message: string;
 }
 
 export function validateOrder(
@@ -104,9 +112,11 @@ export function validateOrder(
   rowIndex: number,
   existingInvoices: Set<string>,
   knownSkus: Set<string>,
-  seenInvoices: Set<string>
+  seenInvoices: Set<string>,
+  strictSkuMatch: boolean = true
 ): ValidatedOrder {
   const errors: ValidationError[] = [];
+  const warnings: ValidationWarning[] = [];
   const inv = order.invoiceNumber;
 
   // Invoice uniqueness
@@ -119,12 +129,24 @@ export function validateOrder(
 
   // SKU vs product count mismatch
   if (order.skus.length > 0 && order.products.length > 0 && order.skus.length !== order.products.length) {
-    errors.push({
-      row: rowIndex,
-      invoiceNumber: inv,
-      field: "sku",
-      message: `SKU count (${order.skus.length}) doesn't match product count (${order.products.length})`,
-    });
+    // Relaxed mode: if SKU count is 1 and products > 1, replicate SKU to all products
+    if (!strictSkuMatch && order.skus.length === 1 && order.products.length > 1) {
+      const singleSku = order.skus[0];
+      order.skus = order.products.map(() => singleSku);
+      warnings.push({
+        row: rowIndex,
+        invoiceNumber: inv,
+        field: "sku",
+        message: `Single SKU "${singleSku}" applied to all ${order.products.length} products`,
+      });
+    } else {
+      errors.push({
+        row: rowIndex,
+        invoiceNumber: inv,
+        field: "sku",
+        message: `SKU count (${order.skus.length}) doesn't match product count (${order.products.length})`,
+      });
+    }
   }
 
   // SKU existence
@@ -155,7 +177,7 @@ export function validateOrder(
     }
   }
 
-  return { row: order, rowIndex, errors, isValid: errors.length === 0 };
+  return { row: order, rowIndex, errors, warnings: warnings || [], isValid: errors.length === 0 };
 }
 
 // --- Error Report CSV ---

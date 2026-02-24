@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,6 +24,7 @@ import {
   type ParsedOrderRow,
   type ValidatedOrder,
   type ValidationError,
+  type ValidationWarning,
 } from "@/lib/legacy-import-parser";
 
 /* ─── Column mapping fields ─── */
@@ -71,7 +73,9 @@ export default function ImportLegacyOrders() {
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState({ total: 0, success: 0, failed: 0, skuMismatch: 0, qtyMismatch: 0, duplicates: 0, batchId: "" });
   const [allErrors, setAllErrors] = useState<ValidationError[]>([]);
+  const [allWarnings, setAllWarnings] = useState<ValidationWarning[]>([]);
   const [validatedOrders, setValidatedOrders] = useState<ValidatedOrder[]>([]);
+  const [strictSkuMatch, setStrictSkuMatch] = useState(true);
 
   /* ─── Step 1: File Upload ─── */
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -156,13 +160,14 @@ export default function ImportLegacyOrders() {
         returnedDate: parseExcelDate(mappings["returned_date"] ? row[mappings["returned_date"]] : ""),
       };
 
-      validated.push(validateOrder(parsed, i + 2, existingInvoices, knownSkus, seenInvoices));
+      validated.push(validateOrder(parsed, i + 2, existingInvoices, knownSkus, seenInvoices, strictSkuMatch));
     }
 
     setValidatedOrders(validated);
     setAllErrors(validated.flatMap((v) => v.errors));
+    setAllWarnings(validated.flatMap((v) => v.warnings));
     setStep("preview");
-  }, [rawData, mappings]);
+  }, [rawData, mappings, strictSkuMatch]);
 
   const validCount = useMemo(() => validatedOrders.filter((v) => v.isValid).length, [validatedOrders]);
   const invalidCount = useMemo(() => validatedOrders.filter((v) => !v.isValid).length, [validatedOrders]);
@@ -406,6 +411,22 @@ export default function ImportLegacyOrders() {
               <p>• <strong>Legacy Status:</strong> Original status from Excel is preserved in a read-only field and never overwritten.</p>
             </div>
 
+            {/* Validation toggles */}
+            <div className="rounded-lg border border-border bg-muted/30 p-3 mt-4">
+              <p className="text-xs font-semibold text-foreground mb-2">Validation Settings</p>
+              <div className="flex items-center gap-3">
+                <Switch checked={strictSkuMatch} onCheckedChange={setStrictSkuMatch} id="strict-sku" />
+                <Label htmlFor="strict-sku" className="text-xs cursor-pointer">
+                  Strict SKU-Product match validation
+                </Label>
+                <span className="text-[10px] text-muted-foreground">
+                  {strictSkuMatch
+                    ? "Errors when SKU count ≠ product count"
+                    : "If 1 SKU & multiple products → same SKU applied to all (warning)"}
+                </span>
+              </div>
+            </div>
+
             <div className="flex gap-2 pt-4">
               <Button variant="outline" onClick={() => setStep("upload")}>Back</Button>
               <Button onClick={handlePreview} disabled={!mappings.invoice_number || !mappings.products}>
@@ -447,6 +468,25 @@ export default function ImportLegacyOrders() {
                   ))}
                   {allErrors.length > 20 && (
                     <p className="text-xs text-muted-foreground">...and {allErrors.length - 20} more. Download CSV for full list.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Warning summary */}
+            {allWarnings.length > 0 && (
+              <div className="rounded-lg border border-amber-300/50 bg-amber-50/50 p-3 space-y-2">
+                <p className="text-sm font-medium text-amber-700 flex items-center gap-1">
+                  <AlertTriangle className="w-4 h-4" /> {allWarnings.length} warning(s)
+                </p>
+                <div className="max-h-[100px] overflow-y-auto space-y-1">
+                  {allWarnings.slice(0, 10).map((w, i) => (
+                    <p key={i} className="text-xs text-amber-700">
+                      Row {w.row}: [{w.field}] {w.message}
+                    </p>
+                  ))}
+                  {allWarnings.length > 10 && (
+                    <p className="text-xs text-muted-foreground">...and {allWarnings.length - 10} more.</p>
                   )}
                 </div>
               </div>
