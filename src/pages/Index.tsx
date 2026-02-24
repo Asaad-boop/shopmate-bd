@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
 import { RecentOrdersTable } from "@/components/dashboard/RecentOrdersTable";
+import { GettingStartedChecklist } from "@/components/dashboard/GettingStartedChecklist";
 import { useNavigate } from "react-router-dom";
 
 export default function Dashboard() {
@@ -104,6 +105,9 @@ export default function Dashboard() {
         <h1 className="text-2xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground text-sm">Welcome back! Here's your business overview.</p>
       </div>
+
+      {/* Getting Started Checklist */}
+      <GettingStartedChecklist />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
