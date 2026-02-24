@@ -30,6 +30,7 @@ import ReportsPage from "./pages/Reports";
 import AccountingPage from "./pages/Accounting";
 import CourierCODPage from "./pages/CourierCOD";
 import ExpensesPage from "./pages/Expenses";
+import ExceptionsPage from "./pages/Exceptions";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -72,6 +73,7 @@ const App = () => (
             <Route path="/meta-ads/report" element={<MetaAdsReport />} />
             <Route path="/courier-cod" element={<CourierCODPage />} />
             <Route path="/expenses" element={<ExpensesPage />} />
+            <Route path="/exceptions" element={<ExceptionsPage />} />
             <Route path="/meta-ads/campaign-products" element={<MetaAdsCampaignProducts />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/system-health" element={<SystemHealth />} />
