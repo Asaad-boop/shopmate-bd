@@ -22,7 +22,56 @@ Deno.serve(async (req) => {
 
     console.log(`Webhook received: ${topic} from ${shopDomain}`);
 
+    // ── Check sync settings ──
+    const { data: syncSettings } = await supabase
+      .from("settings")
+      .select("key, value")
+      .in("key", ["shopify_sync_enabled", "shopify_sync_from_date"]);
+
+    const settingsMap: Record<string, string> = {};
+    syncSettings?.forEach((s: any) => { settingsMap[s.key] = s.value || ""; });
+
+    const syncEnabled = settingsMap["shopify_sync_enabled"] === "true";
+    const syncFromDate = settingsMap["shopify_sync_from_date"] || "";
+
+    if (!syncEnabled) {
+      console.log("Shopify sync is disabled – ignoring webhook");
+      return new Response(JSON.stringify({ success: true, skipped: true, reason: "sync_disabled" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (topic === "orders/create") {
+      // Check sync-from-date filter
+      if (syncFromDate) {
+        const orderCreatedAt = body.created_at ? new Date(body.created_at) : new Date();
+        const fromDate = new Date(syncFromDate + "T00:00:00Z");
+        if (orderCreatedAt < fromDate) {
+          console.log(`Order date ${orderCreatedAt.toISOString()} is before sync-from ${syncFromDate} – skipping`);
+          return new Response(JSON.stringify({ success: true, skipped: true, reason: "before_sync_date" }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
+      // ── Duplicate check via shopify_order_id ──
+      const shopifyId = String(body.id);
+      const { data: existingOrder } = await supabase
+        .from("orders")
+        .select("id")
+        .eq("shopify_order_id", shopifyId)
+        .maybeSingle();
+
+      if (existingOrder) {
+        console.log(`Duplicate shopify_order_id ${shopifyId} – skipping`);
+        return new Response(JSON.stringify({ success: true, skipped: true, reason: "duplicate", existing_order_id: existingOrder.id }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       // Extract customer info
       const shopifyCustomer = body.customer || {};
       const shippingAddress = body.shipping_address || {};
@@ -65,7 +114,7 @@ Deno.serve(async (req) => {
         .insert({
           order_number: orderNumber,
           channel: "shopify",
-          shopify_order_id: String(body.id),
+          shopify_order_id: shopifyId,
           shopify_order_number: String(body.order_number || ""),
           customer_id: customerId,
           status: "pending",
@@ -91,14 +140,13 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Create order items — match products by variant_id or sku
+      // Create order items
       if (body.line_items && body.line_items.length > 0) {
         const items = [];
         for (const lineItem of body.line_items) {
           let product: any = null;
           let unitCost = 0;
 
-          // First try: match by Shopify variant ID
           if (lineItem.variant_id) {
             const { data } = await supabase
               .from("products")
@@ -108,7 +156,6 @@ Deno.serve(async (req) => {
             product = data;
           }
 
-          // Second try: match by SKU
           if (!product && lineItem.sku) {
             const { data } = await supabase
               .from("products")
@@ -138,7 +185,6 @@ Deno.serve(async (req) => {
 
         await supabase.from("order_items").insert(items);
 
-        // Calculate cost_of_goods
         const costOfGoods = items.reduce((s, i) => s + (i.unit_cost * i.quantity), 0);
         if (costOfGoods > 0) {
           await supabase.from("orders").update({
