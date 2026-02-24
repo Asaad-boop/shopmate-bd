@@ -11,19 +11,30 @@ export interface ParsedProduct {
 }
 
 /**
- * Split a products cell by comma and extract qty using ^(\d+)x pattern.
- * Example: "2x Water Ripple Lamp, 1x LED Strip" → [{qty:2, productName:"Water Ripple Lamp"}, {qty:1, productName:"LED Strip"}]
+ * Split a products cell by detecting quantity prefixes (e.g. "1x", "2x").
+ * Only starts a new product when a new \d+x pattern is found.
+ * Commas without a following qty prefix are treated as part of the product name.
+ *
+ * "1x Diffuser Oil, 50ML"        → [{qty:1, productName:"Diffuser Oil, 50ML"}]
+ * "1x Oil, 1x Diffuser"          → [{qty:1, productName:"Oil"}, {qty:1, productName:"Diffuser"}]
+ * "2x Water Ripple Lamp, 1x LED" → [{qty:2, productName:"Water Ripple Lamp"}, {qty:1, productName:"LED"}]
+ * "Some Product"                  → [{qty:1, productName:"Some Product"}]
  */
 export function parseProductsCell(raw: string): ParsedProduct[] {
   if (!raw || !raw.trim()) return [];
-  const segments = raw.split(",").map((s) => s.trim()).filter(Boolean);
-  return segments.map((seg) => {
-    const match = seg.match(/^(\d+)\s*x\s+(.+)/i);
+
+  // Split on comma boundaries where the next segment starts with a qty prefix
+  // Use a lookahead-based split: split before \d+x\s
+  const parts = raw.split(/,\s*(?=\d+\s*x\s)/i);
+
+  return parts.map((part) => {
+    const trimmed = part.trim();
+    const match = trimmed.match(/^(\d+)\s*x\s+(.+)/i);
     if (match) {
       return { qty: parseInt(match[1], 10), productName: match[2].trim() };
     }
-    return { qty: 1, productName: seg.trim() };
-  });
+    return { qty: 1, productName: trimmed };
+  }).filter((p) => p.productName.length > 0);
 }
 
 // --- SKU Parsing ---
