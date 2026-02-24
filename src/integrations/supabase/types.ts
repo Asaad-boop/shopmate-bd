@@ -1786,6 +1786,146 @@ export type Database = {
           },
         ]
       }
+      exception_events: {
+        Row: {
+          actor: string | null
+          created_at: string
+          event_type: string
+          exception_id: string
+          id: string
+          message: string | null
+        }
+        Insert: {
+          actor?: string | null
+          created_at?: string
+          event_type: string
+          exception_id: string
+          id?: string
+          message?: string | null
+        }
+        Update: {
+          actor?: string | null
+          created_at?: string
+          event_type?: string
+          exception_id?: string
+          id?: string
+          message?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exception_events_exception_id_fkey"
+            columns: ["exception_id"]
+            isOneToOne: false
+            referencedRelation: "exceptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exception_rules: {
+        Row: {
+          code: string
+          config_json: Json | null
+          created_at: string
+          id: string
+          is_active: boolean
+          last_run_at: string | null
+          last_run_result: string | null
+          module: string
+          name: string
+          schedule: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          config_json?: Json | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_run_at?: string | null
+          last_run_result?: string | null
+          module: string
+          name: string
+          schedule?: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          config_json?: Json | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_run_at?: string | null
+          last_run_result?: string | null
+          module?: string
+          name?: string
+          schedule?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      exceptions: {
+        Row: {
+          assigned_to: string | null
+          code: string
+          created_at: string
+          description: string | null
+          detected_at: string
+          detected_by: string
+          id: string
+          metadata: Json | null
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          source_entity_id: string | null
+          source_entity_type: string | null
+          source_module: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          code: string
+          created_at?: string
+          description?: string | null
+          detected_at?: string
+          detected_by?: string
+          id?: string
+          metadata?: Json | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          source_entity_id?: string | null
+          source_entity_type?: string | null
+          source_module: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          code?: string
+          created_at?: string
+          description?: string | null
+          detected_at?: string
+          detected_by?: string
+          id?: string
+          metadata?: Json | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          source_entity_id?: string | null
+          source_entity_type?: string | null
+          source_module?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       exchange_rates: {
         Row: {
           created_at: string | null

@@ -32,6 +32,7 @@ import {
   FolderOpen,
   Settings2,
   Calculator,
+  ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -143,6 +144,16 @@ const navItems: NavItem[] = [
     ],
   },
   { label: "CRM", icon: Handshake, path: "/crm" },
+  {
+    label: "Exceptions",
+    icon: ShieldAlert,
+    children: [
+      { label: "Exceptions Queue", path: "/exceptions?tab=queue", icon: List },
+      { label: "Rules & Checks", path: "/exceptions?tab=rules", icon: Settings2 },
+      { label: "Resolution Log", path: "/exceptions?tab=log", icon: FileText },
+      { label: "Health Dashboard", path: "/exceptions?tab=health", icon: BarChart3 },
+    ],
+  },
   { label: "Settings", icon: Settings, path: "/settings" },
   { label: "System Health", icon: Activity, path: "/system-health" },
 ];
