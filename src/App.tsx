@@ -35,6 +35,7 @@ import AuditLogsPage from "./pages/AuditLogs";
 import RolesPermissionsPage from "./pages/RolesPermissions";
 import ImportLegacyOrders from "./pages/ImportLegacyOrders";
 import LegacyBatches from "./pages/LegacyBatches";
+import OldOrdersPage from "./pages/OldOrders";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -52,6 +53,7 @@ const App = () => (
             <Route path="/orders/new" element={<NewOrder />} />
             <Route path="/orders/import-legacy" element={<ImportLegacyOrders />} />
             <Route path="/orders/legacy-batches" element={<LegacyBatches />} />
+            <Route path="/orders/old" element={<OldOrdersPage />} />
             <Route path="/orders/:id" element={<OrderDetail />} />
             <Route path="/web-orders" element={<WebOrdersPage />} />
             <Route path="/web-orders/:id" element={<WebOrderDetail />} />
