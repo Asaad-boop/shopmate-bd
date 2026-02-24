@@ -3833,6 +3833,7 @@ export type Database = {
           confirmed_by: string | null
           cost_of_goods: number | null
           courier_charge: number | null
+          courier_final_status: string | null
           courier_mode: string | null
           courier_status: string | null
           created_at: string | null
@@ -3856,6 +3857,7 @@ export type Database = {
           legacy_import_batch_id: string | null
           legacy_order_id: string | null
           legacy_returned_date: string | null
+          legacy_status: string | null
           legacy_tracking_id: string | null
           needs_address_review: boolean
           notes: string | null
@@ -3892,6 +3894,7 @@ export type Database = {
           confirmed_by?: string | null
           cost_of_goods?: number | null
           courier_charge?: number | null
+          courier_final_status?: string | null
           courier_mode?: string | null
           courier_status?: string | null
           created_at?: string | null
@@ -3915,6 +3918,7 @@ export type Database = {
           legacy_import_batch_id?: string | null
           legacy_order_id?: string | null
           legacy_returned_date?: string | null
+          legacy_status?: string | null
           legacy_tracking_id?: string | null
           needs_address_review?: boolean
           notes?: string | null
@@ -3951,6 +3955,7 @@ export type Database = {
           confirmed_by?: string | null
           cost_of_goods?: number | null
           courier_charge?: number | null
+          courier_final_status?: string | null
           courier_mode?: string | null
           courier_status?: string | null
           created_at?: string | null
@@ -3974,6 +3979,7 @@ export type Database = {
           legacy_import_batch_id?: string | null
           legacy_order_id?: string | null
           legacy_returned_date?: string | null
+          legacy_status?: string | null
           legacy_tracking_id?: string | null
           needs_address_review?: boolean
           notes?: string | null

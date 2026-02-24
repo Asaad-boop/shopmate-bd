@@ -252,12 +252,22 @@ export default function OrderDetail() {
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <div>
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2.5 flex-wrap">
                   <h1 className="text-xl font-bold tracking-tight">#{order.order_number}</h1>
                   <Badge className={cn("text-xs", statusCfg.color)}>{statusCfg.label}</Badge>
                   {isLegacy && (
                     <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-amber-300 bg-amber-50 text-amber-700 font-semibold">
                       LEGACY {isLegacyFinalized ? "✓ FINALIZED" : "• UNPOSTED"}
+                    </Badge>
+                  )}
+                  {isLegacy && (order as any).legacy_status && (
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-muted text-muted-foreground">
+                      Legacy: {(order as any).legacy_status}
+                    </Badge>
+                  )}
+                  {isLegacy && (order as any).courier_final_status && (
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-blue-300 bg-blue-50 text-blue-700">
+                      Courier: {(order as any).courier_final_status}
                     </Badge>
                   )}
                 </div>

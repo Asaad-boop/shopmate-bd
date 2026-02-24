@@ -39,8 +39,6 @@ const FIELD_DEFS = [
   { key: "unit_price", label: "Unit Price" },
   { key: "collectable_amount", label: "Collectable Amount (Customer Total)" },
   { key: "customer_shipping", label: "Delivery Charge (Customer)" },
-  { key: "cod_charge", label: "COD Charge" },
-  { key: "courier_delivery_fee", label: "Courier Delivery Fee" },
   { key: "partial_amount", label: "Partial Amount" },
   { key: "courier_name", label: "Courier Name" },
   { key: "tracking_id", label: "Tracking ID" },
@@ -48,6 +46,15 @@ const FIELD_DEFS = [
   { key: "delivered_date", label: "Delivered Date" },
   { key: "returned_date", label: "Returned Date" },
 ] as const;
+
+/* Fields auto-filled by courier sync — shown as info, always skipped */
+const COURIER_AUTO_FIELDS = [
+  { key: "cod_charge", label: "COD Charge" },
+  { key: "courier_delivery_fee", label: "Courier Delivery Fee" },
+  { key: "courier_discount", label: "Courier Discount" },
+  { key: "courier_total_cost", label: "Courier Total Cost" },
+  { key: "courier_net_payable", label: "Courier Net Payable" },
+];
 
 type FieldKey = (typeof FIELD_DEFS)[number]["key"];
 
@@ -136,8 +143,8 @@ export default function ImportLegacyOrders() {
         unitPrice: gn("unit_price"),
         customerTotal: gn("collectable_amount"),
         customerShipping: gn("customer_shipping"),
-        courierCodFee: gn("cod_charge"),
-        courierDeliveryFee: gn("courier_delivery_fee"),
+        courierCodFee: 0,        // Always 0 — sourced from courier sync
+        courierDeliveryFee: 0,   // Always 0 — sourced from courier sync
         partialAmount: gn("partial_amount"),
         courierName: g("courier_name"),
         trackingId: g("tracking_id"),
@@ -211,6 +218,7 @@ export default function ImportLegacyOrders() {
             inventory_mode: "DISABLED",
             courier_mode: "DISABLED",
             legacy_finalized: false,
+            legacy_status: row.rawStatus || null,   // Preserved read-only
             customer_id: customerId,
             order_date: row.orderDate || new Date().toISOString().slice(0, 10),
             delivery_address: row.address || null,
@@ -372,12 +380,27 @@ export default function ImportLegacyOrders() {
               ))}
             </div>
 
+            {/* Auto-filled by Courier section */}
+            <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 mt-4">
+              <p className="text-xs font-semibold text-amber-800 mb-2">🚚 Auto-filled by Courier Sync / Statement Import</p>
+              <p className="text-[11px] text-amber-700 mb-2">These fields are never imported from Excel. They will be populated automatically when courier data is synced or statements are imported.</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {COURIER_AUTO_FIELDS.map((f) => (
+                  <div key={f.key} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-300 bg-amber-100 text-amber-700">Skip</Badge>
+                    <span>{f.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* Parsing hint */}
             <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground space-y-1 mt-4">
               <p className="font-semibold text-foreground">Smart Parsing Rules:</p>
               <p>• <strong>Products:</strong> Split by comma. Pattern <code>2x Product Name</code> extracts qty=2. No prefix → qty=1.</p>
               <p>• <strong>SKUs:</strong> Split by comma, matched 1:1 with products by position.</p>
               <p>• <strong>Status:</strong> Auto-mapped (Delivered→DELIVERED, Return→RETURNED, Partial→PARTIAL_DELIVERED, etc.)</p>
+              <p>• <strong>Legacy Status:</strong> Original status from Excel is preserved in a read-only field and never overwritten.</p>
             </div>
 
             <div className="flex gap-2 pt-4">
