@@ -10,35 +10,46 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Upload, FileSpreadsheet, AlertTriangle, CheckCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, Upload, FileSpreadsheet, AlertTriangle, CheckCircle, Loader2, Download, XCircle } from "lucide-react";
 import * as XLSX from "xlsx";
+import {
+  parseProductsCell,
+  parseSkusCell,
+  mapStatus,
+  validateOrder,
+  generateErrorCsv,
+  downloadCsv,
+  parseExcelDate,
+  type ParsedOrderRow,
+  type ValidatedOrder,
+  type ValidationError,
+} from "@/lib/legacy-import-parser";
 
-interface ParsedRow {
-  legacy_order_id: string;
-  order_date: string;
-  customer_name: string;
-  phone: string;
-  address: string;
-  district: string;
-  thana: string;
-  sku: string;
-  qty: number;
-  unit_price: number;
-  product_total: number;
-  customer_shipping: number;
-  customer_total: number;
-  courier_name: string;
-  tracking_id: string;
-  courier_status: string;
-  delivered_date: string;
-  returned_date: string;
-}
+/* ─── Column mapping fields ─── */
+const FIELD_DEFS = [
+  { key: "invoice_number", label: "Invoice Number", required: true },
+  { key: "order_date", label: "Order Date" },
+  { key: "customer_name", label: "Customer Name" },
+  { key: "phone", label: "Phone" },
+  { key: "address", label: "Address" },
+  { key: "district", label: "District" },
+  { key: "thana", label: "Thana" },
+  { key: "products", label: "Products (comma-separated)", required: true },
+  { key: "sku", label: "SKU (comma-separated)" },
+  { key: "unit_price", label: "Unit Price" },
+  { key: "collectable_amount", label: "Collectable Amount (Customer Total)" },
+  { key: "customer_shipping", label: "Delivery Charge (Customer)" },
+  { key: "cod_charge", label: "COD Charge" },
+  { key: "courier_delivery_fee", label: "Courier Delivery Fee" },
+  { key: "partial_amount", label: "Partial Amount" },
+  { key: "courier_name", label: "Courier Name" },
+  { key: "tracking_id", label: "Tracking ID" },
+  { key: "status", label: "Status" },
+  { key: "delivered_date", label: "Delivered Date" },
+  { key: "returned_date", label: "Returned Date" },
+] as const;
 
-const EXPECTED_FIELDS: (keyof ParsedRow)[] = [
-  "legacy_order_id", "order_date", "customer_name", "phone", "address", "district", "thana",
-  "sku", "qty", "unit_price", "product_total", "customer_shipping", "customer_total",
-  "courier_name", "tracking_id", "courier_status", "delivered_date", "returned_date",
-];
+type FieldKey = (typeof FIELD_DEFS)[number]["key"];
 
 export default function ImportLegacyOrders() {
   const navigate = useNavigate();
@@ -50,14 +61,15 @@ export default function ImportLegacyOrders() {
   const [mappings, setMappings] = useState<Record<string, string>>({});
   const [step, setStep] = useState<"upload" | "map" | "preview" | "importing" | "done">("upload");
   const [progress, setProgress] = useState(0);
-  const [results, setResults] = useState({ imported: 0, failed: 0, duplicates: 0, total: 0, batchId: "" });
-  const [errors, setErrors] = useState<string[]>([]);
+  const [results, setResults] = useState({ total: 0, success: 0, failed: 0, skuMismatch: 0, qtyMismatch: 0, duplicates: 0, batchId: "" });
+  const [allErrors, setAllErrors] = useState<ValidationError[]>([]);
+  const [validatedOrders, setValidatedOrders] = useState<ValidatedOrder[]>([]);
 
-  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+  /* ─── Step 1: File Upload ─── */
+  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
     setFile(f);
-
     const reader = new FileReader();
     reader.onload = (evt) => {
       const data = evt.target?.result;
@@ -74,10 +86,10 @@ export default function ImportLegacyOrders() {
 
       // Auto-map by similarity
       const autoMap: Record<string, string> = {};
-      for (const field of EXPECTED_FIELDS) {
-        const norm = field.toLowerCase().replace(/_/g, "");
+      for (const fd of FIELD_DEFS) {
+        const norm = fd.key.toLowerCase().replace(/_/g, "");
         const match = headers.find((h) => h.toLowerCase().replace(/[\s_-]/g, "") === norm);
-        if (match) autoMap[field] = match;
+        if (match) autoMap[fd.key] = match;
       }
       setMappings(autoMap);
       setStep("map");
@@ -86,221 +98,214 @@ export default function ImportLegacyOrders() {
   }, [toast]);
 
   const setMapping = (field: string, header: string) => {
-    setMappings((prev) => ({ ...prev, [field]: header }));
+    setMappings((prev) => ({ ...prev, [field]: header === "__skip__" ? "" : header }));
   };
 
-  const mappedRows = useMemo<ParsedRow[]>(() => {
-    if (step !== "preview" && step !== "importing") return [];
-    return rawData.map((row) => {
-      const mapped: any = {};
-      for (const field of EXPECTED_FIELDS) {
-        const col = mappings[field];
-        mapped[field] = col ? row[col] ?? "" : "";
-      }
-      mapped.qty = Number(mapped.qty) || 0;
-      mapped.unit_price = Number(mapped.unit_price) || 0;
-      mapped.product_total = Number(mapped.product_total) || 0;
-      mapped.customer_shipping = Number(mapped.customer_shipping) || 0;
-      mapped.customer_total = Number(mapped.customer_total) || 0;
-      return mapped as ParsedRow;
-    });
-  }, [rawData, mappings, step]);
+  /* ─── Step 2 → 3: Parse & Validate ─── */
+  const handlePreview = useCallback(async () => {
+    // Fetch known SKUs
+    const { data: products } = await supabase.from("products").select("id, sku");
+    const knownSkus = new Set((products || []).map((p) => (p.sku || "").toUpperCase()));
 
-  // Group by legacy_order_id
-  const groupedOrders = useMemo(() => {
-    const map = new Map<string, ParsedRow[]>();
-    for (const row of mappedRows) {
-      const key = String(row.legacy_order_id).trim();
-      if (!key) continue;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(row);
+    // Fetch existing invoice numbers (legacy)
+    const { data: existingOrders } = await (supabase.from("orders").select("order_number") as any)
+      .eq("order_source", "LEGACY");
+    const existingInvoices = new Set<string>((existingOrders || []).map((o: any) => String(o.order_number)));
+
+    const seenInvoices = new Set<string>();
+    const validated: ValidatedOrder[] = [];
+
+    for (let i = 0; i < rawData.length; i++) {
+      const row = rawData[i];
+      const g = (key: string) => {
+        const col = mappings[key];
+        return col ? String(row[col] ?? "").trim() : "";
+      };
+      const gn = (key: string) => Number(g(key)) || 0;
+
+      const parsed: ParsedOrderRow = {
+        invoiceNumber: g("invoice_number"),
+        orderDate: parseExcelDate(mappings["order_date"] ? row[mappings["order_date"]] : ""),
+        customerName: g("customer_name"),
+        phone: g("phone"),
+        address: g("address"),
+        district: g("district"),
+        thana: g("thana"),
+        products: parseProductsCell(g("products")),
+        skus: parseSkusCell(g("sku")),
+        unitPrice: gn("unit_price"),
+        customerTotal: gn("collectable_amount"),
+        customerShipping: gn("customer_shipping"),
+        courierCodFee: gn("cod_charge"),
+        courierDeliveryFee: gn("courier_delivery_fee"),
+        partialAmount: gn("partial_amount"),
+        courierName: g("courier_name"),
+        trackingId: g("tracking_id"),
+        rawStatus: g("status"),
+        mappedStatus: mapStatus(g("status")),
+        deliveredDate: parseExcelDate(mappings["delivered_date"] ? row[mappings["delivered_date"]] : ""),
+        returnedDate: parseExcelDate(mappings["returned_date"] ? row[mappings["returned_date"]] : ""),
+      };
+
+      validated.push(validateOrder(parsed, i + 2, existingInvoices, knownSkus, seenInvoices));
     }
-    return map;
-  }, [mappedRows]);
 
+    setValidatedOrders(validated);
+    setAllErrors(validated.flatMap((v) => v.errors));
+    setStep("preview");
+  }, [rawData, mappings]);
+
+  const validCount = useMemo(() => validatedOrders.filter((v) => v.isValid).length, [validatedOrders]);
+  const invalidCount = useMemo(() => validatedOrders.filter((v) => !v.isValid).length, [validatedOrders]);
+
+  /* ─── Step 4: Import ─── */
   const handleImport = async () => {
     setStep("importing");
     setProgress(0);
-    setErrors([]);
 
-    // Create batch
     const batchId = crypto.randomUUID();
-    let imported = 0;
+    let success = 0;
     let failed = 0;
+    let skuMismatch = 0;
+    let qtyMismatch = 0;
     let duplicates = 0;
-    const errorList: string[] = [];
-    const entries = Array.from(groupedOrders.entries());
-    const total = entries.length;
+    const importErrors: ValidationError[] = [];
+    const validOnly = validatedOrders.filter((v) => v.isValid);
 
-    for (let i = 0; i < entries.length; i++) {
-      const [legacyId, rows] = entries[i];
-      const first = rows[0];
+    // Pre-fetch SKU → product_id map
+    const { data: products } = await supabase.from("products").select("id, sku");
+    const skuMap = new Map((products || []).map((p) => [(p.sku || "").toUpperCase(), p.id]));
 
+    for (let i = 0; i < validOnly.length; i++) {
+      const { row } = validOnly[i];
       try {
-        // Check duplicate
-        const { data: existing } = await (supabase
-          .from("orders")
-          .select("id") as any)
-          .eq("order_source", "LEGACY")
-          .eq("legacy_order_id", legacyId)
-          .maybeSingle();
-
-        if (existing) {
-          duplicates++;
-          setProgress(Math.round(((i + 1) / total) * 100));
-          continue;
-        }
-
         // Find/create customer
-        const phone = String(first.phone).trim();
+        const phone = row.phone;
         let customerId: string | null = null;
         if (phone) {
-          const { data: cust } = await supabase
-            .from("customers")
-            .select("id")
-            .eq("phone", phone)
-            .maybeSingle();
+          const { data: cust } = await supabase.from("customers").select("id").eq("phone", phone).maybeSingle();
           if (cust) {
             customerId = cust.id;
           } else {
             const { data: newCust } = await supabase
               .from("customers")
-              .insert({
-                full_name: first.customer_name || "Unknown",
-                phone,
-                address: first.address || null,
-                district: first.district || null,
-                thana: first.thana || null,
-                source: "legacy_import",
-              })
+              .insert({ full_name: row.customerName || "Unknown", phone, address: row.address || null, district: row.district || null, thana: row.thana || null, source: "legacy_import" })
               .select("id")
               .single();
             customerId = newCust?.id || null;
           }
         }
 
-        // Determine status from courier info
-        let status = "pending";
-        const cs = String(first.courier_status).toLowerCase();
-        if (first.delivered_date || cs.includes("deliver")) status = "delivered";
-        else if (first.returned_date || cs.includes("return")) status = "returned";
-        else if (cs.includes("cancel")) status = "cancelled";
-        else if (cs.includes("ship") || cs.includes("transit")) status = "shipped";
+        const orderNumber = row.invoiceNumber || `LGC-${crypto.randomUUID().slice(0, 8)}`;
+        const subtotal = row.products.reduce((s, p) => s + p.qty * row.unitPrice, 0);
 
-        // Format date
-        let orderDate: any = first.order_date;
-        if (orderDate && typeof orderDate === "object" && (orderDate as any).toISOString) orderDate = (orderDate as any).toISOString().slice(0, 10);
-        else if (typeof orderDate === "number") {
-          const d = new Date((orderDate - 25569) * 86400000);
-          orderDate = d.toISOString().slice(0, 10);
-        }
-
-        let deliveredDate: any = first.delivered_date;
-        if (deliveredDate && typeof deliveredDate === "object" && (deliveredDate as any).toISOString) deliveredDate = (deliveredDate as any).toISOString().slice(0, 10);
-        let returnedDate: any = first.returned_date;
-        if (returnedDate && typeof returnedDate === "object" && (returnedDate as any).toISOString) returnedDate = (returnedDate as any).toISOString().slice(0, 10);
-
-        const orderNumber = `LGC-${legacyId}`;
-
-        // Insert order
         const { data: newOrder, error: orderErr } = await supabase
           .from("orders")
           .insert({
             order_number: orderNumber,
             channel: "legacy",
             order_source: "LEGACY",
-            legacy_order_id: legacyId,
+            legacy_order_id: row.invoiceNumber,
             legacy_import_batch_id: batchId,
             posting_mode: "DISABLED",
             inventory_mode: "DISABLED",
             courier_mode: "DISABLED",
             legacy_finalized: false,
             customer_id: customerId,
-            order_date: orderDate || new Date().toISOString().slice(0, 10),
-            delivery_address: first.address || null,
-            delivery_district: first.district || null,
-            delivery_thana: first.thana || null,
-            delivery_charge: first.customer_shipping || 0,
-            subtotal: rows.reduce((s, r) => s + r.product_total, 0),
-            total_amount: first.customer_total || rows.reduce((s, r) => s + r.product_total, 0) + (first.customer_shipping || 0),
+            order_date: row.orderDate || new Date().toISOString().slice(0, 10),
+            delivery_address: row.address || null,
+            delivery_district: row.district || null,
+            delivery_thana: row.thana || null,
+            delivery_charge: row.customerShipping || 0,
+            subtotal,
+            total_amount: row.customerTotal || subtotal + (row.customerShipping || 0),
             payment_method: "cod",
-            status,
-            legacy_courier_name: first.courier_name || null,
-            legacy_tracking_id: first.tracking_id || null,
-            legacy_courier_status: first.courier_status || null,
-            legacy_delivered_date: deliveredDate || null,
-            legacy_returned_date: returnedDate || null,
+            status: row.mappedStatus,
+            legacy_courier_name: row.courierName || null,
+            legacy_tracking_id: row.trackingId || null,
+            legacy_courier_status: row.rawStatus || null,
+            legacy_delivered_date: row.deliveredDate || null,
+            legacy_returned_date: row.returnedDate || null,
           } as any)
           .select("id")
           .single();
 
         if (orderErr) throw orderErr;
 
-        // Insert order items — match SKU to products
-        for (const row of rows) {
-          const sku = String(row.sku).trim();
-          let productId: string | null = null;
-          if (sku) {
-            const { data: prod } = await supabase
-              .from("products")
-              .select("id")
-              .eq("sku", sku)
-              .maybeSingle();
-            productId = prod?.id || null;
-          }
+        // Insert order items — one per parsed product
+        for (let pi = 0; pi < row.products.length; pi++) {
+          const prod = row.products[pi];
+          const sku = row.skus[pi] || "";
+          const productId = sku ? skuMap.get(sku.toUpperCase()) || null : null;
 
           await supabase.from("order_items").insert({
             order_id: newOrder!.id,
             product_id: productId,
-            quantity: row.qty || 1,
-            unit_price: row.unit_price || 0,
-            total_price: row.product_total || (row.qty * row.unit_price) || 0,
-            product_name_fallback: sku || "Legacy Item",
+            quantity: prod.qty,
+            unit_price: row.unitPrice || 0,
+            total_price: prod.qty * (row.unitPrice || 0),
+            product_name_fallback: prod.productName || sku || "Legacy Item",
           });
         }
 
-        imported++;
+        success++;
       } catch (err: any) {
         failed++;
-        errorList.push(`Order ${legacyId}: ${err.message}`);
+        importErrors.push({ row: validOnly[i].rowIndex, invoiceNumber: row.invoiceNumber, field: "import", message: err.message });
       }
-
-      setProgress(Math.round(((i + 1) / total) * 100));
+      setProgress(Math.round(((i + 1) / validOnly.length) * 100));
     }
 
-    // Save batch record
+    // Count specific error types from pre-validation
+    const preErrors = validatedOrders.filter((v) => !v.isValid);
+    for (const v of preErrors) {
+      for (const e of v.errors) {
+        if (e.field === "sku" && e.message.includes("count")) skuMismatch++;
+        if (e.field === "qty") qtyMismatch++;
+        if (e.field === "invoice_number" && e.message.includes("Duplicate")) duplicates++;
+      }
+    }
+
+    // Save batch
     await supabase.from("legacy_import_batches" as any).insert({
       id: batchId,
       file_name: file?.name || "unknown",
-      total_rows: total,
-      imported_count: imported,
-      failed_count: failed,
+      total_rows: validatedOrders.length,
+      imported_count: success,
+      failed_count: failed + invalidCount,
       duplicate_count: duplicates,
-      errors: errorList,
+      errors: [...allErrors, ...importErrors].map((e) => `Row ${e.row}: [${e.field}] ${e.message}`),
       status: "completed",
     });
 
-    setResults({ imported, failed, duplicates, total, batchId });
-    setErrors(errorList);
+    setResults({ total: validatedOrders.length, success, failed: failed + invalidCount, skuMismatch, qtyMismatch, duplicates, batchId });
+    setAllErrors((prev) => [...prev, ...importErrors]);
     setStep("done");
-    toast({ title: `✅ Import complete: ${imported} orders imported` });
+    toast({ title: `Import complete: ${success} orders imported` });
+  };
+
+  const handleDownloadErrors = () => {
+    if (allErrors.length === 0) return;
+    const csv = generateErrorCsv(allErrors);
+    downloadCsv(csv, `import-errors-${new Date().toISOString().slice(0, 10)}.csv`);
   };
 
   return (
     <div className="space-y-6 animate-fade-in max-w-5xl mx-auto">
+      {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate("/orders")}>
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
           <h1 className="text-2xl font-bold">Import Legacy Orders</h1>
-          <p className="text-sm text-muted-foreground">Import historical orders from CSV/Excel. No GL/inventory impact until finalized.</p>
+          <p className="text-sm text-muted-foreground">Smart parser: auto-splits products & SKUs, validates totals, maps statuses.</p>
         </div>
       </div>
 
       {/* Step indicators */}
       <div className="flex gap-2">
-        {["Upload", "Map Columns", "Preview", "Import"].map((s, i) => (
+        {["Upload", "Map Columns", "Validate & Preview", "Import"].map((s, i) => (
           <Badge
             key={s}
             variant={
@@ -318,15 +323,15 @@ export default function ImportLegacyOrders() {
       {step === "upload" && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><FileSpreadsheet className="w-5 h-5" /> Upload File</CardTitle>
-            <CardDescription>Supported: .csv, .xlsx, .xls</CardDescription>
+            <CardTitle className="flex items-center gap-2"><FileSpreadsheet className="w-5 h-5" /> Upload Excel File</CardTitle>
+            <CardDescription>Supported: .xlsx, .xls, .csv</CardDescription>
           </CardHeader>
           <CardContent>
             <Label htmlFor="legacy-file" className="cursor-pointer">
               <div className="border-2 border-dashed border-border rounded-xl p-12 text-center hover:border-primary transition-colors">
                 <Upload className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
                 <p className="font-medium">Click or drag to upload</p>
-                <p className="text-sm text-muted-foreground mt-1">CSV or Excel file with legacy order data</p>
+                <p className="text-sm text-muted-foreground mt-1">Excel file with legacy order data</p>
               </div>
             </Label>
             <Input id="legacy-file" type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleFileUpload} />
@@ -340,15 +345,18 @@ export default function ImportLegacyOrders() {
           <CardHeader>
             <CardTitle>Map Columns</CardTitle>
             <CardDescription>
-              {rawData.length} rows found in "{file?.name}". Map your columns to the required fields.
+              {rawData.length} rows found in "{file?.name}". Map your spreadsheet columns to system fields.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {EXPECTED_FIELDS.map((field) => (
-                <div key={field} className="flex items-center gap-2">
-                  <Label className="w-40 text-xs font-mono shrink-0">{field}</Label>
-                  <Select value={mappings[field] || "__skip__"} onValueChange={(v) => setMapping(field, v === "__skip__" ? "" : v)}>
+              {FIELD_DEFS.map((fd) => (
+                <div key={fd.key} className="flex items-center gap-2">
+                  <Label className="w-48 text-xs font-mono shrink-0">
+                    {fd.label}
+                    {"required" in fd && fd.required && <span className="text-destructive ml-0.5">*</span>}
+                  </Label>
+                  <Select value={mappings[fd.key] || "__skip__"} onValueChange={(v) => setMapping(fd.key, v)}>
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder="Skip" />
                     </SelectTrigger>
@@ -359,80 +367,116 @@ export default function ImportLegacyOrders() {
                       ))}
                     </SelectContent>
                   </Select>
-                  {mappings[field] && <CheckCircle className="w-4 h-4 text-success shrink-0" />}
+                  {mappings[fd.key] && <CheckCircle className="w-4 h-4 text-green-600 shrink-0" />}
                 </div>
               ))}
             </div>
+
+            {/* Parsing hint */}
+            <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground space-y-1 mt-4">
+              <p className="font-semibold text-foreground">Smart Parsing Rules:</p>
+              <p>• <strong>Products:</strong> Split by comma. Pattern <code>2x Product Name</code> extracts qty=2. No prefix → qty=1.</p>
+              <p>• <strong>SKUs:</strong> Split by comma, matched 1:1 with products by position.</p>
+              <p>• <strong>Status:</strong> Auto-mapped (Delivered→DELIVERED, Return→RETURNED, Partial→PARTIAL_DELIVERED, etc.)</p>
+            </div>
+
             <div className="flex gap-2 pt-4">
               <Button variant="outline" onClick={() => setStep("upload")}>Back</Button>
-              <Button onClick={() => setStep("preview")} disabled={!mappings.legacy_order_id}>
-                Preview Import
+              <Button onClick={handlePreview} disabled={!mappings.invoice_number || !mappings.products}>
+                Validate & Preview
               </Button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Step 3: Preview */}
+      {/* Step 3: Preview with validation */}
       {step === "preview" && (
         <Card>
           <CardHeader>
-            <CardTitle>Preview</CardTitle>
+            <CardTitle>Validation Results</CardTitle>
             <CardDescription>
-              {groupedOrders.size} unique orders from {mappedRows.length} rows. Legacy orders will be read-only with GL/inventory disabled.
+              {validatedOrders.length} rows parsed. <span className="text-green-600 font-medium">{validCount} valid</span>,{" "}
+              <span className="text-destructive font-medium">{invalidCount} with errors</span>.
+              Only valid rows will be imported.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {/* Error summary */}
+            {allErrors.length > 0 && (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-destructive flex items-center gap-1">
+                    <AlertTriangle className="w-4 h-4" /> {allErrors.length} validation error(s)
+                  </p>
+                  <Button variant="outline" size="sm" onClick={handleDownloadErrors}>
+                    <Download className="w-3 h-3 mr-1" /> Download Error Report
+                  </Button>
+                </div>
+                <div className="max-h-[150px] overflow-y-auto space-y-1">
+                  {allErrors.slice(0, 20).map((e, i) => (
+                    <p key={i} className="text-xs text-destructive">
+                      Row {e.row}: [{e.field}] {e.message}
+                    </p>
+                  ))}
+                  {allErrors.length > 20 && (
+                    <p className="text-xs text-muted-foreground">...and {allErrors.length - 20} more. Download CSV for full list.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Preview table */}
             <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Legacy ID</TableHead>
+                    <TableHead className="w-8"></TableHead>
+                    <TableHead>Invoice</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Customer</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Items</TableHead>
+                    <TableHead>Products</TableHead>
+                    <TableHead>SKUs</TableHead>
                     <TableHead>Total</TableHead>
-                    <TableHead>Courier</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {Array.from(groupedOrders.entries()).slice(0, 50).map(([id, rows]) => {
-                    const first = rows[0];
-                    const cs = String(first.courier_status).toLowerCase();
-                    let status = "pending";
-                    if (first.delivered_date || cs.includes("deliver")) status = "delivered";
-                    else if (first.returned_date || cs.includes("return")) status = "returned";
-                    else if (cs.includes("cancel")) status = "cancelled";
-
-                    return (
-                      <TableRow key={id}>
-                        <TableCell className="font-mono text-xs">{id}</TableCell>
-                        <TableCell className="text-xs">{String(first.order_date).slice(0, 10)}</TableCell>
-                        <TableCell className="text-sm">{first.customer_name}</TableCell>
-                        <TableCell className="text-xs">{first.phone}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className="text-xs">{rows.length} item(s)</Badge>
-                        </TableCell>
-                        <TableCell className="text-sm font-medium">৳{first.customer_total}</TableCell>
-                        <TableCell className="text-xs">{first.courier_name || "—"}</TableCell>
-                        <TableCell>
-                          <Badge variant={status === "delivered" ? "default" : "secondary"} className="text-xs">{status}</Badge>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                  {validatedOrders.slice(0, 100).map((v) => (
+                    <TableRow key={v.rowIndex} className={v.isValid ? "" : "bg-destructive/5"}>
+                      <TableCell>
+                        {v.isValid
+                          ? <CheckCircle className="w-4 h-4 text-green-600" />
+                          : <XCircle className="w-4 h-4 text-destructive" />}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">{v.row.invoiceNumber}</TableCell>
+                      <TableCell className="text-xs">{v.row.orderDate}</TableCell>
+                      <TableCell className="text-sm">{v.row.customerName}</TableCell>
+                      <TableCell className="text-xs max-w-[200px] truncate">
+                        {v.row.products.map((p) => `${p.qty}x ${p.productName}`).join(", ")}
+                      </TableCell>
+                      <TableCell className="text-xs font-mono max-w-[120px] truncate">
+                        {v.row.skus.join(", ") || "—"}
+                      </TableCell>
+                      <TableCell className="text-sm font-medium">৳{v.row.customerTotal}</TableCell>
+                      <TableCell>
+                        <Badge variant={v.row.mappedStatus === "delivered" ? "default" : "secondary"} className="text-xs">
+                          {v.row.mappedStatus}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
-              {groupedOrders.size > 50 && (
-                <p className="text-xs text-muted-foreground text-center py-2">Showing first 50 of {groupedOrders.size} orders</p>
+              {validatedOrders.length > 100 && (
+                <p className="text-xs text-muted-foreground text-center py-2">Showing first 100 of {validatedOrders.length} rows</p>
               )}
             </div>
+
             <div className="flex gap-2 pt-4">
               <Button variant="outline" onClick={() => setStep("map")}>Back</Button>
-              <Button onClick={handleImport}>
-                <Upload className="w-4 h-4 mr-1" /> Import {groupedOrders.size} Orders
+              <Button onClick={handleImport} disabled={validCount === 0}>
+                <Upload className="w-4 h-4 mr-1" /> Import {validCount} Valid Orders
               </Button>
             </div>
           </CardContent>
@@ -456,36 +500,34 @@ export default function ImportLegacyOrders() {
       {step === "done" && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><CheckCircle className="w-5 h-5 text-success" /> Import Complete</CardTitle>
+            <CardTitle className="flex items-center gap-2"><CheckCircle className="w-5 h-5 text-green-600" /> Import Complete</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center p-3 rounded-lg bg-muted/50">
-                <p className="text-2xl font-bold">{results.total}</p>
-                <p className="text-xs text-muted-foreground">Total Orders</p>
-              </div>
-              <div className="text-center p-3 rounded-lg bg-success/10">
-                <p className="text-2xl font-bold text-success">{results.imported}</p>
-                <p className="text-xs text-muted-foreground">Imported</p>
-              </div>
-              <div className="text-center p-3 rounded-lg bg-amber-500/10">
-                <p className="text-2xl font-bold text-amber-600">{results.duplicates}</p>
-                <p className="text-xs text-muted-foreground">Duplicates Skipped</p>
-              </div>
-              <div className="text-center p-3 rounded-lg bg-destructive/10">
-                <p className="text-2xl font-bold text-destructive">{results.failed}</p>
-                <p className="text-xs text-muted-foreground">Failed</p>
-              </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {[
+                { label: "Total Rows", value: results.total, color: "bg-muted/50" },
+                { label: "Success", value: results.success, color: "bg-green-500/10 text-green-700" },
+                { label: "Failed", value: results.failed, color: "bg-destructive/10 text-destructive" },
+                { label: "SKU Mismatch", value: results.skuMismatch, color: "bg-amber-500/10 text-amber-700" },
+                { label: "Qty Errors", value: results.qtyMismatch, color: "bg-orange-500/10 text-orange-700" },
+                { label: "Duplicates", value: results.duplicates, color: "bg-blue-500/10 text-blue-700" },
+              ].map((stat) => (
+                <div key={stat.label} className={`text-center p-3 rounded-lg ${stat.color}`}>
+                  <p className="text-2xl font-bold">{stat.value}</p>
+                  <p className="text-xs text-muted-foreground">{stat.label}</p>
+                </div>
+              ))}
             </div>
-            {errors.length > 0 && (
-              <div className="max-h-[200px] overflow-y-auto border rounded-lg p-3 space-y-1">
-                {errors.map((e, i) => (
-                  <p key={i} className="text-xs text-destructive flex items-start gap-1">
-                    <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" /> {e}
-                  </p>
-                ))}
+
+            {allErrors.length > 0 && (
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handleDownloadErrors}>
+                  <Download className="w-4 h-4 mr-1" /> Download Error Report CSV
+                </Button>
+                <span className="text-xs text-muted-foreground">{allErrors.length} error(s) logged</span>
               </div>
             )}
+
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => navigate("/orders/legacy-batches")}>View Batches</Button>
               <Button onClick={() => navigate("/orders")}>Go to Orders</Button>
