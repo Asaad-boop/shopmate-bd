@@ -8,13 +8,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Building2, FileText, ShoppingBag, Shield, Truck, MessageSquare,
+  Building2, FileText, ShoppingBag, Shield, Truck, MessageSquare, Megaphone,
   CheckCircle2, XCircle, Loader2, Eye, EyeOff,
 } from "lucide-react";
 import PathaoSettingsSection from "@/components/settings/PathaoSettingsSection";
 import SmsSettingsSection from "@/components/settings/SmsSettingsSection";
 import CompanyProfileSection from "@/components/settings/CompanyProfileSection";
 import InvoiceSettingsSection from "@/components/settings/InvoiceSettingsSection";
+import MetaAdsSettingsSection from "@/components/settings/MetaAdsSettingsSection";
 import { cn } from "@/lib/utils";
 
 const SECTIONS = [
@@ -24,6 +25,7 @@ const SECTIONS = [
   { id: "bdcourier", label: "BD Courier (QC)", icon: Shield, description: "Customer quality check" },
   { id: "pathao", label: "Pathao Courier", icon: Truck, description: "Delivery booking" },
   { id: "sms", label: "Bulk SMS BD", icon: MessageSquare, description: "SMS notifications & marketing" },
+  { id: "metaads", label: "Meta Ads", icon: Megaphone, description: "Facebook & Instagram ads" },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]["id"];
@@ -190,6 +192,7 @@ export default function SettingsPage() {
     bdcourier: bdStatus,
     pathao: pathaoStatus,
     sms: "unknown",
+    metaads: "unknown",
   };
 
   return (
@@ -347,6 +350,17 @@ export default function SettingsPage() {
                 badge={null}
               >
                 <SmsSettingsSection />
+              </SettingsCard>
+            )}
+            {activeSection === "metaads" && (
+              <SettingsCard
+                icon={Megaphone}
+                iconBg="bg-blue-50 text-blue-600"
+                title="Meta Ads Integration"
+                description="Connect Facebook & Instagram ad accounts to track spend and calculate product-level P&L."
+                badge={null}
+              >
+                <MetaAdsSettingsSection />
               </SettingsCard>
             )}
           </div>
