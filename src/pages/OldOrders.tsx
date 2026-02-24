@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLegacyOrders, useLegacyStats, useLegacyBatchList } from "@/hooks/use-legacy-orders";
 import { useLegacyCourierSync } from "@/hooks/use-legacy-courier-sync";
 import { LegacyOrderDrawer } from "@/components/legacy-orders/LegacyOrderDrawer";
+import { calculateNetPayable } from "@/lib/courier-calc";
 import { cn } from "@/lib/utils";
 import { formatBDT, formatDate } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,12 +16,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Search, Download, MoreHorizontal, Eye, Truck, RefreshCw,
   Receipt, CheckCircle, Package, RotateCcw, ShieldAlert, Archive,
-  FileText, Filter, ChevronDown, Loader2, XCircle
+  FileText, Filter, ChevronDown, Loader2, XCircle, AlertTriangle, Info
 } from "lucide-react";
 
 /* ─── Status badge configs ─── */
@@ -411,7 +413,45 @@ export default function OldOrdersPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="font-mono text-[11px] text-muted-foreground">{o.legacy_tracking_id || "—"}</TableCell>
-                        <TableCell className="text-right text-xs">{o.courier_net_payable ? formatBDT(o.courier_net_payable) : "—"}</TableCell>
+                        <TableCell className="text-right text-xs">
+                          {(() => {
+                            const calc = calculateNetPayable({
+                              collectable_amount: o.total_amount,
+                              courier_delivery_fee: o.courier_delivery_fee,
+                              courier_cod_fee: o.courier_cod_fee,
+                              courier_discount: o.courier_discount,
+                              courier_promo_discount: o.courier_promo_discount,
+                              courier_additional_charge: o.courier_additional_charge,
+                              courier_compensation_cost: o.courier_compensation_cost,
+                              is_return: o.courier_final_status === "RETURNED",
+                            });
+                            if (!o.courier_total_cost && !o.courier_delivery_fee) return "—";
+                            return (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="inline-flex items-center gap-0.5 cursor-help">
+                                      {calc.warning ? (
+                                        <span className="text-amber-600 flex items-center gap-0.5"><AlertTriangle className="w-3 h-3" />N/A</span>
+                                      ) : (
+                                        <>{formatBDT(calc.netPayable)}<Info className="w-2.5 h-2.5 text-muted-foreground" /></>
+                                      )}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="left" className="max-w-xs">
+                                    {calc.warning ? (
+                                      <p className="text-xs text-amber-600">{calc.warning}</p>
+                                    ) : (
+                                      <div className="text-xs space-y-0.5 font-mono">
+                                        {calc.breakdown.map((line, idx) => <p key={idx}>{line}</p>)}
+                                      </div>
+                                    )}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            );
+                          })()}
+                        </TableCell>
                         <TableCell>
                           {o.settlement_posted ? (
                             <Badge className="text-[10px] px-1.5 py-0 bg-emerald-100 text-emerald-800">Posted</Badge>
