@@ -122,7 +122,21 @@ const navItems: NavItem[] = [
       { label: "Reports", path: "/expenses?tab=reports", icon: PieChart },
     ],
   },
-  { label: "Reports", icon: BarChart3, path: "/reports" },
+  {
+    label: "Reports",
+    icon: BarChart3,
+    children: [
+      { label: "Executive Dashboard", path: "/reports?tab=executive", icon: LayoutDashboard },
+      { label: "Profit & Loss", path: "/reports?tab=pnl", icon: FileText },
+      { label: "Balance Snapshot", path: "/reports?tab=balance", icon: Scale },
+      { label: "Cashflow", path: "/reports?tab=cashflow", icon: DollarSign },
+      { label: "SKU Profitability", path: "/reports?tab=sku", icon: Package },
+      { label: "Courier Performance", path: "/reports?tab=courier", icon: Truck },
+      { label: "Inventory Valuation", path: "/reports?tab=inventory", icon: Boxes },
+      { label: "Supplier Payables", path: "/reports?tab=supplier", icon: Users },
+      { label: "Expense Analytics", path: "/reports?tab=expense", icon: PieChart },
+    ],
+  },
   {
     label: "HRM",
     icon: UserCog,
