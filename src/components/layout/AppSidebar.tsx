@@ -63,13 +63,25 @@ const navItems: NavItem[] = [
   },
   { label: "Inventory", icon: Boxes, path: "/inventory" },
   {
+    label: "Purchasing",
+    icon: ClipboardList,
+    children: [
+      { label: "Suppliers", path: "/suppliers", icon: Users },
+      { label: "Purchase Orders", path: "/purchase-orders", icon: List },
+      { label: "Goods Receive (GRN)", path: "/purchasing?tab=grn", icon: Package },
+      { label: "Supplier Payments", path: "/purchasing?tab=payments", icon: Wallet },
+      { label: "Payables & Aging", path: "/purchasing?tab=payables", icon: Clock },
+      { label: "Landed Costs", path: "/purchasing?tab=landed-costs", icon: Ship },
+      { label: "Reports", path: "/purchasing?tab=reports", icon: PieChart },
+    ],
+  },
+  {
     label: "China Import",
     icon: Ship,
     children: [
       { label: "Import Dashboard", path: "/import-dashboard", icon: BarChart3 },
       { label: "Purchase Orders", path: "/purchase-orders", icon: List },
       { label: "Agents", path: "/agents", icon: Handshake },
-      { label: "Suppliers", path: "/suppliers", icon: Users },
     ],
   },
   { label: "Customers", icon: Users, path: "/customers" },

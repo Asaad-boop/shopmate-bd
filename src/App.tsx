@@ -20,6 +20,7 @@ import PurchaseOrderDetailPage from "./pages/PurchaseOrderDetail";
 import SuppliersPage from "./pages/Suppliers";
 import AgentsPage from "./pages/Agents";
 import ImportDashboard from "./pages/ImportDashboard";
+import PurchasingPage from "./pages/Purchasing";
 import CRMPage from "./pages/CRM";
 import FinancePage from "./pages/Finance";
 import HRMPage from "./pages/HRM";
@@ -56,6 +57,7 @@ const App = () => (
             <Route path="/suppliers" element={<SuppliersPage />} />
             <Route path="/agents" element={<AgentsPage />} />
             <Route path="/import-dashboard" element={<ImportDashboard />} />
+            <Route path="/purchasing" element={<PurchasingPage />} />
             <Route path="/crm" element={<CRMPage />} />
             <Route path="/finance" element={<FinancePage />} />
             <Route path="/hrm" element={<HRMPage />} />
