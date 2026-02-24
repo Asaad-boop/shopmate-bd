@@ -6,11 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import { useJournalEntries, useJournalLines, useChartOfAccounts, useCreateJournal, usePostJournal, useReverseJournal } from "@/hooks/use-accounting";
 import { formatBDT } from "@/lib/format";
 import { Plus, Eye, Check, Undo2, Trash2 } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 
 const heading = { fontFamily: "'Playfair Display', serif" };
 const mono = { fontFamily: "'DM Mono', monospace" };
@@ -21,12 +20,17 @@ const STATUS_COLORS: Record<string, string> = {
   reversed: "bg-red-100 text-red-800",
 };
 
+const REF_TYPES = ["all", "manual", "order", "courier", "purchase", "expense", "payroll"];
+
 interface LineInput { account_id: string; debit: number; credit: number; description: string; }
 
 export function JournalEntriesTab() {
   const [page, setPage] = useState(0);
   const [statusFilter, setStatusFilter] = useState("all");
-  const { data: result, isLoading } = useJournalEntries({ status: statusFilter, page, pageSize: 20 });
+  const [refTypeFilter, setRefTypeFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
+  const [dateTo, setDateTo] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"));
+  const { data: result, isLoading } = useJournalEntries({ status: statusFilter, referenceType: refTypeFilter, dateFrom, dateTo, page, pageSize: 20 });
   const [createOpen, setCreateOpen] = useState(false);
   const [viewId, setViewId] = useState<string | null>(null);
   const { data: viewLines } = useJournalLines(viewId);
@@ -35,9 +39,9 @@ export function JournalEntriesTab() {
   const postJournal = usePostJournal();
   const reverseJournal = useReverseJournal();
 
-  // Create form
   const [entryDate, setEntryDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [description, setDescription] = useState("");
+  const [refType, setRefType] = useState("manual");
   const [lines, setLines] = useState<LineInput[]>([
     { account_id: "", debit: 0, credit: 0, description: "" },
     { account_id: "", debit: 0, credit: 0, description: "" },
@@ -55,10 +59,16 @@ export function JournalEntriesTab() {
   const addLine = () => setLines([...lines, { account_id: "", debit: 0, credit: 0, description: "" }]);
   const removeLine = (idx: number) => { if (lines.length > 2) setLines(lines.filter((_, i) => i !== idx)); };
 
+  const resetForm = () => {
+    setLines([{ account_id: "", debit: 0, credit: 0, description: "" }, { account_id: "", debit: 0, credit: 0, description: "" }]);
+    setDescription("");
+    setRefType("manual");
+  };
+
   const handleCreate = (post: boolean) => {
     createJournal.mutate(
-      { entry_date: entryDate, description, lines: lines.filter(l => l.account_id), post },
-      { onSuccess: () => { setCreateOpen(false); setLines([{ account_id: "", debit: 0, credit: 0, description: "" }, { account_id: "", debit: 0, credit: 0, description: "" }]); setDescription(""); } }
+      { entry_date: entryDate, description, reference_type: refType, lines: lines.filter(l => l.account_id), post },
+      { onSuccess: () => { setCreateOpen(false); resetForm(); } }
     );
   };
 
@@ -67,22 +77,38 @@ export function JournalEntriesTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="text-lg font-bold" style={heading}>Journal Entries</h3>
-        <div className="flex gap-2">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="posted">Posted</SelectItem>
-              <SelectItem value="reversed">Reversed</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button size="sm" onClick={() => setCreateOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-            <Plus className="w-4 h-4 mr-1" /> New Entry
-          </Button>
+        <Button size="sm" onClick={() => setCreateOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+          <Plus className="w-4 h-4 mr-1" /> New Entry
+        </Button>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-2 items-end">
+        <div>
+          <Label className="text-xs">From</Label>
+          <Input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(0); }} className="w-[140px] h-8 text-xs" />
         </div>
+        <div>
+          <Label className="text-xs">To</Label>
+          <Input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(0); }} className="w-[140px] h-8 text-xs" />
+        </div>
+        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }}>
+          <SelectTrigger className="w-[120px] h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="draft">Draft</SelectItem>
+            <SelectItem value="posted">Posted</SelectItem>
+            <SelectItem value="reversed">Reversed</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={refTypeFilter} onValueChange={(v) => { setRefTypeFilter(v); setPage(0); }}>
+          <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {REF_TYPES.map(t => <SelectItem key={t} value={t} className="capitalize">{t === "all" ? "All Types" : t}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
       <Card className="border-border">
@@ -92,6 +118,7 @@ export function JournalEntriesTab() {
               <tr className="border-b border-border bg-muted/50">
                 <th className="text-left p-3 font-semibold">#</th>
                 <th className="text-left p-3 font-semibold">Date</th>
+                <th className="text-left p-3 font-semibold">Ref Type</th>
                 <th className="text-left p-3 font-semibold">Description</th>
                 <th className="text-left p-3 font-semibold">Status</th>
                 <th className="text-left p-3 font-semibold">Auto</th>
@@ -103,6 +130,7 @@ export function JournalEntriesTab() {
                 <tr key={je.id} className="border-b border-border hover:bg-muted/30">
                   <td className="p-3 font-mono text-xs" style={mono}>JE-{je.entry_number}</td>
                   <td className="p-3">{je.entry_date}</td>
+                  <td className="p-3 text-xs uppercase text-muted-foreground">{je.reference_type || "—"}</td>
                   <td className="p-3 max-w-[300px] truncate">{je.description}</td>
                   <td className="p-3"><Badge variant="secondary" className={STATUS_COLORS[je.status] || ""}>{je.status}</Badge></td>
                   <td className="p-3">{je.is_auto ? "⚙️" : ""}</td>
@@ -120,7 +148,7 @@ export function JournalEntriesTab() {
                 </tr>
               ))}
               {entries.length === 0 && (
-                <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No journal entries</td></tr>
+                <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No journal entries</td></tr>
               )}
             </tbody>
           </table>
@@ -172,9 +200,22 @@ export function JournalEntriesTab() {
         <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle style={heading}>New Journal Entry</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div><Label>Date</Label><Input type="date" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} /></div>
-              <div><Label>Description</Label><Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Memo / description" /></div>
+              <div><Label>Reference Type</Label>
+                <Select value={refType} onValueChange={setRefType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="manual">Manual</SelectItem>
+                    <SelectItem value="order">Order</SelectItem>
+                    <SelectItem value="courier">Courier</SelectItem>
+                    <SelectItem value="purchase">Purchase</SelectItem>
+                    <SelectItem value="expense">Expense</SelectItem>
+                    <SelectItem value="payroll">Payroll</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>Description</Label><Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Memo" /></div>
             </div>
 
             <div className="space-y-2">
@@ -184,7 +225,7 @@ export function JournalEntriesTab() {
                   <Select value={line.account_id} onValueChange={(v) => updateLine(idx, "account_id", v)}>
                     <SelectTrigger className="text-xs h-9"><SelectValue placeholder="Select account" /></SelectTrigger>
                     <SelectContent>
-                      {(accounts || []).filter(a => !a.parent_id || a.parent_id).map(a =>
+                      {(accounts || []).filter(a => a.is_active).map(a =>
                         <SelectItem key={a.id} value={a.id} className="text-xs">{a.code} — {a.name}</SelectItem>
                       )}
                     </SelectContent>
