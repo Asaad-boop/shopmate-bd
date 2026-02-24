@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { formatBDT } from "@/lib/format";
+import { formatBDT2 } from "@/lib/format";
 import { Edit2, Save, AlertTriangle, Info } from "lucide-react";
 
 function NetPayableCell({ shipment }: { shipment: any }) {
@@ -38,7 +38,7 @@ function NetPayableCell({ shipment }: { shipment: any }) {
               </>
             ) : (
               <>
-                {formatBDT(result.netPayable)}
+                {formatBDT2(result.netPayable)}
                 <Info className="w-3 h-3 text-muted-foreground" />
               </>
             )}
@@ -163,11 +163,11 @@ export function CourierChargesTab() {
                       <TableCell className="text-xs font-mono">{s.order_id?.slice(0, 8)}</TableCell>
                       <TableCell className="text-xs font-mono">{s.tracking_id || "-"}</TableCell>
                       <TableCell className="text-xs">{s.couriers?.name}</TableCell>
-                      <TableCell className="text-xs">{formatBDT(s.customer_total_amount)}</TableCell>
-                      <TableCell className="text-xs">{formatBDT(s.courier_delivery_fee)}</TableCell>
-                      <TableCell className="text-xs">{formatBDT(s.courier_cod_fee)}</TableCell>
-                      <TableCell className="text-xs">{formatBDT(s.courier_discount)}</TableCell>
-                      <TableCell className="text-xs font-semibold">{formatBDT(s.courier_total_cost)}</TableCell>
+                      <TableCell className="text-xs">{formatBDT2(s.customer_total_amount)}</TableCell>
+                      <TableCell className="text-xs">{formatBDT2(s.courier_delivery_fee)}</TableCell>
+                      <TableCell className="text-xs">{formatBDT2(s.courier_cod_fee)}</TableCell>
+                      <TableCell className="text-xs">{formatBDT2(s.courier_discount)}</TableCell>
+                      <TableCell className="text-xs font-semibold">{formatBDT2(s.courier_total_cost)}</TableCell>
                       <TableCell><NetPayableCell shipment={s} /></TableCell>
                       <TableCell>
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(s)}>
@@ -192,7 +192,7 @@ export function CourierChargesTab() {
           <div className="space-y-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Customer Total</span>
-              <Badge variant="outline">{formatBDT(editing?.customer_total_amount)}</Badge>
+              <Badge variant="outline">{formatBDT2(editing?.customer_total_amount)}</Badge>
             </div>
             {editCalc?.warning && (
               <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded-md p-2 border border-amber-200">
@@ -227,8 +227,8 @@ export function CourierChargesTab() {
               </div>
             </div>
             <div className="flex justify-between text-sm pt-2 border-t">
-              <span>Total Cost: <strong>{editCalc ? formatBDT(editCalc.totalCost) : "—"}</strong></span>
-              <span>Net Payable: <strong className="text-primary">{editCalc ? formatBDT(editCalc.netPayable) : "—"}</strong></span>
+               <span>Total Cost: <strong>{editCalc ? formatBDT2(editCalc.totalCost) : "—"}</strong></span>
+               <span>Net Payable: <strong className="text-primary">{editCalc ? formatBDT2(editCalc.netPayable) : "—"}</strong></span>
             </div>
           </div>
           <DialogFooter>

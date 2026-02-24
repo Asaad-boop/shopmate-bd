@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { formatBDT, formatDate } from "@/lib/format";
+import { formatBDT, formatBDT2, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useLegacyCourierSync } from "@/hooks/use-legacy-courier-sync";
 import { calculateNetPayable } from "@/lib/courier-calc";
@@ -214,19 +214,19 @@ export function LegacyOrderDrawer({ open, onOpenChange, orderId }: LegacyOrderDr
                       {calcResult.warning}
                     </div>
                   )}
-                  <InfoRow label="Delivery Fee" value={formatBDT(o.courier_delivery_fee)} />
-                  <InfoRow label="COD Fee" value={formatBDT(o.courier_cod_fee)} />
-                  <InfoRow label="Discount" value={formatBDT(o.courier_discount)} />
-                  <InfoRow label="Promo Discount" value={formatBDT(o.courier_promo_discount)} />
-                  <InfoRow label="Additional Charge" value={formatBDT(o.courier_additional_charge)} />
-                  <InfoRow label="Compensation Cost" value={formatBDT(o.courier_compensation_cost)} />
-                  <InfoRow label="Total Cost" value={formatBDT(calcResult.totalCost)} />
+                  <InfoRow label="Delivery Fee" value={formatBDT2(o.courier_delivery_fee)} />
+                  <InfoRow label="COD Fee" value={formatBDT2(o.courier_cod_fee)} />
+                  <InfoRow label="Discount" value={formatBDT2(o.courier_discount)} />
+                  <InfoRow label="Promo Discount" value={formatBDT2(o.courier_promo_discount)} />
+                  <InfoRow label="Additional Charge" value={formatBDT2(o.courier_additional_charge)} />
+                  <InfoRow label="Compensation Cost" value={formatBDT2(o.courier_compensation_cost)} />
+                  <InfoRow label="Total Cost" value={formatBDT2(calcResult.totalCost)} />
                   <InfoRow label="Net Payable" value={
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="inline-flex items-center gap-1 cursor-help text-primary font-semibold">
-                            {formatBDT(calcResult.netPayable)}
+                            {formatBDT2(calcResult.netPayable)}
                             <Info className="w-3 h-3 text-muted-foreground" />
                           </span>
                         </TooltipTrigger>
@@ -240,7 +240,7 @@ export function LegacyOrderDrawer({ open, onOpenChange, orderId }: LegacyOrderDr
                       </Tooltip>
                     </TooltipProvider>
                   } />
-                  <InfoRow label="Return Cost" value={formatBDT(o.courier_return_cost)} />
+                  <InfoRow label="Return Cost" value={formatBDT2(o.courier_return_cost)} />
                   {!o.courier_total_cost && (
                     <p className="text-[10px] text-amber-600 mt-2 flex items-center gap-1">
                       <Clock className="w-3 h-3" /> Awaiting courier sync or statement import
