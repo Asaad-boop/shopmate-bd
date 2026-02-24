@@ -8,6 +8,10 @@ import { AccountsTab } from "@/components/finance/AccountsTab";
 import { PayableTab } from "@/components/finance/PayableTab";
 import { ReceivableTab } from "@/components/finance/ReceivableTab";
 import { AddTransactionModal } from "@/components/finance/AddTransactionModal";
+import { ChartOfAccountsTab } from "@/components/accounting/ChartOfAccountsTab";
+import { JournalEntriesTab } from "@/components/accounting/JournalEntriesTab";
+import { TrialBalanceTab } from "@/components/accounting/TrialBalanceTab";
+import { GeneralLedgerTab } from "@/components/accounting/GeneralLedgerTab";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Plus, FileText, BarChart3 } from "lucide-react";
@@ -23,6 +27,10 @@ const TABS = [
   { id: "accounts", label: "🏦 Accounts" },
   { id: "payable", label: "💸 Payable" },
   { id: "receivable", label: "💰 Receivable" },
+  { id: "coa", label: "📒 Chart of Accounts" },
+  { id: "journals", label: "📓 Journal Entries" },
+  { id: "trial_balance", label: "⚖️ Trial Balance" },
+  { id: "general_ledger", label: "📖 General Ledger" },
 ];
 
 const PERIOD_OPTIONS = [
@@ -85,7 +93,7 @@ export default function FinancePage() {
         </div>
 
         {/* TABS */}
-        <div className="flex items-center gap-0 px-6 border-t border-white/10">
+        <div className="flex items-center gap-0 px-6 border-t border-white/10 overflow-x-auto scrollbar-none">
           {TABS.map((tab) => (
             <button
               key={tab.id}
@@ -115,6 +123,10 @@ export default function FinancePage() {
         {activeTab === "accounts" && <AccountsTab />}
         {activeTab === "payable" && <PayableTab />}
         {activeTab === "receivable" && <ReceivableTab />}
+        {activeTab === "coa" && <ChartOfAccountsTab />}
+        {activeTab === "journals" && <JournalEntriesTab />}
+        {activeTab === "trial_balance" && <TrialBalanceTab />}
+        {activeTab === "general_ledger" && <GeneralLedgerTab />}
       </div>
 
       {/* Add Transaction Modal */}
