@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -9,10 +10,12 @@ import { formatBDT, formatBDT2, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useLegacyCourierSync } from "@/hooks/use-legacy-courier-sync";
 import { calculateNetPayable } from "@/lib/courier-calc";
+import { AdvancePaymentPanel } from "./AdvancePaymentPanel";
+import { ExchangeModal } from "./ExchangeModal";
 import {
   Package, User, MapPin, Truck, Receipt, ShieldAlert,
   RefreshCw, FileText, Clock, CheckCircle, XCircle, Loader2,
-  AlertTriangle, Info
+  AlertTriangle, Info, ArrowRightLeft
 } from "lucide-react";
 
 interface LegacyOrderDrawerProps {
@@ -37,6 +40,7 @@ const ERP_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   cancelled: { label: "Cancelled", color: "bg-red-100 text-red-800" },
   shipped: { label: "Shipped", color: "bg-blue-100 text-blue-800" },
   in_transit: { label: "In Transit", color: "bg-indigo-100 text-indigo-800" },
+  exchanged: { label: "Exchanged", color: "bg-violet-100 text-violet-800" },
 };
 
 function SectionTitle({ icon: Icon, title }: { icon: any; title: string }) {
@@ -59,6 +63,7 @@ function InfoRow({ label, value, mono }: { label: string; value: any; mono?: boo
 
 export function LegacyOrderDrawer({ open, onOpenChange, orderId }: LegacyOrderDrawerProps) {
   const { syncSingleOrder, syncing } = useLegacyCourierSync();
+  const [exchangeOpen, setExchangeOpen] = useState(false);
 
   const { data: order, isLoading } = useQuery({
     queryKey: ["legacy-order-detail", orderId],
@@ -82,6 +87,10 @@ export function LegacyOrderDrawer({ open, onOpenChange, orderId }: LegacyOrderDr
   const erpStatus = o?.status || "pending";
   const erpCfg = ERP_STATUS_CONFIG[erpStatus] || { label: erpStatus, color: "bg-muted text-muted-foreground" };
 
+  // Advance computed values
+  const advanceAmount = parseFloat(o?.advance_amount) || 0;
+  const remainingCollectable = Math.max(0, (o?.total_amount || 0) - advanceAmount);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-[520px] overflow-y-auto">
@@ -90,7 +99,6 @@ export function LegacyOrderDrawer({ open, onOpenChange, orderId }: LegacyOrderDr
             <span className="font-mono text-base">#{o?.order_number || o?.legacy_order_id}</span>
             <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-300 bg-amber-50 text-amber-700">LEGACY</Badge>
           </SheetTitle>
-          {/* Triple status row */}
           <div className="flex gap-2 flex-wrap mt-1">
             <div className="text-center">
               <p className="text-[9px] text-muted-foreground mb-0.5">Legacy</p>
@@ -141,7 +149,21 @@ export function LegacyOrderDrawer({ open, onOpenChange, orderId }: LegacyOrderDr
 
             {/* Items */}
             <div>
-              <SectionTitle icon={Package} title="Order Items" />
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Package className="w-4 h-4 text-primary" />
+                  <h3 className="text-sm font-semibold">Order Items</h3>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs gap-1"
+                  onClick={() => setExchangeOpen(true)}
+                >
+                  <ArrowRightLeft className="w-3 h-3" />
+                  {o.exchange_applied ? "Edit Exchange" : "Exchange"}
+                </Button>
+              </div>
               <div className="space-y-2">
                 {items.map((item: any, idx: number) => {
                   const prod = item.products;
@@ -160,7 +182,18 @@ export function LegacyOrderDrawer({ open, onOpenChange, orderId }: LegacyOrderDr
                 })}
                 {items.length === 0 && <p className="text-xs text-muted-foreground">No items found</p>}
               </div>
+              {o.exchange_applied && (
+                <div className="mt-2 flex items-center gap-1.5 text-xs text-violet-700 bg-violet-50 rounded-md p-2 border border-violet-200">
+                  <ArrowRightLeft className="w-3.5 h-3.5" />
+                  Exchange applied: {o.exchange_reason}
+                </div>
+              )}
             </div>
+
+            <Separator />
+
+            {/* Advance Payment */}
+            <AdvancePaymentPanel order={o} />
 
             <Separator />
 
@@ -193,7 +226,7 @@ export function LegacyOrderDrawer({ open, onOpenChange, orderId }: LegacyOrderDr
 
             <Separator />
 
-            {/* Charges (read-only auto-fill) */}
+            {/* Charges */}
             {(() => {
               const calcResult = calculateNetPayable({
                 collectable_amount: o.total_amount,
@@ -262,12 +295,21 @@ export function LegacyOrderDrawer({ open, onOpenChange, orderId }: LegacyOrderDr
                   : <span className="flex items-center gap-1 text-muted-foreground"><XCircle className="w-3.5 h-3.5" /> Pending</span>
               } />
               <InfoRow label="Customer Total" value={formatBDT(o.total_amount)} />
+              {advanceAmount > 0 && (
+                <>
+                  <InfoRow label="Advance Paid" value={
+                    <span className="text-emerald-600">− {formatBDT2(advanceAmount)} ({o.advance_method})</span>
+                  } />
+                  <InfoRow label="Remaining Collectable" value={
+                    <span className="font-bold text-primary">{formatBDT2(remainingCollectable)}</span>
+                  } />
+                </>
+              )}
             </div>
 
             {/* Financial Summary */}
             {(() => {
-              const isLegacy = o.order_source === "LEGACY";
-              const collectableAmount = isLegacy ? o.total_amount : o.subtotal;
+              const collectableAmount = o.total_amount;
               const summaryCalc = calculateNetPayable({
                 collectable_amount: collectableAmount,
                 courier_delivery_fee: o.courier_delivery_fee,
@@ -287,19 +329,19 @@ export function LegacyOrderDrawer({ open, onOpenChange, orderId }: LegacyOrderDr
                     </div>
                   )}
                   <div className="grid grid-cols-2 gap-3">
-                    {!isLegacy && (
+                    <div>
+                      <p className="text-[10px] text-muted-foreground">Customer Total</p>
+                      <p className="text-sm font-bold text-primary">{formatBDT(o.total_amount)}</p>
+                    </div>
+                    {advanceAmount > 0 && (
                       <div>
-                        <p className="text-[10px] text-muted-foreground">Subtotal</p>
-                        <p className="text-sm font-bold">{formatBDT(o.subtotal)}</p>
+                        <p className="text-[10px] text-muted-foreground">Advance ({o.advance_method})</p>
+                        <p className="text-sm font-bold text-emerald-600">− {formatBDT2(advanceAmount)}</p>
                       </div>
                     )}
                     <div>
                       <p className="text-[10px] text-muted-foreground">Shipping</p>
                       <p className="text-sm font-bold">{formatBDT(o.delivery_charge)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-muted-foreground">Customer Total</p>
-                      <p className="text-sm font-bold text-primary">{formatBDT(o.total_amount)}</p>
                     </div>
                     <div>
                       <p className="text-[10px] text-muted-foreground">Net Payable</p>
@@ -317,7 +359,7 @@ export function LegacyOrderDrawer({ open, onOpenChange, orderId }: LegacyOrderDr
                           </TooltipTrigger>
                           <TooltipContent side="top" className="max-w-xs">
                             <div className="text-xs space-y-0.5 font-mono">
-                              <p className="font-semibold mb-1">{isLegacy ? "Legacy: uses Customer Total" : "Uses Subtotal"}</p>
+                              <p className="font-semibold mb-1">Legacy: uses Customer Total</p>
                               {summaryCalc.breakdown.map((line, i) => (
                                 <p key={i}>{line}</p>
                               ))}
@@ -340,6 +382,9 @@ export function LegacyOrderDrawer({ open, onOpenChange, orderId }: LegacyOrderDr
           </div>
         )}
       </SheetContent>
+
+      {/* Exchange Modal */}
+      {o && <ExchangeModal open={exchangeOpen} onOpenChange={setExchangeOpen} order={o} />}
     </Sheet>
   );
 }

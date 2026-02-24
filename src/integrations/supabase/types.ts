@@ -3834,6 +3834,9 @@ export type Database = {
         Row: {
           address_parse_log: Json | null
           advance_amount: number | null
+          advance_journal_id: string | null
+          advance_method: string | null
+          advance_posted: boolean | null
           assigned_to: string | null
           cancelled_at: string | null
           cancelled_reason: string | null
@@ -3864,6 +3867,9 @@ export type Database = {
           delivery_district: string | null
           delivery_thana: string | null
           discount: number | null
+          exchange_applied: boolean | null
+          exchange_applied_at: string | null
+          exchange_reason: string | null
           gross_profit: number | null
           id: string
           inventory_mode: string | null
@@ -3878,6 +3884,7 @@ export type Database = {
           legacy_order_id: string | null
           legacy_returned_date: string | null
           legacy_status: string | null
+          legacy_stock_synced: boolean | null
           legacy_tracking_id: string | null
           needs_address_review: boolean
           notes: string | null
@@ -3908,6 +3915,9 @@ export type Database = {
         Insert: {
           address_parse_log?: Json | null
           advance_amount?: number | null
+          advance_journal_id?: string | null
+          advance_method?: string | null
+          advance_posted?: boolean | null
           assigned_to?: string | null
           cancelled_at?: string | null
           cancelled_reason?: string | null
@@ -3938,6 +3948,9 @@ export type Database = {
           delivery_district?: string | null
           delivery_thana?: string | null
           discount?: number | null
+          exchange_applied?: boolean | null
+          exchange_applied_at?: string | null
+          exchange_reason?: string | null
           gross_profit?: number | null
           id?: string
           inventory_mode?: string | null
@@ -3952,6 +3965,7 @@ export type Database = {
           legacy_order_id?: string | null
           legacy_returned_date?: string | null
           legacy_status?: string | null
+          legacy_stock_synced?: boolean | null
           legacy_tracking_id?: string | null
           needs_address_review?: boolean
           notes?: string | null
@@ -3982,6 +3996,9 @@ export type Database = {
         Update: {
           address_parse_log?: Json | null
           advance_amount?: number | null
+          advance_journal_id?: string | null
+          advance_method?: string | null
+          advance_posted?: boolean | null
           assigned_to?: string | null
           cancelled_at?: string | null
           cancelled_reason?: string | null
@@ -4012,6 +4029,9 @@ export type Database = {
           delivery_district?: string | null
           delivery_thana?: string | null
           discount?: number | null
+          exchange_applied?: boolean | null
+          exchange_applied_at?: string | null
+          exchange_reason?: string | null
           gross_profit?: number | null
           id?: string
           inventory_mode?: string | null
@@ -4026,6 +4046,7 @@ export type Database = {
           legacy_order_id?: string | null
           legacy_returned_date?: string | null
           legacy_status?: string | null
+          legacy_stock_synced?: boolean | null
           legacy_tracking_id?: string | null
           needs_address_review?: boolean
           notes?: string | null
@@ -4054,6 +4075,13 @@ export type Database = {
           web_order_status?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_advance_journal_id_fkey"
+            columns: ["advance_journal_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_assigned_to_fkey"
             columns: ["assigned_to"]

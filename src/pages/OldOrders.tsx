@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useLegacyOrders, useLegacyStats, useLegacyBatchList } from "@/hooks/use-legacy-orders";
 import { useLegacyCourierSync } from "@/hooks/use-legacy-courier-sync";
+import { useBulkPostAdvance } from "@/hooks/use-advance-posting";
 import { LegacyOrderDrawer } from "@/components/legacy-orders/LegacyOrderDrawer";
 import { calculateNetPayable } from "@/lib/courier-calc";
 import { cn } from "@/lib/utils";
@@ -22,7 +23,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Search, Download, MoreHorizontal, Eye, Truck, RefreshCw,
   Receipt, CheckCircle, Package, RotateCcw, ShieldAlert, Archive,
-  FileText, Filter, ChevronDown, Loader2, XCircle, AlertTriangle, Info
+  FileText, Filter, ChevronDown, Loader2, XCircle, AlertTriangle, Info,
+  Wallet, ArrowRightLeft
 } from "lucide-react";
 
 /* ─── Status badge configs ─── */
@@ -43,6 +45,7 @@ const ERP_STATUS_COLOR: Record<string, string> = {
   shipped: "bg-blue-100 text-blue-800",
   in_transit: "bg-indigo-100 text-indigo-800",
   packed: "bg-blue-100 text-blue-800",
+  exchanged: "bg-violet-100 text-violet-800",
 };
 
 const COURIER_FINAL_COLOR: Record<string, string> = {
@@ -71,17 +74,16 @@ export default function OldOrdersPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
-  const [bulkSyncing, setBulkSyncing] = useState(false);
   const { syncOrders, syncing: courierSyncing, progress: syncProgress } = useLegacyCourierSync();
   const { data: orders, isLoading } = useLegacyOrders(filters);
   const { data: stats, isLoading: statsLoading } = useLegacyStats();
   const { data: batches } = useLegacyBatchList();
+  const bulkPostAdvance = useBulkPostAdvance();
 
   const setFilter = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
-  // Selection
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -100,19 +102,22 @@ export default function OldOrdersPage() {
     setDrawerOpen(true);
   };
 
-  // Bulk export
   const handleExportCsv = () => {
     if (!orders) return;
     const rows = orders.filter((o: any) => selectedIds.size === 0 || selectedIds.has(o.id));
-    const headers = ["Invoice", "Date", "Customer", "Phone", "Total", "Legacy Status", "ERP Status", "Courier Final", "Tracking", "Settlement"];
+    const headers = ["Invoice", "Date", "Customer", "Phone", "Total", "Advance", "Advance Method", "Remaining", "Legacy Status", "ERP Status", "Courier Final", "Tracking", "Settlement"];
     const csvRows = rows.map((o: any) => {
       const c = o.customers as any;
+      const adv = parseFloat(o.advance_amount) || 0;
       return [
         o.order_number || o.legacy_order_id,
         o.order_date?.slice(0, 10),
         c?.full_name,
         c?.phone,
         o.total_amount,
+        adv,
+        o.advance_method || "",
+        Math.max(0, (o.total_amount || 0) - adv),
         o.legacy_status,
         o.status,
         o.courier_final_status || "UNKNOWN",
@@ -131,7 +136,6 @@ export default function OldOrdersPage() {
     toast({ title: `Exported ${csvRows.length} orders` });
   };
 
-  // Bulk sync (placeholder)
   const handleBulkSync = async () => {
     if (!orders) return;
     const toSync = orders
@@ -145,44 +149,34 @@ export default function OldOrdersPage() {
     setSelectedIds(new Set());
   };
 
+  const handleBulkPostAdvance = () => {
+    if (!orders) return;
+    const eligible = orders.filter((o: any) =>
+      selectedIds.has(o.id) &&
+      !o.advance_posted &&
+      parseFloat(o.advance_amount) > 0 &&
+      o.advance_method
+    );
+    if (eligible.length === 0) {
+      toast({ title: "No eligible orders", description: "Selected orders must have advance_amount > 0, advance_method set, and not yet posted.", variant: "destructive" });
+      return;
+    }
+    bulkPostAdvance.mutate(eligible.map((o: any) => ({
+      id: o.id,
+      advance_amount: parseFloat(o.advance_amount),
+      advance_method: o.advance_method,
+    })));
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* KPI Header */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <KpiCard
-          title="Total Legacy Orders"
-          value={stats?.total?.toLocaleString() || "0"}
-          icon={<Archive className="w-5 h-5" />}
-          loading={statsLoading}
-        />
-        <KpiCard
-          title="Delivered"
-          value={stats?.delivered?.toLocaleString() || "0"}
-          icon={<CheckCircle className="w-5 h-5" />}
-          loading={statsLoading}
-          className="border-emerald-200"
-        />
-        <KpiCard
-          title="Returned"
-          value={stats?.returned?.toLocaleString() || "0"}
-          icon={<RotateCcw className="w-5 h-5" />}
-          loading={statsLoading}
-          className="border-red-200"
-        />
-        <KpiCard
-          title="Settlement Pending"
-          value={formatBDT(stats?.settlementPending || 0)}
-          icon={<Receipt className="w-5 h-5" />}
-          loading={statsLoading}
-          className="border-amber-200"
-        />
-        <KpiCard
-          title="Open Exceptions"
-          value={stats?.exceptions?.toLocaleString() || "0"}
-          icon={<ShieldAlert className="w-5 h-5" />}
-          loading={statsLoading}
-          className="border-destructive/30"
-        />
+        <KpiCard title="Total Legacy Orders" value={stats?.total?.toLocaleString() || "0"} icon={<Archive className="w-5 h-5" />} loading={statsLoading} />
+        <KpiCard title="Delivered" value={stats?.delivered?.toLocaleString() || "0"} icon={<CheckCircle className="w-5 h-5" />} loading={statsLoading} className="border-emerald-200" />
+        <KpiCard title="Returned" value={stats?.returned?.toLocaleString() || "0"} icon={<RotateCcw className="w-5 h-5" />} loading={statsLoading} className="border-red-200" />
+        <KpiCard title="Settlement Pending" value={formatBDT(stats?.settlementPending || 0)} icon={<Receipt className="w-5 h-5" />} loading={statsLoading} className="border-amber-200" />
+        <KpiCard title="Open Exceptions" value={stats?.exceptions?.toLocaleString() || "0"} icon={<ShieldAlert className="w-5 h-5" />} loading={statsLoading} className="border-destructive/30" />
       </div>
 
       {/* Toolbar */}
@@ -191,19 +185,12 @@ export default function OldOrdersPage() {
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative flex-1 min-w-[240px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search invoice, phone, tracking, SKU..."
-                className="pl-9 h-9"
-                value={filters.search}
-                onChange={(e) => setFilter("search", e.target.value)}
-              />
+              <Input placeholder="Search invoice, phone, tracking, SKU..." className="pl-9 h-9" value={filters.search} onChange={(e) => setFilter("search", e.target.value)} />
             </div>
-
             <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => setShowFilters(!showFilters)}>
               <Filter className="w-3.5 h-3.5" /> Filters
               <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", showFilters && "rotate-180")} />
             </Button>
-
             <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={handleExportCsv}>
               <Download className="w-3.5 h-3.5" /> Export
             </Button>
@@ -220,6 +207,10 @@ export default function OldOrdersPage() {
                   <DropdownMenuItem onClick={handleBulkSync} disabled={courierSyncing}>
                     <RefreshCw className={cn("w-4 h-4 mr-2", courierSyncing && "animate-spin")} />
                     Sync Courier Status {courierSyncing && syncProgress.total > 0 ? `(${syncProgress.done}/${syncProgress.total})` : ""}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleBulkPostAdvance} disabled={bulkPostAdvance.isPending}>
+                    <Wallet className="w-4 h-4 mr-2" />
+                    Post Advance for Selected
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => toast({ title: "Settlement matching queued" })}>
                     <Receipt className="w-4 h-4 mr-2" /> Mark for Settlement
@@ -321,10 +312,7 @@ export default function OldOrdersPage() {
               <TableHeader>
                 <TableRow className="bg-muted/30">
                   <TableHead className="w-10">
-                    <Checkbox
-                      checked={orders && orders.length > 0 && selectedIds.size === orders.length}
-                      onCheckedChange={toggleAll}
-                    />
+                    <Checkbox checked={orders && orders.length > 0 && selectedIds.size === orders.length} onCheckedChange={toggleAll} />
                   </TableHead>
                   <TableHead className="text-xs">Invoice</TableHead>
                   <TableHead className="text-xs">Date</TableHead>
@@ -332,6 +320,8 @@ export default function OldOrdersPage() {
                   <TableHead className="text-xs">Area</TableHead>
                   <TableHead className="text-xs">Items</TableHead>
                   <TableHead className="text-xs text-right">Total</TableHead>
+                  <TableHead className="text-xs text-right">Advance</TableHead>
+                  <TableHead className="text-xs text-right">Remaining</TableHead>
                   <TableHead className="text-xs">Legacy</TableHead>
                   <TableHead className="text-xs">ERP</TableHead>
                   <TableHead className="text-xs">Courier Final</TableHead>
@@ -345,14 +335,14 @@ export default function OldOrdersPage() {
                 {isLoading ? (
                   Array.from({ length: 8 }).map((_, i) => (
                     <TableRow key={i}>
-                      {Array.from({ length: 14 }).map((_, j) => (
+                      {Array.from({ length: 16 }).map((_, j) => (
                         <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
                       ))}
                     </TableRow>
                   ))
                 ) : !orders || orders.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={14} className="text-center py-12 text-muted-foreground">
+                    <TableCell colSpan={16} className="text-center py-12 text-muted-foreground">
                       <Archive className="w-10 h-10 mx-auto mb-2 opacity-30" />
                       <p className="font-medium">No legacy orders found</p>
                       <p className="text-xs mt-1">Import legacy orders or adjust your filters</p>
@@ -367,6 +357,8 @@ export default function OldOrdersPage() {
                     const legacyStatus = o.legacy_status || "—";
                     const erpStatus = o.status || "pending";
                     const courierFinal = o.courier_final_status || "UNKNOWN";
+                    const advanceAmt = parseFloat(o.advance_amount) || 0;
+                    const remaining = Math.max(0, (o.total_amount || 0) - advanceAmt);
 
                     return (
                       <TableRow
@@ -397,6 +389,39 @@ export default function OldOrdersPage() {
                           {skuPreview && <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[80px]">{skuPreview}</p>}
                         </TableCell>
                         <TableCell className="text-right text-xs font-semibold">{formatBDT(o.total_amount)}</TableCell>
+
+                        {/* Advance column */}
+                        <TableCell className="text-right text-xs">
+                          {advanceAmt > 0 ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex items-center gap-0.5 cursor-help">
+                                    <span className="text-emerald-600 font-medium">{formatBDT2(advanceAmt)}</span>
+                                    {o.advance_posted && <CheckCircle className="w-2.5 h-2.5 text-emerald-500" />}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="left" className="text-xs">
+                                  <p>{o.advance_method || "?"} • {o.advance_posted ? "GL Posted" : "Not posted"}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+
+                        {/* Remaining collectable */}
+                        <TableCell className="text-right text-xs font-medium">
+                          {advanceAmt > 0 ? (
+                            <span className={cn(remaining === 0 ? "text-emerald-600" : "text-primary")}>
+                              {formatBDT2(remaining)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">{formatBDT(o.total_amount)}</span>
+                          )}
+                        </TableCell>
+
                         <TableCell>
                           <Badge className={cn("text-[10px] px-1.5 py-0", LEGACY_STATUS_COLOR[legacyStatus] || "bg-muted text-muted-foreground")}>
                             {legacyStatus}
@@ -473,13 +498,16 @@ export default function OldOrdersPage() {
                               <DropdownMenuItem
                                 disabled={courierSyncing || !o.legacy_tracking_id}
                                 onClick={async () => {
-                                  const { syncSingleOrder: syncOne } = { syncSingleOrder: async (id: string, tid: string) => {
-                                    await syncOrders([{ id, trackingId: tid }]);
-                                  }};
-                                  await syncOne(o.id, o.legacy_tracking_id);
+                                  await syncOrders([{ id: o.id, trackingId: o.legacy_tracking_id }]);
                                 }}
                               >
                                 <RefreshCw className="w-4 h-4 mr-2" /> Sync Courier
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => {
+                                setActiveOrderId(o.id);
+                                setDrawerOpen(true);
+                              }}>
+                                <ArrowRightLeft className="w-4 h-4 mr-2" /> Exchange
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => toast({ title: "Marked for settlement" })}>
                                 <Receipt className="w-4 h-4 mr-2" /> Mark for Settlement
