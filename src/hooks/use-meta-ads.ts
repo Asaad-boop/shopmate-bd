@@ -139,10 +139,15 @@ export function useSyncMetaAds() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke("sync-meta-ads", {
-        body: { date_preset: "yesterday" },
-      });
+    mutationFn: async (params?: { date_from?: string; date_to?: string }) => {
+      const body: any = {};
+      if (params?.date_from && params?.date_to) {
+        body.date_from = params.date_from;
+        body.date_to = params.date_to;
+      } else {
+        body.date_preset = "today";
+      }
+      const { data, error } = await supabase.functions.invoke("sync-meta-ads", { body });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       return data;

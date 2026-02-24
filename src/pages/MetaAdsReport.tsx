@@ -116,14 +116,14 @@ export default function MetaAdsReport() {
   }, [metrics, metricsLoading]);
 
   const handleManualSync = useCallback(() => {
-    syncMutation.mutate(undefined, {
+    syncMutation.mutate({ date_from: dateFrom, date_to: dateTo }, {
       onSuccess: () => {
         refetchCampaigns();
         refetchMetrics();
         setLastUpdated(new Date());
       },
     });
-  }, [syncMutation, refetchCampaigns, refetchMetrics]);
+  }, [syncMutation, refetchCampaigns, refetchMetrics, dateFrom, dateTo]);
 
   // Summary
   const summary = useMemo(() => computeMetricsSummary(metrics || []), [metrics]);
