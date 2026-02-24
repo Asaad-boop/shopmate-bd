@@ -22,6 +22,12 @@ import {
   User,
   Activity,
   Megaphone,
+  Truck,
+  FileCheck,
+  Scale,
+  Receipt,
+  Clock,
+  PieChart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -73,6 +79,18 @@ const navItems: NavItem[] = [
       { label: "Trial Balance", path: "/accounting?tab=trial_balance", icon: BarChart3 },
       { label: "General Ledger", path: "/accounting?tab=general_ledger", icon: FileText },
       { label: "Period Close", path: "/accounting?tab=period_close", icon: ClipboardList },
+    ],
+  },
+  {
+    label: "Courier & COD",
+    icon: Truck,
+    children: [
+      { label: "Couriers", path: "/courier-cod?tab=couriers", icon: Truck },
+      { label: "Courier Charges", path: "/courier-cod?tab=charges", icon: Receipt },
+      { label: "Statements", path: "/courier-cod?tab=statements", icon: FileCheck },
+      { label: "Reconciliation", path: "/courier-cod?tab=reconciliation", icon: Scale },
+      { label: "Settlements & Aging", path: "/courier-cod?tab=settlements", icon: Clock },
+      { label: "Reports", path: "/courier-cod?tab=reports", icon: PieChart },
     ],
   },
   { label: "Reports", icon: BarChart3, path: "/reports" },

@@ -807,6 +807,56 @@ export type Database = {
         }
         Relationships: []
       }
+      courier_cost_events: {
+        Row: {
+          cod_fee: number | null
+          created_at: string
+          created_by: string | null
+          delivery_fee: number | null
+          discount: number | null
+          event_type: string
+          id: string
+          return_cost: number | null
+          shipment_id: string
+          source: string | null
+          total_cost: number | null
+        }
+        Insert: {
+          cod_fee?: number | null
+          created_at?: string
+          created_by?: string | null
+          delivery_fee?: number | null
+          discount?: number | null
+          event_type: string
+          id?: string
+          return_cost?: number | null
+          shipment_id: string
+          source?: string | null
+          total_cost?: number | null
+        }
+        Update: {
+          cod_fee?: number | null
+          created_at?: string
+          created_by?: string | null
+          delivery_fee?: number | null
+          discount?: number | null
+          event_type?: string
+          id?: string
+          return_cost?: number | null
+          shipment_id?: string
+          source?: string | null
+          total_cost?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_cost_events_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "courier_shipments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       courier_history: {
         Row: {
           courier_name: string
@@ -906,6 +956,318 @@ export type Database = {
           service_area?: string
           weight_slab_max?: number | null
           weight_slab_min?: number | null
+        }
+        Relationships: []
+      }
+      courier_settlement_allocations: {
+        Row: {
+          allocated_amount: number
+          created_at: string
+          id: string
+          settlement_id: string
+          shipment_id: string
+        }
+        Insert: {
+          allocated_amount?: number
+          created_at?: string
+          id?: string
+          settlement_id: string
+          shipment_id: string
+        }
+        Update: {
+          allocated_amount?: number
+          created_at?: string
+          id?: string
+          settlement_id?: string
+          shipment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_settlement_allocations_settlement_id_fkey"
+            columns: ["settlement_id"]
+            isOneToOne: false
+            referencedRelation: "courier_settlements_v2"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courier_settlement_allocations_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "courier_shipments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      courier_settlements_v2: {
+        Row: {
+          amount_received: number
+          courier_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          journal_id: string | null
+          notes: string | null
+          received_account: string | null
+          settlement_date: string
+          settlement_ref: string | null
+        }
+        Insert: {
+          amount_received?: number
+          courier_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          journal_id?: string | null
+          notes?: string | null
+          received_account?: string | null
+          settlement_date: string
+          settlement_ref?: string | null
+        }
+        Update: {
+          amount_received?: number
+          courier_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          journal_id?: string | null
+          notes?: string | null
+          received_account?: string | null
+          settlement_date?: string
+          settlement_ref?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_settlements_v2_courier_id_fkey"
+            columns: ["courier_id"]
+            isOneToOne: false
+            referencedRelation: "couriers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courier_settlements_v2_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      courier_shipments: {
+        Row: {
+          booking_status: string
+          courier_cod_fee: number
+          courier_delivery_fee: number
+          courier_discount: number
+          courier_id: string
+          courier_net_payable: number
+          courier_return_cost: number
+          courier_total_cost: number
+          created_at: string
+          customer_shipping_amount: number
+          customer_total_amount: number
+          delivered_amount: number | null
+          delivered_at: string | null
+          id: string
+          in_transit_at: string | null
+          last_cost_updated_at: string | null
+          order_id: string
+          product_amount: number
+          returned_amount: number | null
+          returned_at: string | null
+          tracking_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          booking_status?: string
+          courier_cod_fee?: number
+          courier_delivery_fee?: number
+          courier_discount?: number
+          courier_id: string
+          courier_net_payable?: number
+          courier_return_cost?: number
+          courier_total_cost?: number
+          created_at?: string
+          customer_shipping_amount?: number
+          customer_total_amount?: number
+          delivered_amount?: number | null
+          delivered_at?: string | null
+          id?: string
+          in_transit_at?: string | null
+          last_cost_updated_at?: string | null
+          order_id: string
+          product_amount?: number
+          returned_amount?: number | null
+          returned_at?: string | null
+          tracking_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          booking_status?: string
+          courier_cod_fee?: number
+          courier_delivery_fee?: number
+          courier_discount?: number
+          courier_id?: string
+          courier_net_payable?: number
+          courier_return_cost?: number
+          courier_total_cost?: number
+          created_at?: string
+          customer_shipping_amount?: number
+          customer_total_amount?: number
+          delivered_amount?: number | null
+          delivered_at?: string | null
+          id?: string
+          in_transit_at?: string | null
+          last_cost_updated_at?: string | null
+          order_id?: string
+          product_amount?: number
+          returned_amount?: number | null
+          returned_at?: string | null
+          tracking_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_shipments_courier_id_fkey"
+            columns: ["courier_id"]
+            isOneToOne: false
+            referencedRelation: "couriers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      courier_statement_lines: {
+        Row: {
+          cod_fee: number | null
+          created_at: string
+          customer_total_amount: number | null
+          delivery_fee: number | null
+          delivery_status: string | null
+          discount: number | null
+          id: string
+          match_status: string
+          mismatch_reason: string | null
+          net_payable: number | null
+          order_id: string | null
+          payout_amount: number | null
+          raw_json: Json | null
+          return_cost: number | null
+          statement_id: string
+          total_cost: number | null
+          tracking_id: string | null
+        }
+        Insert: {
+          cod_fee?: number | null
+          created_at?: string
+          customer_total_amount?: number | null
+          delivery_fee?: number | null
+          delivery_status?: string | null
+          discount?: number | null
+          id?: string
+          match_status?: string
+          mismatch_reason?: string | null
+          net_payable?: number | null
+          order_id?: string | null
+          payout_amount?: number | null
+          raw_json?: Json | null
+          return_cost?: number | null
+          statement_id: string
+          total_cost?: number | null
+          tracking_id?: string | null
+        }
+        Update: {
+          cod_fee?: number | null
+          created_at?: string
+          customer_total_amount?: number | null
+          delivery_fee?: number | null
+          delivery_status?: string | null
+          discount?: number | null
+          id?: string
+          match_status?: string
+          mismatch_reason?: string | null
+          net_payable?: number | null
+          order_id?: string | null
+          payout_amount?: number | null
+          raw_json?: Json | null
+          return_cost?: number | null
+          statement_id?: string
+          total_cost?: number | null
+          tracking_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_statement_lines_statement_id_fkey"
+            columns: ["statement_id"]
+            isOneToOne: false
+            referencedRelation: "courier_statements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      courier_statements: {
+        Row: {
+          courier_id: string
+          currency: string
+          id: string
+          imported_at: string
+          imported_by: string | null
+          statement_date_from: string
+          statement_date_to: string
+          statement_ref: string | null
+          status: string
+        }
+        Insert: {
+          courier_id: string
+          currency?: string
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          statement_date_from: string
+          statement_date_to: string
+          statement_ref?: string | null
+          status?: string
+        }
+        Update: {
+          courier_id?: string
+          currency?: string
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          statement_date_from?: string
+          statement_date_to?: string
+          statement_ref?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_statements_courier_id_fkey"
+            columns: ["courier_id"]
+            isOneToOne: false
+            referencedRelation: "couriers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      couriers: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -3559,6 +3921,73 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      reconciliation_exceptions: {
+        Row: {
+          courier_id: string | null
+          created_at: string
+          id: string
+          message: string
+          resolve_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          shipment_id: string | null
+          statement_line_id: string | null
+          status: string
+          type: string
+        }
+        Insert: {
+          courier_id?: string | null
+          created_at?: string
+          id?: string
+          message: string
+          resolve_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          shipment_id?: string | null
+          statement_line_id?: string | null
+          status?: string
+          type: string
+        }
+        Update: {
+          courier_id?: string | null
+          created_at?: string
+          id?: string
+          message?: string
+          resolve_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          shipment_id?: string | null
+          statement_line_id?: string | null
+          status?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reconciliation_exceptions_courier_id_fkey"
+            columns: ["courier_id"]
+            isOneToOne: false
+            referencedRelation: "couriers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reconciliation_exceptions_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "courier_shipments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reconciliation_exceptions_statement_line_id_fkey"
+            columns: ["statement_line_id"]
+            isOneToOne: false
+            referencedRelation: "courier_statement_lines"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       returns: {
         Row: {
