@@ -39,6 +39,7 @@ const FIELD_DEFS = [
   { key: "unit_price", label: "Unit Price" },
   { key: "collectable_amount", label: "Collectable Amount (Customer Total)" },
   { key: "customer_shipping", label: "Delivery Charge (Customer)" },
+  { key: "advance", label: "Advance (Prepaid Amount)" },
   { key: "partial_amount", label: "Partial Amount" },
   { key: "courier_name", label: "Courier Name" },
   { key: "tracking_id", label: "Tracking ID" },
@@ -145,6 +146,7 @@ export default function ImportLegacyOrders() {
         customerShipping: gn("customer_shipping"),
         courierCodFee: 0,        // Always 0 — sourced from courier sync
         courierDeliveryFee: 0,   // Always 0 — sourced from courier sync
+        advance: gn("advance"),
         partialAmount: gn("partial_amount"),
         courierName: g("courier_name"),
         trackingId: g("tracking_id"),
@@ -232,6 +234,7 @@ export default function ImportLegacyOrders() {
             legacy_courier_name: row.courierName || null,
             legacy_tracking_id: row.trackingId || null,
             legacy_courier_status: row.rawStatus || null,
+            advance_amount: row.advance || 0,
             legacy_delivered_date: row.deliveredDate || null,
             legacy_returned_date: row.returnedDate || null,
           } as any)

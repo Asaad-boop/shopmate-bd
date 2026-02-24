@@ -75,6 +75,7 @@ export interface ParsedOrderRow {
   customerShipping: number;
   courierCodFee: number;
   courierDeliveryFee: number;
+  advance: number;
   partialAmount: number;
   courierName: string;
   trackingId: string;
