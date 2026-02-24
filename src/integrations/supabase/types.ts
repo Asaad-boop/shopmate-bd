@@ -543,10 +543,12 @@ export type Database = {
           after_json: Json | null
           before_json: Json | null
           created_at: string
+          device_info: string | null
           entity_id: string
           entity_type: string
           id: string
           ip_address: string | null
+          performed_by: string | null
           reason: string | null
           user_agent: string | null
           user_id: string | null
@@ -557,10 +559,12 @@ export type Database = {
           after_json?: Json | null
           before_json?: Json | null
           created_at?: string
+          device_info?: string | null
           entity_id: string
           entity_type: string
           id?: string
           ip_address?: string | null
+          performed_by?: string | null
           reason?: string | null
           user_agent?: string | null
           user_id?: string | null
@@ -571,10 +575,12 @@ export type Database = {
           after_json?: Json | null
           before_json?: Json | null
           created_at?: string
+          device_info?: string | null
           entity_id?: string
           entity_type?: string
           id?: string
           ip_address?: string | null
+          performed_by?: string | null
           reason?: string | null
           user_agent?: string | null
           user_id?: string | null
@@ -4806,6 +4812,119 @@ export type Database = {
           permissions?: Json | null
         }
         Relationships: []
+      }
+      security_permissions: {
+        Row: {
+          action: string
+          created_at: string
+          description: string | null
+          id: string
+          module: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          module: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          module?: string
+        }
+        Relationships: []
+      }
+      security_role_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          permission_id: string
+          role_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          permission_id: string
+          role_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          permission_id?: string
+          role_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_role_permissions_permission_id_fkey"
+            columns: ["permission_id"]
+            isOneToOne: false
+            referencedRelation: "security_permissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "security_role_permissions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "security_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      security_roles: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      security_user_roles: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          id: string
+          role_id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          role_id: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          role_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_user_roles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "security_roles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       settings: {
         Row: {

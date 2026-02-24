@@ -33,6 +33,7 @@ import {
   Settings2,
   Calculator,
   ShieldAlert,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -152,6 +153,14 @@ const navItems: NavItem[] = [
       { label: "Rules & Checks", path: "/exceptions?tab=rules", icon: Settings2 },
       { label: "Resolution Log", path: "/exceptions?tab=log", icon: FileText },
       { label: "Health Dashboard", path: "/exceptions?tab=health", icon: BarChart3 },
+    ],
+  },
+  {
+    label: "Security",
+    icon: Shield,
+    children: [
+      { label: "Roles & Permissions", path: "/security/roles", icon: UserCog },
+      { label: "Audit Logs", path: "/security/audit-logs", icon: FileText },
     ],
   },
   { label: "Settings", icon: Settings, path: "/settings" },
