@@ -28,6 +28,10 @@ import {
   Receipt,
   Clock,
   PieChart,
+  DollarSign,
+  FolderOpen,
+  Settings2,
+  Calculator,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -91,6 +95,17 @@ const navItems: NavItem[] = [
       { label: "Reconciliation", path: "/courier-cod?tab=reconciliation", icon: Scale },
       { label: "Settlements & Aging", path: "/courier-cod?tab=settlements", icon: Clock },
       { label: "Reports", path: "/courier-cod?tab=reports", icon: PieChart },
+    ],
+  },
+  {
+    label: "Expenses",
+    icon: DollarSign,
+    children: [
+      { label: "Categories", path: "/expenses?tab=categories", icon: FolderOpen },
+      { label: "Expenses", path: "/expenses?tab=expenses", icon: Receipt },
+      { label: "Allocation Rules", path: "/expenses?tab=rules", icon: Settings2 },
+      { label: "Allocations", path: "/expenses?tab=allocations", icon: Calculator },
+      { label: "Reports", path: "/expenses?tab=reports", icon: PieChart },
     ],
   },
   { label: "Reports", icon: BarChart3, path: "/reports" },

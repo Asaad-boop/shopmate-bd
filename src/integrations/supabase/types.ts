@@ -452,6 +452,53 @@ export type Database = {
         }
         Relationships: []
       }
+      allocation_rules: {
+        Row: {
+          allocation_method: string
+          category_id: string
+          config_json: Json | null
+          created_at: string
+          default_target: string
+          id: string
+          is_active: boolean
+          name: string
+          scope: string
+          updated_at: string
+        }
+        Insert: {
+          allocation_method: string
+          category_id: string
+          config_json?: Json | null
+          created_at?: string
+          default_target?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          scope?: string
+          updated_at?: string
+        }
+        Update: {
+          allocation_method?: string
+          category_id?: string
+          config_json?: Json | null
+          created_at?: string
+          default_target?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          scope?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "allocation_rules_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance: {
         Row: {
           check_in: string | null
@@ -1766,6 +1813,126 @@ export type Database = {
         }
         Relationships: []
       }
+      expense_allocation_lines: {
+        Row: {
+          allocated_amount: number
+          allocation_id: string
+          created_at: string
+          id: string
+          target_id: string
+          target_type: string
+          weight_value: number | null
+        }
+        Insert: {
+          allocated_amount?: number
+          allocation_id: string
+          created_at?: string
+          id?: string
+          target_id: string
+          target_type: string
+          weight_value?: number | null
+        }
+        Update: {
+          allocated_amount?: number
+          allocation_id?: string
+          created_at?: string
+          id?: string
+          target_id?: string
+          target_type?: string
+          weight_value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_allocation_lines_allocation_id_fkey"
+            columns: ["allocation_id"]
+            isOneToOne: false
+            referencedRelation: "expense_allocations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expense_allocations: {
+        Row: {
+          allocation_method: string
+          category_id: string | null
+          created_at: string
+          created_by: string | null
+          date_from: string
+          date_to: string
+          id: string
+          run_name: string
+          status: string
+          total_amount: number
+        }
+        Insert: {
+          allocation_method: string
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_from: string
+          date_to: string
+          id?: string
+          run_name: string
+          status?: string
+          total_amount?: number
+        }
+        Update: {
+          allocation_method?: string
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_from?: string
+          date_to?: string
+          id?: string
+          run_name?: string
+          status?: string
+          total_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_allocations_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expense_categories: {
+        Row: {
+          created_at: string
+          default_gl_account_id: string | null
+          id: string
+          is_allocatable: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_gl_account_id?: string | null
+          id?: string
+          is_allocatable?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_gl_account_id?: string | null
+          id?: string
+          is_allocatable?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_categories_default_gl_account_id_fkey"
+            columns: ["default_gl_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expenses: {
         Row: {
           allocation_type: string | null
@@ -1883,6 +2050,85 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_stock_on_hand"
             referencedColumns: ["product_id"]
+          },
+        ]
+      }
+      expenses_v2: {
+        Row: {
+          amount: number
+          attachment_url: string | null
+          category_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          expense_date: string
+          id: string
+          journal_id: string | null
+          paid_from_account_id: string | null
+          payment_method: string
+          reference_id: string | null
+          reference_type: string
+          status: string
+          updated_at: string
+          vendor_name: string | null
+        }
+        Insert: {
+          amount: number
+          attachment_url?: string | null
+          category_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          expense_date?: string
+          id?: string
+          journal_id?: string | null
+          paid_from_account_id?: string | null
+          payment_method?: string
+          reference_id?: string | null
+          reference_type?: string
+          status?: string
+          updated_at?: string
+          vendor_name?: string | null
+        }
+        Update: {
+          amount?: number
+          attachment_url?: string | null
+          category_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          expense_date?: string
+          id?: string
+          journal_id?: string | null
+          paid_from_account_id?: string | null
+          payment_method?: string
+          reference_id?: string | null
+          reference_type?: string
+          status?: string
+          updated_at?: string
+          vendor_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_v2_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_v2_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_v2_paid_from_account_id_fkey"
+            columns: ["paid_from_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3446,6 +3692,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      product_cost_buckets: {
+        Row: {
+          ads_cost: number
+          external_marketing_cost: number
+          id: string
+          influencer_cost: number
+          overhead_cost: number
+          packaging_cost: number
+          period_key: string
+          sku: string
+          updated_at: string
+        }
+        Insert: {
+          ads_cost?: number
+          external_marketing_cost?: number
+          id?: string
+          influencer_cost?: number
+          overhead_cost?: number
+          packaging_cost?: number
+          period_key: string
+          sku: string
+          updated_at?: string
+        }
+        Update: {
+          ads_cost?: number
+          external_marketing_cost?: number
+          id?: string
+          influencer_cost?: number
+          overhead_cost?: number
+          packaging_cost?: number
+          period_key?: string
+          sku?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       product_costs: {
         Row: {
