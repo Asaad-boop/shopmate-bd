@@ -1,6 +1,14 @@
-export function formatBDT(amount: number | null | undefined): string {
-  if (amount == null) return '৳0';
-  return `৳${amount.toLocaleString('en-BD', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+export function formatBDT(amount: number | null | undefined, decimals: boolean = false): string {
+  if (amount == null) return decimals ? '৳0.00' : '৳0';
+  if (decimals) {
+    return `৳${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  return `৳${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
+/** Format BDT with 2 decimal places — use for courier charges */
+export function formatBDT2(amount: number | null | undefined): string {
+  return formatBDT(amount, true);
 }
 
 export function formatNumber(num: number | null | undefined): string {

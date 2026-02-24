@@ -7,7 +7,7 @@ import { useLegacyCourierSync } from "@/hooks/use-legacy-courier-sync";
 import { LegacyOrderDrawer } from "@/components/legacy-orders/LegacyOrderDrawer";
 import { calculateNetPayable } from "@/lib/courier-calc";
 import { cn } from "@/lib/utils";
-import { formatBDT, formatDate } from "@/lib/format";
+import { formatBDT, formatBDT2, formatDate } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -434,7 +434,7 @@ export default function OldOrdersPage() {
                                       {calc.warning ? (
                                         <span className="text-amber-600 flex items-center gap-0.5"><AlertTriangle className="w-3 h-3" />N/A</span>
                                       ) : (
-                                        <>{formatBDT(calc.netPayable)}<Info className="w-2.5 h-2.5 text-muted-foreground" /></>
+                                        <>{formatBDT2(calc.netPayable)}<Info className="w-2.5 h-2.5 text-muted-foreground" /></>
                                       )}
                                     </span>
                                   </TooltipTrigger>
