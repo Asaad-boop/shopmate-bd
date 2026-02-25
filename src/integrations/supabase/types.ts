@@ -4345,6 +4345,7 @@ export type Database = {
       posting_events: {
         Row: {
           amount: number
+          blocked_reason: string | null
           created_at: string
           created_by: string | null
           credit_account_id: string | null
@@ -4369,6 +4370,7 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          blocked_reason?: string | null
           created_at?: string
           created_by?: string | null
           credit_account_id?: string | null
@@ -4393,6 +4395,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          blocked_reason?: string | null
           created_at?: string
           created_by?: string | null
           credit_account_id?: string | null
@@ -6462,16 +6465,29 @@ export type Database = {
         }
         Returns: Json
       }
-      list_posting_events: {
-        Args: {
-          p_event_type?: string
-          p_limit?: number
-          p_offset?: number
-          p_search?: string
-          p_status?: string
-        }
-        Returns: Json
-      }
+      list_posting_events:
+        | {
+            Args: {
+              p_event_type?: string
+              p_limit?: number
+              p_offset?: number
+              p_search?: string
+              p_status?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_date_from?: string
+              p_date_to?: string
+              p_event_type?: string
+              p_limit?: number
+              p_offset?: number
+              p_search?: string
+              p_status?: string
+            }
+            Returns: Json
+          }
       post_cod_received: {
         Args: {
           p_amount: number
@@ -6534,6 +6550,7 @@ export type Database = {
         Returns: string
       }
       posting_queue_counts: { Args: never; Returns: Json }
+      preview_event_journal: { Args: { p_event_id: string }; Returns: Json }
       profit_loss_report: {
         Args: { p_date_from?: string; p_date_to?: string }
         Returns: Json
