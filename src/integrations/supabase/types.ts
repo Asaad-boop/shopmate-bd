@@ -6488,6 +6488,10 @@ export type Database = {
             }
             Returns: Json
           }
+      pnl_account_drilldown: {
+        Args: { p_account_code: string; p_date_from: string; p_date_to: string }
+        Returns: Json
+      }
       post_cod_received: {
         Args: {
           p_amount: number
