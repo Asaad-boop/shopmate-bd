@@ -3852,11 +3852,14 @@ export type Database = {
           courier_delivery_fee: number | null
           courier_discount: number | null
           courier_final_status: string | null
+          courier_last_sync_at: string | null
+          courier_last_sync_error: string | null
           courier_mode: string | null
           courier_net_payable: number | null
           courier_promo_discount: number | null
           courier_return_cost: number | null
           courier_status: string | null
+          courier_sync_status: string
           courier_total_cost: number | null
           created_at: string | null
           created_by: string | null
@@ -3902,7 +3905,9 @@ export type Database = {
           posting_mode: string | null
           return_condition: string | null
           settlement_batch_id: string | null
+          settlement_journal_id: string | null
           settlement_posted: boolean | null
+          settlement_posted_at: string | null
           shopify_order_id: string | null
           shopify_order_number: string | null
           status: string | null
@@ -3933,11 +3938,14 @@ export type Database = {
           courier_delivery_fee?: number | null
           courier_discount?: number | null
           courier_final_status?: string | null
+          courier_last_sync_at?: string | null
+          courier_last_sync_error?: string | null
           courier_mode?: string | null
           courier_net_payable?: number | null
           courier_promo_discount?: number | null
           courier_return_cost?: number | null
           courier_status?: string | null
+          courier_sync_status?: string
           courier_total_cost?: number | null
           created_at?: string | null
           created_by?: string | null
@@ -3983,7 +3991,9 @@ export type Database = {
           posting_mode?: string | null
           return_condition?: string | null
           settlement_batch_id?: string | null
+          settlement_journal_id?: string | null
           settlement_posted?: boolean | null
+          settlement_posted_at?: string | null
           shopify_order_id?: string | null
           shopify_order_number?: string | null
           status?: string | null
@@ -4014,11 +4024,14 @@ export type Database = {
           courier_delivery_fee?: number | null
           courier_discount?: number | null
           courier_final_status?: string | null
+          courier_last_sync_at?: string | null
+          courier_last_sync_error?: string | null
           courier_mode?: string | null
           courier_net_payable?: number | null
           courier_promo_discount?: number | null
           courier_return_cost?: number | null
           courier_status?: string | null
+          courier_sync_status?: string
           courier_total_cost?: number | null
           created_at?: string | null
           created_by?: string | null
@@ -4064,7 +4077,9 @@ export type Database = {
           posting_mode?: string | null
           return_condition?: string | null
           settlement_batch_id?: string | null
+          settlement_journal_id?: string | null
           settlement_posted?: boolean | null
+          settlement_posted_at?: string | null
           shopify_order_id?: string | null
           shopify_order_number?: string | null
           status?: string | null
@@ -4101,6 +4116,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_settlement_journal_id_fkey"
+            columns: ["settlement_journal_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
             referencedColumns: ["id"]
           },
         ]

@@ -1,60 +1,43 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useLegacyOrders, useLegacyStats, useLegacyBatchList, MAX_BULK_LIMIT } from "@/hooks/use-legacy-orders";
 import { useLegacyCourierSync } from "@/hooks/use-legacy-courier-sync";
 import { useBulkPostAdvance } from "@/hooks/use-advance-posting";
+import { useBulkPostSettlement } from "@/hooks/use-settlement-posting";
 import { LegacyOrderDrawer } from "@/components/legacy-orders/LegacyOrderDrawer";
+import { LegacyOrdersGrid } from "@/components/legacy-orders/LegacyOrdersGrid";
 import { calculateNetPayable } from "@/lib/courier-calc";
 import { cn } from "@/lib/utils";
-import { formatBDT, formatBDT2, formatDate } from "@/lib/format";
+import { formatBDT, formatDate } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { KpiCard } from "@/components/ui/kpi-card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
-  Search, Download, MoreHorizontal, Eye, Truck, RefreshCw,
-  Receipt, CheckCircle, Package, RotateCcw, ShieldAlert, Archive,
-  FileText, Filter, ChevronDown, Loader2, XCircle, AlertTriangle, Info,
-  Wallet, ArrowRightLeft
+  Search, Download, RefreshCw,
+  Receipt, CheckCircle, RotateCcw, ShieldAlert, Archive,
+  Filter, ChevronDown, Loader2, XCircle, AlertTriangle,
+  Wallet, Zap, CircleDot, Ban
 } from "lucide-react";
 
-/* ─── Status badge configs ─── */
-const LEGACY_STATUS_COLOR: Record<string, string> = {
-  Delivered: "bg-emerald-100 text-emerald-800",
-  Return: "bg-red-100 text-red-800",
-  "Partial Delivery": "bg-amber-100 text-amber-800",
-  Pending: "bg-yellow-100 text-yellow-800",
-  Cancelled: "bg-red-100 text-red-800",
-};
+/* ─── Quick filter presets ─── */
+type QuickFilter = "all" | "not_synced" | "sync_failed" | "delivered_not_settled" | "settlement_pending" | "advance_not_posted" | "returned_exchange";
 
-const ERP_STATUS_COLOR: Record<string, string> = {
-  pending: "bg-yellow-100 text-yellow-800",
-  delivered: "bg-emerald-100 text-emerald-800",
-  returned: "bg-red-100 text-red-800",
-  partially_delivered: "bg-amber-100 text-amber-800",
-  cancelled: "bg-red-100 text-red-800",
-  shipped: "bg-blue-100 text-blue-800",
-  in_transit: "bg-indigo-100 text-indigo-800",
-  packed: "bg-blue-100 text-blue-800",
-  exchanged: "bg-violet-100 text-violet-800",
-};
-
-const COURIER_FINAL_COLOR: Record<string, string> = {
-  UNKNOWN: "bg-muted text-muted-foreground",
-  IN_TRANSIT: "bg-blue-100 text-blue-800",
-  DELIVERED: "bg-emerald-100 text-emerald-800",
-  PARTIAL_DELIVERED: "bg-amber-100 text-amber-800",
-  RETURNED: "bg-red-100 text-red-800",
-};
+const QUICK_FILTERS: Array<{ key: QuickFilter; label: string; icon: any; color: string }> = [
+  { key: "all", label: "All", icon: Archive, color: "" },
+  { key: "not_synced", label: "Not Synced", icon: CircleDot, color: "text-muted-foreground" },
+  { key: "sync_failed", label: "Sync Failed", icon: XCircle, color: "text-destructive" },
+  { key: "delivered_not_settled", label: "Delivered, Not Settled", icon: Receipt, color: "text-amber-600" },
+  { key: "settlement_pending", label: "Settlement Pending", icon: AlertTriangle, color: "text-amber-500" },
+  { key: "advance_not_posted", label: "Advance Not Posted", icon: Wallet, color: "text-blue-600" },
+  { key: "returned_exchange", label: "Returned/Exchange", icon: RotateCcw, color: "text-red-600" },
+];
 
 export default function OldOrdersPage() {
   const { toast } = useToast();
@@ -70,55 +53,66 @@ export default function OldOrdersPage() {
     courierFinalStatus: "all",
     settlementStatus: "all",
   });
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [selectAllResults, setSelectAllResults] = useState(false);
-  const [batchProcessing, setBatchProcessing] = useState(false);
-  const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0 });
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const [settlementConfirmOpen, setSettlementConfirmOpen] = useState(false);
+  const [batchProcessing, setBatchProcessing] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0 });
+
   const { syncOrders, syncing: courierSyncing, progress: syncProgress } = useLegacyCourierSync();
   const { data: orders, isLoading } = useLegacyOrders(filters);
   const { data: stats, isLoading: statsLoading } = useLegacyStats();
   const { data: batches } = useLegacyBatchList();
   const bulkPostAdvance = useBulkPostAdvance();
-
-  const totalResults = orders?.length || 0;
-  const isCapped = selectedIds.size >= MAX_BULK_LIMIT && totalResults > MAX_BULK_LIMIT;
+  const bulkPostSettlement = useBulkPostSettlement();
 
   const setFilter = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
-  const toggleSelect = (id: string) => {
-    setSelectAllResults(false);
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  };
-
-  const toggleAll = () => {
-    if (!orders) return;
-    if (selectedIds.size > 0) {
-      setSelectedIds(new Set());
-      setSelectAllResults(false);
-    } else {
-      // Select up to MAX_BULK_LIMIT
-      const ids = orders.slice(0, MAX_BULK_LIMIT).map((o: any) => o.id);
-      setSelectedIds(new Set(ids));
-      setSelectAllResults(false);
+  /* ─── Apply quick filter on top of data ─── */
+  const filteredOrders = useMemo(() => {
+    if (!orders) return [];
+    let data = orders;
+    switch (quickFilter) {
+      case "not_synced":
+        data = data.filter((o: any) => !o.courier_sync_status || o.courier_sync_status === "NOT_SYNCED");
+        break;
+      case "sync_failed":
+        data = data.filter((o: any) => o.courier_sync_status === "FAILED");
+        break;
+      case "delivered_not_settled":
+        data = data.filter((o: any) =>
+          (o.courier_final_status === "DELIVERED" || o.status === "delivered") && !o.settlement_posted
+        );
+        break;
+      case "settlement_pending":
+        data = data.filter((o: any) => !o.settlement_posted);
+        break;
+      case "advance_not_posted":
+        data = data.filter((o: any) =>
+          parseFloat(o.advance_amount) > 0 && !o.advance_posted
+        );
+        break;
+      case "returned_exchange":
+        data = data.filter((o: any) =>
+          o.status === "returned" || o.status === "exchanged" ||
+          o.courier_final_status === "RETURNED"
+        );
+        break;
     }
+    return data;
+  }, [orders, quickFilter]);
+
+  const openDrawer = (id: string) => {
+    setActiveOrderId(id);
+    setDrawerOpen(true);
   };
 
-  const handleSelectAllResults = () => {
-    if (!orders) return;
-    setSelectAllResults(true);
-    setSelectedIds(new Set(orders.map((o: any) => o.id)));
-  };
-
-  /** Process a bulk operation in batches of 200 */
+  /* ─── Bulk actions ─── */
   const processBatch = useCallback(async (
     items: any[],
     batchFn: (batch: any[]) => Promise<void>,
@@ -132,153 +126,217 @@ export default function OldOrdersPage() {
         await batchFn(batch);
         setBatchProgress({ done: Math.min(i + batchSize, items.length), total: items.length });
       }
-      toast({ title: `Processed ${items.length} orders successfully` });
-    } catch (err: any) {
-      toast({ title: "Batch processing error", description: err.message, variant: "destructive" });
     } finally {
       setBatchProcessing(false);
       setBatchProgress({ done: 0, total: 0 });
     }
-  }, [toast]);
+  }, []);
 
-  const openDrawer = (id: string) => {
-    setActiveOrderId(id);
-    setDrawerOpen(true);
+  const handleBulkSync = async () => {
+    if (!orders) return;
+    const toSync = orders
+      .filter((o: any) => selectedIds.includes(o.id) && o.legacy_tracking_id)
+      .map((o: any) => ({ id: o.id, trackingId: o.legacy_tracking_id }));
+    if (toSync.length === 0) {
+      toast({ title: "No tracking IDs", description: "Selected orders have no tracking IDs to sync", variant: "destructive" });
+      return;
+    }
+    // Update sync status in DB after sync
+    const results = await syncOrders(toSync);
+    // Update courier_sync_status for each
+    for (const r of results) {
+      await supabase.from("orders").update({
+        courier_sync_status: r.success ? "SYNCED" : "FAILED",
+        courier_last_sync_at: new Date().toISOString(),
+        courier_last_sync_error: r.success ? null : r.error,
+      }).eq("id", r.orderId);
+    }
+    queryClient.invalidateQueries({ queryKey: ["legacy-orders"] });
+    setSelectedIds([]);
+  };
+
+  const handleBulkPostAdvance = () => {
+    if (!orders) return;
+    const eligible = orders.filter((o: any) =>
+      selectedIds.includes(o.id) && !o.advance_posted &&
+      parseFloat(o.advance_amount) > 0 && o.advance_method
+    );
+    if (eligible.length === 0) {
+      toast({ title: "No eligible orders", variant: "destructive" });
+      return;
+    }
+    bulkPostAdvance.mutate(eligible.map((o: any) => ({
+      id: o.id,
+      advance_amount: parseFloat(o.advance_amount),
+      advance_method: o.advance_method,
+    })));
+  };
+
+  const handleBulkPostSettlement = () => {
+    if (!orders) return;
+    const eligible = orders.filter((o: any) =>
+      selectedIds.includes(o.id) && !o.settlement_posted &&
+      (o.courier_final_status === "DELIVERED" || o.status === "delivered") &&
+      (o.courier_total_cost > 0 || o.courier_delivery_fee > 0)
+    );
+    if (eligible.length === 0) {
+      toast({ title: "No eligible orders for settlement", variant: "destructive" });
+      return;
+    }
+    // Open confirmation
+    setSettlementConfirmOpen(true);
+  };
+
+  const confirmBulkSettlement = async () => {
+    if (!orders) return;
+    setSettlementConfirmOpen(false);
+    const eligible = orders.filter((o: any) =>
+      selectedIds.includes(o.id) && !o.settlement_posted &&
+      (o.courier_final_status === "DELIVERED" || o.status === "delivered") &&
+      (o.courier_total_cost > 0 || o.courier_delivery_fee > 0)
+    ).map((o: any) => {
+      const calc = calculateNetPayable({
+        collectable_amount: o.total_amount,
+        courier_delivery_fee: o.courier_delivery_fee,
+        courier_cod_fee: o.courier_cod_fee,
+        courier_discount: o.courier_discount,
+        courier_promo_discount: o.courier_promo_discount,
+        courier_additional_charge: o.courier_additional_charge,
+        courier_compensation_cost: o.courier_compensation_cost,
+        is_return: o.courier_final_status === "RETURNED",
+      });
+      return {
+        id: o.id,
+        customerTotal: o.total_amount || 0,
+        courierTotalCost: calc.totalCost,
+        netPayable: calc.netPayable,
+      };
+    });
+
+    if (eligible.length > 200) {
+      await processBatch(eligible, async (batch) => {
+        await bulkPostSettlement.mutateAsync(batch);
+      });
+    } else {
+      await bulkPostSettlement.mutateAsync(eligible);
+    }
+    setSelectedIds([]);
   };
 
   const handleExportCsv = () => {
-    if (!orders) return;
-    const rows = orders.filter((o: any) => selectedIds.size === 0 || selectedIds.has(o.id));
-    const headers = ["Invoice", "Date", "Customer", "Phone", "Total", "Advance", "Advance Method", "Remaining", "Legacy Status", "ERP Status", "Courier Final", "Tracking", "Settlement"];
+    if (!filteredOrders) return;
+    const rows = filteredOrders.filter((o: any) => selectedIds.length === 0 || selectedIds.includes(o.id));
+    const headers = ["Invoice", "Date", "Customer", "Phone", "Total", "Advance", "Method", "Remaining", "Legacy", "ERP", "Courier Final", "Tracking", "Settlement", "Sync Status"];
     const csvRows = rows.map((o: any) => {
       const c = o.customers as any;
       const adv = parseFloat(o.advance_amount) || 0;
       return [
-        o.order_number || o.legacy_order_id,
-        o.order_date?.slice(0, 10),
-        c?.full_name,
-        c?.phone,
-        o.total_amount,
-        adv,
-        o.advance_method || "",
-        Math.max(0, (o.total_amount || 0) - adv),
-        o.legacy_status,
-        o.status,
-        o.courier_final_status || "UNKNOWN",
-        o.legacy_tracking_id,
-        o.settlement_posted ? "Posted" : "Pending",
+        o.order_number || o.legacy_order_id, o.order_date?.slice(0, 10),
+        c?.full_name, c?.phone, o.total_amount, adv, o.advance_method || "",
+        Math.max(0, (o.total_amount || 0) - adv), o.legacy_status, o.status,
+        o.courier_final_status || "UNKNOWN", o.legacy_tracking_id,
+        o.settlement_posted ? "Posted" : "Pending", o.courier_sync_status || "NOT_SYNCED",
       ].map((v) => `"${v || ""}"`).join(",");
     });
     const csv = [headers.join(","), ...csvRows].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url;
-    a.download = `legacy-orders-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    a.href = url; a.download = `legacy-orders-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
     toast({ title: `Exported ${csvRows.length} orders` });
   };
 
-  const handleBulkSync = async () => {
-    if (!orders) return;
-    const toSync = orders
-      .filter((o: any) => selectedIds.has(o.id) && o.legacy_tracking_id)
-      .map((o: any) => ({ id: o.id, trackingId: o.legacy_tracking_id }));
-    if (toSync.length === 0) {
-      toast({ title: "No tracking IDs", description: "Selected orders have no tracking IDs to sync", variant: "destructive" });
-      return;
-    }
-    if (toSync.length > MAX_BULK_LIMIT) {
-      // Process in background batches
-      await processBatch(toSync, async (batch) => {
-        await syncOrders(batch);
-      });
-    } else {
-      await syncOrders(toSync);
-    }
-    setSelectedIds(new Set());
-    setSelectAllResults(false);
-  };
-
-  const handleBulkPostAdvance = () => {
-    if (!orders) return;
-    const eligible = orders.filter((o: any) =>
-      selectedIds.has(o.id) &&
-      !o.advance_posted &&
-      parseFloat(o.advance_amount) > 0 &&
-      o.advance_method
-    );
-    if (eligible.length === 0) {
-      toast({ title: "No eligible orders", description: "Selected orders must have advance_amount > 0, advance_method set, and not yet posted.", variant: "destructive" });
-      return;
-    }
-    if (eligible.length > MAX_BULK_LIMIT) {
-      processBatch(
-        eligible.map((o: any) => ({
-          id: o.id,
-          advance_amount: parseFloat(o.advance_amount),
-          advance_method: o.advance_method,
-        })),
-        async (batch) => {
-          await bulkPostAdvance.mutateAsync(batch);
-        }
-      );
-    } else {
-      bulkPostAdvance.mutate(eligible.map((o: any) => ({
-        id: o.id,
-        advance_amount: parseFloat(o.advance_amount),
-        advance_method: o.advance_method,
-      })));
-    }
-  };
+  const settlementEligibleCount = useMemo(() => {
+    if (!orders) return 0;
+    return orders.filter((o: any) =>
+      selectedIds.includes(o.id) && !o.settlement_posted &&
+      (o.courier_final_status === "DELIVERED" || o.status === "delivered") &&
+      (o.courier_total_cost > 0 || o.courier_delivery_fee > 0)
+    ).length;
+  }, [orders, selectedIds]);
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* KPI Header */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <KpiCard title="Total Legacy Orders" value={stats?.total?.toLocaleString() || "0"} icon={<Archive className="w-5 h-5" />} loading={statsLoading} />
-        <KpiCard title="Delivered" value={stats?.delivered?.toLocaleString() || "0"} icon={<CheckCircle className="w-5 h-5" />} loading={statsLoading} className="border-emerald-200" />
-        <KpiCard title="Returned" value={stats?.returned?.toLocaleString() || "0"} icon={<RotateCcw className="w-5 h-5" />} loading={statsLoading} className="border-red-200" />
-        <KpiCard title="Settlement Pending" value={formatBDT(stats?.settlementPending || 0)} icon={<Receipt className="w-5 h-5" />} loading={statsLoading} className="border-amber-200" />
-        <KpiCard title="Open Exceptions" value={stats?.exceptions?.toLocaleString() || "0"} icon={<ShieldAlert className="w-5 h-5" />} loading={statsLoading} className="border-destructive/30" />
+    <div className="space-y-4 animate-fade-in">
+      {/* KPI Header — clickable filters */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div onClick={() => setQuickFilter("all")} className="cursor-pointer">
+          <KpiCard title="Total Legacy Orders" value={stats?.total?.toLocaleString() || "0"} icon={<Archive className="w-5 h-5" />} loading={statsLoading} className={cn(quickFilter === "all" && "ring-2 ring-primary")} />
+        </div>
+        <div onClick={() => setQuickFilter("delivered_not_settled")} className="cursor-pointer">
+          <KpiCard title="Delivered" value={stats?.delivered?.toLocaleString() || "0"} icon={<CheckCircle className="w-5 h-5" />} loading={statsLoading} className={cn("border-emerald-200", quickFilter === "delivered_not_settled" && "ring-2 ring-primary")} />
+        </div>
+        <div onClick={() => setQuickFilter("returned_exchange")} className="cursor-pointer">
+          <KpiCard title="Returned" value={stats?.returned?.toLocaleString() || "0"} icon={<RotateCcw className="w-5 h-5" />} loading={statsLoading} className={cn("border-red-200", quickFilter === "returned_exchange" && "ring-2 ring-primary")} />
+        </div>
+        <div onClick={() => setQuickFilter("settlement_pending")} className="cursor-pointer">
+          <KpiCard title="Settlement Pending" value={formatBDT(stats?.settlementPending || 0)} icon={<Receipt className="w-5 h-5" />} loading={statsLoading} className={cn("border-amber-200", quickFilter === "settlement_pending" && "ring-2 ring-primary")} />
+        </div>
+        <div onClick={() => { setQuickFilter("sync_failed"); }} className="cursor-pointer">
+          <KpiCard title="Open Exceptions" value={stats?.exceptions?.toLocaleString() || "0"} icon={<ShieldAlert className="w-5 h-5" />} loading={statsLoading} className={cn("border-destructive/30", quickFilter === "sync_failed" && "ring-2 ring-primary")} />
+        </div>
       </div>
 
       {/* Toolbar */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative flex-1 min-w-[240px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Search invoice, phone, tracking, SKU..." className="pl-9 h-9" value={filters.search} onChange={(e) => setFilter("search", e.target.value)} />
+        <CardContent className="p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Quick filter pills */}
+            <div className="flex items-center gap-1 flex-wrap">
+              {QUICK_FILTERS.map((qf) => (
+                <Button
+                  key={qf.key}
+                  variant={quickFilter === qf.key ? "default" : "outline"}
+                  size="sm"
+                  className={cn("h-7 text-[11px] gap-1 px-2.5", quickFilter !== qf.key && qf.color)}
+                  onClick={() => setQuickFilter(qf.key)}
+                >
+                  <qf.icon className="w-3 h-3" />
+                  {qf.label}
+                  {qf.key !== "all" && filteredOrders && quickFilter === qf.key && (
+                    <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">{filteredOrders.length}</Badge>
+                  )}
+                </Button>
+              ))}
             </div>
-            <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => setShowFilters(!showFilters)}>
-              <Filter className="w-3.5 h-3.5" /> Filters
-              <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", showFilters && "rotate-180")} />
+
+            <div className="flex-1" />
+
+            {/* Search */}
+            <div className="relative min-w-[200px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input placeholder="Invoice, phone, tracking..." className="pl-8 h-8 text-xs" value={filters.search} onChange={(e) => setFilter("search", e.target.value)} />
+            </div>
+
+            <Button variant="outline" size="sm" className="gap-1 h-8 text-xs" onClick={() => setShowFilters(!showFilters)}>
+              <Filter className="w-3 h-3" /> Filters
+              <ChevronDown className={cn("w-3 h-3 transition-transform", showFilters && "rotate-180")} />
             </Button>
-            <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={handleExportCsv}>
-              <Download className="w-3.5 h-3.5" /> Export
+            <Button variant="outline" size="sm" className="gap-1 h-8 text-xs" onClick={handleExportCsv}>
+              <Download className="w-3 h-3" /> Export
             </Button>
 
-            {selectedIds.size > 0 && (
+            {selectedIds.length > 0 && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button size="sm" className="gap-1.5 h-9">
-                    Bulk Actions ({selectedIds.size})
-                    <ChevronDown className="w-3.5 h-3.5" />
+                  <Button size="sm" className="gap-1.5 h-8 text-xs">
+                    <Zap className="w-3 h-3" />
+                    Bulk ({selectedIds.length})
+                    <ChevronDown className="w-3 h-3" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuItem onClick={handleBulkSync} disabled={courierSyncing}>
                     <RefreshCw className={cn("w-4 h-4 mr-2", courierSyncing && "animate-spin")} />
-                    Sync Courier Status {courierSyncing && syncProgress.total > 0 ? `(${syncProgress.done}/${syncProgress.total})` : ""}
+                    Sync Courier {courierSyncing && syncProgress.total > 0 ? `(${syncProgress.done}/${syncProgress.total})` : ""}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleBulkPostAdvance} disabled={bulkPostAdvance.isPending}>
                     <Wallet className="w-4 h-4 mr-2" />
                     Post Advance for Selected
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => toast({ title: "Settlement matching queued" })}>
-                    <Receipt className="w-4 h-4 mr-2" /> Mark for Settlement
+                  <DropdownMenuItem onClick={handleBulkPostSettlement} disabled={bulkPostSettlement.isPending}>
+                    <Receipt className="w-4 h-4 mr-2" />
+                    Post Settlement ({settlementEligibleCount})
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleExportCsv}>
@@ -291,19 +349,19 @@ export default function OldOrdersPage() {
 
           {/* Expanded filters */}
           {showFilters && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 pt-3 border-t">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mt-3 pt-3 border-t">
               <div>
                 <label className="text-[10px] text-muted-foreground font-medium">Date From</label>
-                <Input type="date" className="h-8 text-xs" value={filters.dateFrom} onChange={(e) => setFilter("dateFrom", e.target.value)} />
+                <Input type="date" className="h-7 text-xs" value={filters.dateFrom} onChange={(e) => setFilter("dateFrom", e.target.value)} />
               </div>
               <div>
                 <label className="text-[10px] text-muted-foreground font-medium">Date To</label>
-                <Input type="date" className="h-8 text-xs" value={filters.dateTo} onChange={(e) => setFilter("dateTo", e.target.value)} />
+                <Input type="date" className="h-7 text-xs" value={filters.dateTo} onChange={(e) => setFilter("dateTo", e.target.value)} />
               </div>
               <div>
                 <label className="text-[10px] text-muted-foreground font-medium">Import Batch</label>
                 <Select value={filters.batchId || "all"} onValueChange={(v) => setFilter("batchId", v === "all" ? "" : v)}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Batches</SelectItem>
                     {(batches || []).map((b: any) => (
@@ -315,7 +373,7 @@ export default function OldOrdersPage() {
               <div>
                 <label className="text-[10px] text-muted-foreground font-medium">Courier</label>
                 <Select value={filters.courierName} onValueChange={(v) => setFilter("courierName", v)}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Couriers</SelectItem>
                     <SelectItem value="Pathao">Pathao</SelectItem>
@@ -328,7 +386,7 @@ export default function OldOrdersPage() {
               <div>
                 <label className="text-[10px] text-muted-foreground font-medium">Legacy Status</label>
                 <Select value={filters.legacyStatus} onValueChange={(v) => setFilter("legacyStatus", v)}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
                     <SelectItem value="Delivered">Delivered</SelectItem>
@@ -340,9 +398,9 @@ export default function OldOrdersPage() {
                 </Select>
               </div>
               <div>
-                <label className="text-[10px] text-muted-foreground font-medium">Courier Final Status</label>
+                <label className="text-[10px] text-muted-foreground font-medium">Courier Final</label>
                 <Select value={filters.courierFinalStatus} onValueChange={(v) => setFilter("courierFinalStatus", v)}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
                     <SelectItem value="DELIVERED">Delivered</SelectItem>
@@ -356,7 +414,7 @@ export default function OldOrdersPage() {
               <div>
                 <label className="text-[10px] text-muted-foreground font-medium">Settlement</label>
                 <Select value={filters.settlementStatus} onValueChange={(v) => setFilter("settlementStatus", v)}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
                     <SelectItem value="posted">Posted</SelectItem>
@@ -369,285 +427,49 @@ export default function OldOrdersPage() {
         </CardContent>
       </Card>
 
-      {/* Table */}
-      <Card>
+      {/* Selection bar */}
+      {selectedIds.length > 0 && (
+        <div className="px-4 py-2 bg-primary/5 border border-primary/20 rounded-lg flex items-center gap-3 flex-wrap">
+          <span className="text-xs font-medium">
+            <span className="text-primary font-semibold">{selectedIds.length}</span> order{selectedIds.length !== 1 ? "s" : ""} selected
+          </span>
+          {batchProcessing && (
+            <span className="text-xs text-muted-foreground flex items-center gap-1.5 ml-auto">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              Processing {batchProgress.done}/{batchProgress.total}…
+            </span>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-xs text-muted-foreground ml-auto"
+            onClick={() => setSelectedIds([])}
+          >
+            <XCircle className="w-3.5 h-3.5 mr-1" /> Clear
+          </Button>
+        </div>
+      )}
+
+      {/* AG Grid */}
+      <Card className="overflow-hidden">
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/30">
-                  <TableHead className="w-10">
-                    <Checkbox
-                      checked={orders && orders.length > 0 && selectedIds.size > 0}
-                      onCheckedChange={toggleAll}
-                    />
-                  </TableHead>
-                  <TableHead className="text-xs">Invoice</TableHead>
-                  <TableHead className="text-xs">Date</TableHead>
-                  <TableHead className="text-xs">Customer</TableHead>
-                  <TableHead className="text-xs">Area</TableHead>
-                  <TableHead className="text-xs">Items</TableHead>
-                  <TableHead className="text-xs text-right">Total</TableHead>
-                  <TableHead className="text-xs text-right">Advance</TableHead>
-                  <TableHead className="text-xs text-right">Remaining</TableHead>
-                  <TableHead className="text-xs">Legacy</TableHead>
-                  <TableHead className="text-xs">ERP</TableHead>
-                  <TableHead className="text-xs">Courier Final</TableHead>
-                  <TableHead className="text-xs">Tracking</TableHead>
-                  <TableHead className="text-xs text-right">Net Payable</TableHead>
-                  <TableHead className="text-xs">Settlement</TableHead>
-                  <TableHead className="text-xs w-10"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  Array.from({ length: 8 }).map((_, i) => (
-                    <TableRow key={i}>
-                      {Array.from({ length: 16 }).map((_, j) => (
-                        <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : !orders || orders.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={16} className="text-center py-12 text-muted-foreground">
-                      <Archive className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                      <p className="font-medium">No legacy orders found</p>
-                      <p className="text-xs mt-1">Import legacy orders or adjust your filters</p>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  orders.map((o: any) => {
-                    const c = o.customers as any;
-                    const items = (o.order_items || []) as any[];
-                    const itemCount = items.length;
-                    const skuPreview = items.slice(0, 2).map((i: any) => i.products?.sku || "?").join(", ");
-                    const legacyStatus = o.legacy_status || "—";
-                    const erpStatus = o.status || "pending";
-                    const courierFinal = o.courier_final_status || "UNKNOWN";
-                    const advanceAmt = parseFloat(o.advance_amount) || 0;
-                    const remaining = Math.max(0, (o.total_amount || 0) - advanceAmt);
-
-                    return (
-                      <TableRow
-                        key={o.id}
-                        className={cn(
-                          "cursor-pointer hover:bg-muted/30 transition-colors",
-                          selectedIds.has(o.id) && "bg-primary/5"
-                        )}
-                        onClick={() => openDrawer(o.id)}
-                      >
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <Checkbox checked={selectedIds.has(o.id)} onCheckedChange={() => toggleSelect(o.id)} />
-                        </TableCell>
-                        <TableCell className="font-mono text-xs font-medium">{o.order_number || o.legacy_order_id}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{formatDate(o.order_date)}</TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="text-xs font-medium truncate max-w-[120px]">{c?.full_name || "—"}</p>
-                            <p className="text-[10px] text-muted-foreground font-mono">{c?.phone}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-[11px] text-muted-foreground">
-                          {o.delivery_district || c?.district || "—"}
-                          {(o.delivery_thana || c?.thana) && <>, {o.delivery_thana || c?.thana}</>}
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-xs">{itemCount} item{itemCount !== 1 ? "s" : ""}</span>
-                          {skuPreview && <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[80px]">{skuPreview}</p>}
-                        </TableCell>
-                        <TableCell className="text-right text-xs font-semibold">{formatBDT(o.total_amount)}</TableCell>
-
-                        {/* Advance column */}
-                        <TableCell className="text-right text-xs">
-                          {advanceAmt > 0 ? (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="inline-flex items-center gap-0.5 cursor-help">
-                                    <span className="text-emerald-600 font-medium">{formatBDT2(advanceAmt)}</span>
-                                    {o.advance_posted && <CheckCircle className="w-2.5 h-2.5 text-emerald-500" />}
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent side="left" className="text-xs">
-                                  <p>{o.advance_method || "?"} • {o.advance_posted ? "GL Posted" : "Not posted"}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-
-                        {/* Remaining collectable */}
-                        <TableCell className="text-right text-xs font-medium">
-                          {advanceAmt > 0 ? (
-                            <span className={cn(remaining === 0 ? "text-emerald-600" : "text-primary")}>
-                              {formatBDT2(remaining)}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">{formatBDT(o.total_amount)}</span>
-                          )}
-                        </TableCell>
-
-                        <TableCell>
-                          <Badge className={cn("text-[10px] px-1.5 py-0", LEGACY_STATUS_COLOR[legacyStatus] || "bg-muted text-muted-foreground")}>
-                            {legacyStatus}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={cn("text-[10px] px-1.5 py-0", ERP_STATUS_COLOR[erpStatus] || "bg-muted text-muted-foreground")}>
-                            {erpStatus}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={cn("text-[10px] px-1.5 py-0", COURIER_FINAL_COLOR[courierFinal] || "bg-muted text-muted-foreground")}>
-                            {courierFinal}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-mono text-[11px] text-muted-foreground">{o.legacy_tracking_id || "—"}</TableCell>
-                        <TableCell className="text-right text-xs">
-                          {(() => {
-                            const calc = calculateNetPayable({
-                              collectable_amount: o.total_amount,
-                              courier_delivery_fee: o.courier_delivery_fee,
-                              courier_cod_fee: o.courier_cod_fee,
-                              courier_discount: o.courier_discount,
-                              courier_promo_discount: o.courier_promo_discount,
-                              courier_additional_charge: o.courier_additional_charge,
-                              courier_compensation_cost: o.courier_compensation_cost,
-                              is_return: o.courier_final_status === "RETURNED",
-                            });
-                            if (!o.courier_total_cost && !o.courier_delivery_fee) return "—";
-                            return (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <span className="inline-flex items-center gap-0.5 cursor-help">
-                                      {calc.warning ? (
-                                        <span className="text-amber-600 flex items-center gap-0.5"><AlertTriangle className="w-3 h-3" />N/A</span>
-                                      ) : (
-                                        <>{formatBDT2(calc.netPayable)}<Info className="w-2.5 h-2.5 text-muted-foreground" /></>
-                                      )}
-                                    </span>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="left" className="max-w-xs">
-                                    {calc.warning ? (
-                                      <p className="text-xs text-amber-600">{calc.warning}</p>
-                                    ) : (
-                                      <div className="text-xs space-y-0.5 font-mono">
-                                        {calc.breakdown.map((line, idx) => <p key={idx}>{line}</p>)}
-                                      </div>
-                                    )}
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            );
-                          })()}
-                        </TableCell>
-                        <TableCell>
-                          {o.settlement_posted ? (
-                            <Badge className="text-[10px] px-1.5 py-0 bg-emerald-100 text-emerald-800">Posted</Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">Pending</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-7 w-7">
-                                <MoreHorizontal className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                              <DropdownMenuItem onClick={() => openDrawer(o.id)}>
-                                <Eye className="w-4 h-4 mr-2" /> View Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                disabled={courierSyncing || !o.legacy_tracking_id}
-                                onClick={async () => {
-                                  await syncOrders([{ id: o.id, trackingId: o.legacy_tracking_id }]);
-                                }}
-                              >
-                                <RefreshCw className="w-4 h-4 mr-2" /> Sync Courier
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => {
-                                setActiveOrderId(o.id);
-                                setDrawerOpen(true);
-                              }}>
-                                <ArrowRightLeft className="w-4 h-4 mr-2" /> Exchange
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => toast({ title: "Marked for settlement" })}>
-                                <Receipt className="w-4 h-4 mr-2" /> Mark for Settlement
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Selection info bar */}
-          {selectedIds.size > 0 && orders && (
-            <div className="px-4 py-2.5 bg-primary/5 border-t border-primary/20 flex items-center gap-3 flex-wrap">
-              <span className="text-xs font-medium text-foreground">
-                {isCapped && !selectAllResults ? (
-                  <>
-                    <span className="text-primary font-semibold">{MAX_BULK_LIMIT}</span> of{" "}
-                    <span className="font-semibold">{totalResults}</span> selected
-                    <span className="text-muted-foreground ml-1">(system bulk limit = {MAX_BULK_LIMIT})</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-primary font-semibold">{selectedIds.size}</span> order{selectedIds.size !== 1 ? "s" : ""} selected
-                  </>
-                )}
-              </span>
-
-              {totalResults > MAX_BULK_LIMIT && !selectAllResults && (
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="h-auto p-0 text-xs text-primary underline"
-                  onClick={handleSelectAllResults}
-                >
-                  Select All Results ({totalResults})
-                </Button>
-              )}
-
-              {selectAllResults && totalResults > MAX_BULK_LIMIT && (
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                  All {totalResults} selected — bulk operations will process in batches of 200
-                </span>
-              )}
-
-              {batchProcessing && (
-                <span className="text-xs text-muted-foreground flex items-center gap-1.5 ml-auto">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Processing {batchProgress.done}/{batchProgress.total}…
-                </span>
-              )}
-
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 px-2 text-xs text-muted-foreground ml-auto"
-                onClick={() => { setSelectedIds(new Set()); setSelectAllResults(false); }}
-              >
-                <XCircle className="w-3.5 h-3.5 mr-1" /> Clear
-              </Button>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-sm text-muted-foreground">Loading legacy orders…</span>
             </div>
+          ) : (
+            <LegacyOrdersGrid
+              orders={filteredOrders}
+              onRowClicked={openDrawer}
+              onSelectionChanged={setSelectedIds}
+            />
           )}
 
-          {orders && orders.length > 0 && (
-            <div className="p-3 border-t flex items-center justify-between text-xs text-muted-foreground">
-              <span>{orders.length} legacy order{orders.length !== 1 ? "s" : ""}</span>
-              <span>Total: {formatBDT(orders.reduce((s: number, o: any) => s + (o.total_amount || 0), 0))}</span>
+          {filteredOrders.length > 0 && (
+            <div className="p-2.5 border-t flex items-center justify-between text-xs text-muted-foreground">
+              <span>{filteredOrders.length} order{filteredOrders.length !== 1 ? "s" : ""}{quickFilter !== "all" ? ` (filtered)` : ""}</span>
+              <span>Total: {formatBDT(filteredOrders.reduce((s: number, o: any) => s + (o.total_amount || 0), 0))}</span>
             </div>
           )}
         </CardContent>
@@ -655,6 +477,33 @@ export default function OldOrdersPage() {
 
       {/* Drawer */}
       <LegacyOrderDrawer open={drawerOpen} onOpenChange={setDrawerOpen} orderId={activeOrderId} />
+
+      {/* Settlement confirmation modal */}
+      <Dialog open={settlementConfirmOpen} onOpenChange={setSettlementConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Bulk Settlement</DialogTitle>
+            <DialogDescription>
+              You are about to post settlements for <strong>{settlementEligibleCount}</strong> orders.
+              This will create GL journal entries (Dr Bank/Cash, Dr Courier Expense, Cr Courier Receivable) for each order.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium">This action cannot be undone without a reversal.</p>
+              <p className="mt-1">Only Finance/Admin roles should perform this action. Each posting is permanently logged for audit.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSettlementConfirmOpen(false)}>Cancel</Button>
+            <Button onClick={confirmBulkSettlement} disabled={bulkPostSettlement.isPending}>
+              {bulkPostSettlement.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Post {settlementEligibleCount} Settlements
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
