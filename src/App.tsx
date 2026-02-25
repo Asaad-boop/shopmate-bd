@@ -71,6 +71,7 @@ const App = () => (
             <Route path="/orders/old" element={<OldOrdersPage />} />
             <Route path="/orders/super-edit" element={<SuperEdit />} />
             <Route path="/orders/pre-orders" element={<PreOrderList />} />
+            <Route path="/orders/preorders" element={<PreOrderList />} />
             <Route path="/orders/scan" element={<ScanToUpdate />} />
             <Route path="/orders/import-legacy" element={<ImportLegacyOrders />} />
             <Route path="/orders/legacy-batches" element={<LegacyBatches />} />

@@ -3903,6 +3903,7 @@ export type Database = {
           payment_method: string | null
           payment_status: string | null
           posting_mode: string | null
+          preorder_flag: boolean
           return_condition: string | null
           settlement_batch_id: string | null
           settlement_journal_id: string | null
@@ -3989,6 +3990,7 @@ export type Database = {
           payment_method?: string | null
           payment_status?: string | null
           posting_mode?: string | null
+          preorder_flag?: boolean
           return_condition?: string | null
           settlement_batch_id?: string | null
           settlement_journal_id?: string | null
@@ -4075,6 +4077,7 @@ export type Database = {
           payment_method?: string | null
           payment_status?: string | null
           posting_mode?: string | null
+          preorder_flag?: boolean
           return_condition?: string | null
           settlement_batch_id?: string | null
           settlement_journal_id?: string | null
@@ -4338,6 +4341,79 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      preorder_batch_items: {
+        Row: {
+          batch_id: string
+          created_at: string
+          id: string
+          order_id: string
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          id?: string
+          order_id: string
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          id?: string
+          order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "preorder_batch_items_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "preorder_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "preorder_batch_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_summary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "preorder_batch_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      preorder_batches: {
+        Row: {
+          closed_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          scheduled_date: string
+          status: string
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          scheduled_date?: string
+          status?: string
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          scheduled_date?: string
+          status?: string
+        }
+        Relationships: []
       }
       product_cost_buckets: {
         Row: {
