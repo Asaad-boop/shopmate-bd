@@ -47,6 +47,8 @@ const SEGMENT_PILLS = [
   { key: "new", label: "New", emoji: "🆕" },
   { key: "inactive", label: "Inactive", emoji: "😴" },
   { key: "lost", label: "Lost", emoji: "💀" },
+  { key: "blocked", label: "Blocked", emoji: "🚫" },
+  { key: "risky", label: "Risky", emoji: "⚠️" },
 ];
 
 const AVATAR_COLORS = [
@@ -375,26 +377,27 @@ export default function CRMPage() {
                           />
                         </TableHead>
                         <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Customer</TableHead>
-                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Segment</TableHead>
-                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total Spent</TableHead>
-                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Success</TableHead>
-                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Last Order</TableHead>
-                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tags</TableHead>
-                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right">Actions</TableHead>
+                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">District</TableHead>
+                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Orders</TableHead>
+                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Delivered</TableHead>
+                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Returns</TableHead>
+                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Revenue</TableHead>
+                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Risk</TableHead>
+                        <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {customersLoading ? (
                         Array.from({ length: 5 }).map((_, i) => (
                           <TableRow key={i}>
-                            {Array.from({ length: 8 }).map((_, j) => (
+                            {Array.from({ length: 9 }).map((_, j) => (
                               <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>
                             ))}
                           </TableRow>
                         ))
                       ) : pagedCustomers.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-16 text-muted-foreground">
+                          <TableCell colSpan={9} className="text-center py-16 text-muted-foreground">
                             <Users className="w-10 h-10 mx-auto mb-2 opacity-20" />
                             <p className="text-sm">No customers found</p>
                           </TableCell>
@@ -402,10 +405,11 @@ export default function CRMPage() {
                       ) : (
                         pagedCustomers.map((c) => {
                           const initials = c.full_name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+                          const hasRisk = (c.risk_flags || []).length > 0;
                           return (
                             <TableRow
                               key={c.id}
-                              className="cursor-pointer hover:bg-slate-50/80 transition-colors border-b"
+                              className={cn("cursor-pointer hover:bg-slate-50/80 transition-colors border-b", c.is_blocked && "opacity-60 bg-red-50/30")}
                               style={{ borderColor: "#eaecf3" }}
                               onClick={() => setDrawerCustomer(c)}
                             >
@@ -418,47 +422,49 @@ export default function CRMPage() {
                                     {initials}
                                   </div>
                                   <div>
-                                    <p className="text-sm font-medium text-foreground">{c.full_name}</p>
+                                    <div className="flex items-center gap-1.5">
+                                      <p className="text-sm font-medium text-foreground">{c.full_name}</p>
+                                      {c.is_blocked && <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700 font-medium">🚫</span>}
+                                    </div>
                                     <p className="text-[11px] text-muted-foreground">{c.phone}</p>
                                   </div>
                                 </div>
                               </TableCell>
-                              <TableCell>{getSegBadge(c)}</TableCell>
+                              <TableCell>
+                                <span className="text-xs text-muted-foreground">{c.district || "—"}</span>
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-sm font-medium">{c.total_orders}</span>
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-sm font-medium text-emerald-600">{c.delivered_count || 0}</span>
+                              </TableCell>
+                              <TableCell>
+                                <span className={cn("text-sm font-medium", (c.return_count || 0) > 0 ? "text-red-600" : "text-muted-foreground")}>
+                                  {c.return_count || 0}
+                                  {(c.return_rate || 0) > 0 && <span className="text-[10px] ml-0.5">({c.return_rate}%)</span>}
+                                </span>
+                              </TableCell>
                               <TableCell>
                                 <span className="text-sm font-bold text-emerald-600">৳{(c.total_spent || 0).toLocaleString()}</span>
                               </TableCell>
                               <TableCell>
-                                <span className={cn("text-sm font-medium", getSuccessColor(c.success_rate))}>
-                                  {c.success_rate != null ? `${c.success_rate}%` : "—"}
-                                </span>
+                                {hasRisk ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {(c.risk_flags || []).map((f) => (
+                                      <span key={f} className="px-1.5 py-0.5 rounded text-[10px] bg-red-50 text-red-700 border border-red-200 font-medium">
+                                        {f === "high_return" ? "⚠️ High Return" : f === "frequent_cancel" ? "❌ Cancels" : f}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : <span className="text-xs text-muted-foreground">—</span>}
                               </TableCell>
                               <TableCell>
-                                <span className={cn("text-xs", getLastOrderColor(c.last_order_date))}>
-                                  {c.last_order_date ? formatDistanceToNow(new Date(c.last_order_date), { addSuffix: true }) : "Never"}
-                                </span>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex flex-wrap gap-1">
-                                  {((c.tags as string[]) || []).slice(0, 2).map((t) => (
-                                    <span key={t} className="px-1.5 py-0.5 rounded text-[10px] bg-indigo-50 text-indigo-600 font-medium">{t}</span>
-                                  ))}
-                                </div>
-                              </TableCell>
-                              <TableCell onClick={(e) => e.stopPropagation()}>
-                                <div className="flex items-center gap-0.5 justify-end">
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => window.open(`tel:${c.phone}`)}>
-                                    <Phone className="w-3.5 h-3.5" />
-                                  </Button>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600" onClick={() => window.open(`https://wa.me/880${c.phone.replace(/^0/, "")}`, "_blank")}>
-                                    <MessageCircle className="w-3.5 h-3.5" />
-                                  </Button>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-600" onClick={() => {
-                                    setNewFollowup({ ...newFollowup, phone: c.phone });
-                                    setShowAddFollowup(true);
-                                  }}>
-                                    <Clock className="w-3.5 h-3.5" />
-                                  </Button>
-                                </div>
+                                {c.is_blocked ? (
+                                  <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 border-red-200">🚫 Blocked</Badge>
+                                ) : (
+                                  getSegBadge(c)
+                                )}
                               </TableCell>
                             </TableRow>
                           );
