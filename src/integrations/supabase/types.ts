@@ -6384,6 +6384,14 @@ export type Database = {
         Args: { p_date_from: string; p_date_to: string }
         Returns: Json
       }
+      expense_analytics_drilldown: {
+        Args: { p_category: string; p_date_from: string; p_date_to: string }
+        Returns: Json
+      }
+      expense_analytics_report: {
+        Args: { p_date_from: string; p_date_to: string }
+        Returns: Json
+      }
       export_all_orders: {
         Args: {
           p_date_from?: string
