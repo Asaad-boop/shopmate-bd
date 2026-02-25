@@ -3524,6 +3524,8 @@ export type Database = {
         Row: {
           allocated_cost: number | null
           allocation_id: string
+          avg_cost_after: number | null
+          avg_cost_before: number | null
           base_value: number | null
           created_at: string | null
           id: string
@@ -3534,6 +3536,8 @@ export type Database = {
         Insert: {
           allocated_cost?: number | null
           allocation_id: string
+          avg_cost_after?: number | null
+          avg_cost_before?: number | null
           base_value?: number | null
           created_at?: string | null
           id?: string
@@ -3544,6 +3548,8 @@ export type Database = {
         Update: {
           allocated_cost?: number | null
           allocation_id?: string
+          avg_cost_after?: number | null
+          avg_cost_before?: number | null
           base_value?: number | null
           created_at?: string | null
           id?: string
@@ -3584,11 +3590,17 @@ export type Database = {
       }
       landed_cost_allocations: {
         Row: {
+          admin_override_at: string | null
+          admin_override_by: string | null
+          admin_override_reason: string | null
           allocation_method: string
           created_at: string | null
+          finalized_at: string | null
+          finalized_by: string | null
           grn_id: string | null
           id: string
           import_shipment_id: string | null
+          is_finalized: boolean | null
           po_id: string | null
           posted_at: string | null
           posted_by: string | null
@@ -3596,11 +3608,17 @@ export type Database = {
           total_landed_cost: number
         }
         Insert: {
+          admin_override_at?: string | null
+          admin_override_by?: string | null
+          admin_override_reason?: string | null
           allocation_method?: string
           created_at?: string | null
+          finalized_at?: string | null
+          finalized_by?: string | null
           grn_id?: string | null
           id?: string
           import_shipment_id?: string | null
+          is_finalized?: boolean | null
           po_id?: string | null
           posted_at?: string | null
           posted_by?: string | null
@@ -3608,11 +3626,17 @@ export type Database = {
           total_landed_cost?: number
         }
         Update: {
+          admin_override_at?: string | null
+          admin_override_by?: string | null
+          admin_override_reason?: string | null
           allocation_method?: string
           created_at?: string | null
+          finalized_at?: string | null
+          finalized_by?: string | null
           grn_id?: string | null
           id?: string
           import_shipment_id?: string | null
+          is_finalized?: boolean | null
           po_id?: string | null
           posted_at?: string | null
           posted_by?: string | null
