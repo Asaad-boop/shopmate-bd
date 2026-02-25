@@ -211,6 +211,7 @@ export function useCreateSupplierPayment() {
       amount: number;
       reference?: string;
       notes?: string;
+      proof_url?: string | null;
       allocations?: { payable_type: string; payable_id: string; allocated_amount: number }[];
     }) => {
       const yr = new Date().getFullYear();
@@ -229,6 +230,7 @@ export function useCreateSupplierPayment() {
           amount: payload.amount,
           reference: payload.reference || null,
           notes: payload.notes || null,
+          proof_url: payload.proof_url || null,
           status: "draft",
         })
         .select("id")
