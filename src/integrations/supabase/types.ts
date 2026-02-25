@@ -6056,6 +6056,9 @@ export type Database = {
         }
         Returns: Json
       }
+      finance_alerts: { Args: never; Returns: Json }
+      finance_posting_queue_summary: { Args: never; Returns: Json }
+      finance_settlement_summary: { Args: never; Returns: Json }
       find_order_by_scan: { Args: { p_scan_text: string }; Returns: Json }
       generate_invoice_id: { Args: never; Returns: string }
       get_exchange_rate: {
