@@ -5309,6 +5309,194 @@ export type Database = {
         }
         Relationships: []
       }
+      settlement_batch_lines: {
+        Row: {
+          batch_id: string
+          courier_additional: number | null
+          courier_cod_fee: number | null
+          courier_delivery_fee: number | null
+          courier_discount: number | null
+          courier_order_id: string | null
+          courier_total_cost: number | null
+          created_at: string
+          id: string
+          invoice_id: string | null
+          journal_id: string | null
+          match_status: string
+          matched_courier_cost: number | null
+          matched_customer_total: number | null
+          matched_net_payable: number | null
+          mismatch_amount: number | null
+          mismatch_reason: string | null
+          net_payable_statement: number | null
+          order_id: string | null
+          posted: boolean
+          posted_at: string | null
+          posted_by: string | null
+          receiving_account_id: string | null
+          row_index: number
+          statement_amount: number
+          tracking_id: string | null
+        }
+        Insert: {
+          batch_id: string
+          courier_additional?: number | null
+          courier_cod_fee?: number | null
+          courier_delivery_fee?: number | null
+          courier_discount?: number | null
+          courier_order_id?: string | null
+          courier_total_cost?: number | null
+          created_at?: string
+          id?: string
+          invoice_id?: string | null
+          journal_id?: string | null
+          match_status?: string
+          matched_courier_cost?: number | null
+          matched_customer_total?: number | null
+          matched_net_payable?: number | null
+          mismatch_amount?: number | null
+          mismatch_reason?: string | null
+          net_payable_statement?: number | null
+          order_id?: string | null
+          posted?: boolean
+          posted_at?: string | null
+          posted_by?: string | null
+          receiving_account_id?: string | null
+          row_index?: number
+          statement_amount?: number
+          tracking_id?: string | null
+        }
+        Update: {
+          batch_id?: string
+          courier_additional?: number | null
+          courier_cod_fee?: number | null
+          courier_delivery_fee?: number | null
+          courier_discount?: number | null
+          courier_order_id?: string | null
+          courier_total_cost?: number | null
+          created_at?: string
+          id?: string
+          invoice_id?: string | null
+          journal_id?: string | null
+          match_status?: string
+          matched_courier_cost?: number | null
+          matched_customer_total?: number | null
+          matched_net_payable?: number | null
+          mismatch_amount?: number | null
+          mismatch_reason?: string | null
+          net_payable_statement?: number | null
+          order_id?: string | null
+          posted?: boolean
+          posted_at?: string | null
+          posted_by?: string | null
+          receiving_account_id?: string | null
+          row_index?: number
+          statement_amount?: number
+          tracking_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "settlement_batch_lines_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "settlement_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settlement_batch_lines_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settlement_batch_lines_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_summary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settlement_batch_lines_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settlement_batch_lines_receiving_account_id_fkey"
+            columns: ["receiving_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      settlement_batches: {
+        Row: {
+          batch_ref: string | null
+          closed_at: string | null
+          courier_id: string
+          courier_name: string
+          created_at: string
+          created_by: string | null
+          file_name: string | null
+          id: string
+          matched_count: number
+          mismatch_count: number
+          posted_count: number
+          statement_date: string
+          status: string
+          total_amount: number
+          total_rows: number
+          unmatched_count: number
+        }
+        Insert: {
+          batch_ref?: string | null
+          closed_at?: string | null
+          courier_id: string
+          courier_name: string
+          created_at?: string
+          created_by?: string | null
+          file_name?: string | null
+          id?: string
+          matched_count?: number
+          mismatch_count?: number
+          posted_count?: number
+          statement_date?: string
+          status?: string
+          total_amount?: number
+          total_rows?: number
+          unmatched_count?: number
+        }
+        Update: {
+          batch_ref?: string | null
+          closed_at?: string | null
+          courier_id?: string
+          courier_name?: string
+          created_at?: string
+          created_by?: string | null
+          file_name?: string | null
+          id?: string
+          matched_count?: number
+          mismatch_count?: number
+          posted_count?: number
+          statement_date?: string
+          status?: string
+          total_amount?: number
+          total_rows?: number
+          unmatched_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "settlement_batches_courier_id_fkey"
+            columns: ["courier_id"]
+            isOneToOne: false
+            referencedRelation: "couriers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       settlement_exceptions: {
         Row: {
           created_at: string | null
@@ -6294,6 +6482,10 @@ export type Database = {
         Args: { p_amount: number; p_entry_date?: string; p_grn_id: string }
         Returns: string
       }
+      post_settlement_line: {
+        Args: { p_line_id: string; p_receiving_account_id: string }
+        Returns: string
+      }
       post_supplier_payment: {
         Args: {
           p_amount: number
@@ -6320,6 +6512,7 @@ export type Database = {
         Args: { p_entry_id: string; p_reason: string; p_user_id: string }
         Returns: string
       }
+      settlement_auto_match: { Args: { p_batch_id: string }; Returns: Json }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
     }
