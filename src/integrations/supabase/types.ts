@@ -6363,6 +6363,14 @@ export type Database = {
         Args: { p_closed_by?: string; p_period_key: string }
         Returns: undefined
       }
+      courier_performance_drilldown: {
+        Args: { p_courier_id: string; p_date_from: string; p_date_to: string }
+        Returns: Json
+      }
+      courier_performance_report: {
+        Args: { p_date_from: string; p_date_to: string }
+        Returns: Json
+      }
       dashboard_14day_trend: { Args: never; Returns: Json }
       dashboard_alerts: { Args: never; Returns: Json }
       dashboard_cash_position: { Args: never; Returns: Json }

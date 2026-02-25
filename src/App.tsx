@@ -47,6 +47,7 @@ import ReportsPnL from "./pages/ReportsPnL";
 import ReportsCashflow from "./pages/ReportsCashflow";
 import ReportsSKUProfit from "./pages/ReportsSKUProfit";
 import ReportsInventoryValuation from "./pages/ReportsInventoryValuation";
+import ReportsCourierPerformance from "./pages/ReportsCourierPerformance";
 import AccountingPage from "./pages/Accounting";
 import CourierCODPage from "./pages/CourierCOD";
 import ExpensesPage from "./pages/Expenses";
@@ -140,6 +141,7 @@ const App = () => (
             <Route path="/reports/cashflow" element={<ReportsCashflow />} />
             <Route path="/reports/sku-profit" element={<ReportsSKUProfit />} />
             <Route path="/reports/inventory-valuation" element={<ReportsInventoryValuation />} />
+            <Route path="/reports/courier-performance" element={<ReportsCourierPerformance />} />
 
             {/* Access */}
             <Route path="/security/roles" element={<RolesPermissionsPage />} />
