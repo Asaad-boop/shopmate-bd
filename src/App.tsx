@@ -49,6 +49,7 @@ import ReportsSKUProfit from "./pages/ReportsSKUProfit";
 import ReportsInventoryValuation from "./pages/ReportsInventoryValuation";
 import ReportsCourierPerformance from "./pages/ReportsCourierPerformance";
 import ReportsBalance from "./pages/ReportsBalance";
+import ReportsExpenseAnalytics from "./pages/ReportsExpenseAnalytics";
 import AccountingPage from "./pages/Accounting";
 import CourierCODPage from "./pages/CourierCOD";
 import ExpensesPage from "./pages/Expenses";
@@ -144,6 +145,7 @@ const App = () => (
             <Route path="/reports/inventory-valuation" element={<ReportsInventoryValuation />} />
             <Route path="/reports/courier-performance" element={<ReportsCourierPerformance />} />
             <Route path="/reports/balance" element={<ReportsBalance />} />
+            <Route path="/reports/expense-analytics" element={<ReportsExpenseAnalytics />} />
 
             {/* Access */}
             <Route path="/security/roles" element={<RolesPermissionsPage />} />
