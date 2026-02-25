@@ -1408,6 +1408,8 @@ export type Database = {
       customers: {
         Row: {
           address: string | null
+          blocked_at: string | null
+          blocked_reason: string | null
           created_at: string | null
           district: string | null
           email: string | null
@@ -1415,11 +1417,13 @@ export type Database = {
           id: string
           import_batch_id: string | null
           imported_at: string | null
+          is_blocked: boolean
           last_order_date: string | null
           manual_segment: string | null
           notes: string | null
           phone: string
           phone2: string | null
+          risk_flags: string[] | null
           segment: string | null
           source: string | null
           tags: string[] | null
@@ -1429,6 +1433,8 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          blocked_at?: string | null
+          blocked_reason?: string | null
           created_at?: string | null
           district?: string | null
           email?: string | null
@@ -1436,11 +1442,13 @@ export type Database = {
           id?: string
           import_batch_id?: string | null
           imported_at?: string | null
+          is_blocked?: boolean
           last_order_date?: string | null
           manual_segment?: string | null
           notes?: string | null
           phone: string
           phone2?: string | null
+          risk_flags?: string[] | null
           segment?: string | null
           source?: string | null
           tags?: string[] | null
@@ -1450,6 +1458,8 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          blocked_at?: string | null
+          blocked_reason?: string | null
           created_at?: string | null
           district?: string | null
           email?: string | null
@@ -1457,11 +1467,13 @@ export type Database = {
           id?: string
           import_batch_id?: string | null
           imported_at?: string | null
+          is_blocked?: boolean
           last_order_date?: string | null
           manual_segment?: string | null
           notes?: string | null
           phone?: string
           phone2?: string | null
+          risk_flags?: string[] | null
           segment?: string | null
           source?: string | null
           tags?: string[] | null

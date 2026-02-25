@@ -22,6 +22,14 @@ export interface CRMCustomer {
   computed_segment: string;
   is_repeat: boolean;
   success_rate?: number | null;
+  is_blocked?: boolean;
+  blocked_at?: string | null;
+  blocked_reason?: string | null;
+  risk_flags?: string[] | null;
+  delivered_count?: number;
+  return_count?: number;
+  cancel_count?: number;
+  return_rate?: number;
 }
 
 export interface Followup {
@@ -101,14 +109,52 @@ async function fetchAllCustomers(search?: string): Promise<CRMCustomer[]> {
   }
   const qcMap = new Map(allQc.map((q) => [q.phone, q.success_rate]));
 
-  return allRows.map((c: any) => ({
-    ...c,
-    total_orders: c.total_orders || 0,
-    total_spent: c.total_spent || 0,
-    computed_segment: computeSegment(c),
-    is_repeat: (c.total_orders || 0) >= 3,
-    success_rate: qcMap.get(c.phone) ?? null,
-  }));
+  // Fetch order stats per customer (delivered, returned, cancelled counts)
+  let allOrderStats: any[] = [];
+  page = 0;
+  hasMore = true;
+  while (hasMore) {
+    const { data } = await supabase.from("orders")
+      .select("customer_id, status")
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+    allOrderStats = [...allOrderStats, ...(data || [])];
+    hasMore = (data || []).length === PAGE_SIZE;
+    page++;
+  }
+
+  const statsMap = new Map<string, { delivered: number; returned: number; cancelled: number }>();
+  allOrderStats.forEach((o: any) => {
+    if (!o.customer_id) return;
+    if (!statsMap.has(o.customer_id)) statsMap.set(o.customer_id, { delivered: 0, returned: 0, cancelled: 0 });
+    const s = statsMap.get(o.customer_id)!;
+    if (o.status === "delivered" || o.status === "completed") s.delivered++;
+    else if (o.status === "returned") s.returned++;
+    else if (o.status === "cancelled") s.cancelled++;
+  });
+
+  return allRows.map((c: any) => {
+    const os = statsMap.get(c.id) || { delivered: 0, returned: 0, cancelled: 0 };
+    const totalOrders = c.total_orders || 0;
+    const returnRate = totalOrders > 0 ? Math.round((os.returned / totalOrders) * 100) : 0;
+    // Auto risk flags
+    const riskFlags: string[] = [...(c.risk_flags || [])];
+    if (returnRate >= 40 && !riskFlags.includes("high_return")) riskFlags.push("high_return");
+    if (os.cancelled >= 3 && !riskFlags.includes("frequent_cancel")) riskFlags.push("frequent_cancel");
+
+    return {
+      ...c,
+      total_orders: totalOrders,
+      total_spent: c.total_spent || 0,
+      computed_segment: computeSegment(c),
+      is_repeat: totalOrders >= 3,
+      success_rate: qcMap.get(c.phone) ?? null,
+      delivered_count: os.delivered,
+      return_count: os.returned,
+      cancel_count: os.cancelled,
+      return_rate: returnRate,
+      risk_flags: riskFlags.length > 0 ? riskFlags : (c.risk_flags || []),
+    };
+  });
 }
 
 export function useCustomers(search: string, segmentFilter: string) {
@@ -120,6 +166,12 @@ export function useCustomers(search: string, segmentFilter: string) {
       if (segmentFilter && segmentFilter !== "all") {
         if (segmentFilter === "repeat") {
           return customers.filter((c) => c.is_repeat);
+        }
+        if (segmentFilter === "blocked") {
+          return customers.filter((c) => c.is_blocked);
+        }
+        if (segmentFilter === "risky") {
+          return customers.filter((c) => (c.risk_flags || []).length > 0);
         }
         return customers.filter((c) => c.computed_segment === segmentFilter);
       }
@@ -332,5 +384,46 @@ export function useCRMMutations() {
     },
   });
 
-  return { updateTags, updateNotes, updateManualSegment, addFollowup, markFollowupDone, addLead, convertLead, addCustomer };
+  const blockCustomer = useMutation({
+    mutationFn: async ({ id, is_blocked, blocked_reason }: { id: string; is_blocked: boolean; blocked_reason?: string }) => {
+      const update: any = {
+        is_blocked,
+        blocked_at: is_blocked ? new Date().toISOString() : null,
+        blocked_reason: is_blocked ? (blocked_reason || null) : null,
+      };
+      const { error } = await supabase.from("customers").update(update).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["crm-customers"] });
+      toast({ title: vars.is_blocked ? "🚫 Customer blocked" : "✅ Customer unblocked" });
+    },
+  });
+
+  const mergeCustomers = useMutation({
+    mutationFn: async ({ keepId, mergeId }: { keepId: string; mergeId: string }) => {
+      // Move orders from mergeId to keepId
+      await supabase.from("orders").update({ customer_id: keepId } as any).eq("customer_id", mergeId);
+      // Delete the duplicate
+      const { error } = await supabase.from("customers").delete().eq("id", mergeId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["crm-customers"] });
+      qc.invalidateQueries({ queryKey: ["crm-customer-orders"] });
+      toast({ title: "✅ Customers merged!" });
+    },
+  });
+
+  const updateRiskFlags = useMutation({
+    mutationFn: async ({ id, risk_flags }: { id: string; risk_flags: string[] }) => {
+      const { error } = await supabase.from("customers").update({ risk_flags } as any).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["crm-customers"] });
+    },
+  });
+
+  return { updateTags, updateNotes, updateManualSegment, addFollowup, markFollowupDone, addLead, convertLead, addCustomer, blockCustomer, mergeCustomers, updateRiskFlags };
 }
