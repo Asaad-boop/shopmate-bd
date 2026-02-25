@@ -1,9 +1,9 @@
 import { useExceptionStats, useExceptions } from "@/hooks/use-exceptions";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, XCircle, ShieldAlert, CheckCircle } from "lucide-react";
+import { AlertTriangle, XCircle, ShieldAlert, CheckCircle, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 
 const MODULE_LABELS: Record<string, string> = {
   orders: "Orders", inventory: "Inventory", courier: "Courier", accounting: "Accounting",
@@ -13,11 +13,22 @@ const MODULE_LABELS: Record<string, string> = {
 export function HealthDashboardTab() {
   const { data: stats, isLoading } = useExceptionStats();
   const { data: criticalExceptions } = useExceptions({ status: "open", severity: "critical" });
+  const { data: highExceptions } = useExceptions({ status: "open", severity: "high" });
+  const navigate = useNavigate();
+
+  const healthScore = stats ? Math.max(0, 100 - (stats.critical * 20) - (stats.high * 5) - (stats.medium * 1)) : 100;
 
   return (
     <div className="space-y-6 mt-4">
-      {/* KPI Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Health Score */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <KpiCard
+          title="System Health"
+          value={`${healthScore}%`}
+          icon={<TrendingUp className="w-5 h-5" />}
+          className={healthScore < 50 ? "border-destructive/50" : healthScore < 80 ? "border-amber-500/30" : "border-emerald-500/30"}
+          loading={isLoading}
+        />
         <KpiCard
           title="Open Critical"
           value={String(stats?.critical || 0)}
@@ -73,6 +84,25 @@ export function HealthDashboardTab() {
           </CardContent>
         </Card>
 
+        {/* By Exception Type */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">Top Exception Types</CardTitle></CardHeader>
+          <CardContent>
+            {stats?.by_code?.length ? (
+              <div className="space-y-2">
+                {stats.by_code.slice(0, 8).map(([code, count]) => (
+                  <div key={code} className="flex items-center justify-between p-1.5 rounded hover:bg-muted/50">
+                    <span className="text-xs font-mono">{code}</span>
+                    <Badge variant="secondary" className="text-xs">{count}</Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No open exceptions</p>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Critical Exceptions */}
         <Card>
           <CardHeader><CardTitle className="text-base">Critical Issues</CardTitle></CardHeader>
@@ -91,6 +121,28 @@ export function HealthDashboardTab() {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">No critical exceptions ✅</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* High Priority */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">High Priority</CardTitle></CardHeader>
+          <CardContent>
+            {highExceptions?.length ? (
+              <div className="space-y-2">
+                {highExceptions.slice(0, 10).map((exc) => (
+                  <div key={exc.id} className="flex items-start gap-2 p-2 rounded-lg bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800/20">
+                    <AlertTriangle className="w-4 h-4 text-orange-600 mt-0.5 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{exc.title}</p>
+                      <p className="text-xs text-muted-foreground">{MODULE_LABELS[exc.source_module]} · {exc.code}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No high-priority exceptions ✅</p>
             )}
           </CardContent>
         </Card>
