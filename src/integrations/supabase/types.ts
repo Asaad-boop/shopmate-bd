@@ -4342,6 +4342,110 @@ export type Database = {
           },
         ]
       }
+      posting_events: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          credit_account_id: string | null
+          credit_label: string | null
+          debit_account_id: string | null
+          debit_label: string | null
+          event_date: string
+          event_type: string
+          id: string
+          journal_id: string | null
+          metadata: Json | null
+          posted_at: string | null
+          posted_by: string | null
+          reference_id: string
+          reference_label: string | null
+          reference_type: string
+          reversal_journal_id: string | null
+          reversed_at: string | null
+          reversed_by: string | null
+          reversed_reason: string | null
+          status: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          credit_account_id?: string | null
+          credit_label?: string | null
+          debit_account_id?: string | null
+          debit_label?: string | null
+          event_date?: string
+          event_type: string
+          id?: string
+          journal_id?: string | null
+          metadata?: Json | null
+          posted_at?: string | null
+          posted_by?: string | null
+          reference_id: string
+          reference_label?: string | null
+          reference_type: string
+          reversal_journal_id?: string | null
+          reversed_at?: string | null
+          reversed_by?: string | null
+          reversed_reason?: string | null
+          status?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          credit_account_id?: string | null
+          credit_label?: string | null
+          debit_account_id?: string | null
+          debit_label?: string | null
+          event_date?: string
+          event_type?: string
+          id?: string
+          journal_id?: string | null
+          metadata?: Json | null
+          posted_at?: string | null
+          posted_by?: string | null
+          reference_id?: string
+          reference_label?: string | null
+          reference_type?: string
+          reversal_journal_id?: string | null
+          reversed_at?: string | null
+          reversed_by?: string | null
+          reversed_reason?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "posting_events_credit_account_id_fkey"
+            columns: ["credit_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posting_events_debit_account_id_fkey"
+            columns: ["debit_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posting_events_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posting_events_reversal_journal_id_fkey"
+            columns: ["reversal_journal_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       preorder_batch_items: {
         Row: {
           batch_id: string
@@ -6132,6 +6236,16 @@ export type Database = {
         }
         Returns: Json
       }
+      list_posting_events: {
+        Args: {
+          p_event_type?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_status?: string
+        }
+        Returns: Json
+      }
       post_cod_received: {
         Args: {
           p_amount: number
@@ -6141,6 +6255,7 @@ export type Database = {
         }
         Returns: string
       }
+      post_event: { Args: { p_event_id: string }; Returns: string }
       post_expense_entry: {
         Args: {
           p_amount: number
@@ -6188,9 +6303,14 @@ export type Database = {
         }
         Returns: string
       }
+      posting_queue_counts: { Args: never; Returns: Json }
       reopen_accounting_period: {
         Args: { p_period_key: string }
         Returns: undefined
+      }
+      reverse_event: {
+        Args: { p_event_id: string; p_reason: string }
+        Returns: string
       }
       reverse_journal_entry: {
         Args: { p_journal_id: string; p_reason?: string }
