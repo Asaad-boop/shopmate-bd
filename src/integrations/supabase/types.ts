@@ -6357,10 +6357,19 @@ export type Database = {
         Returns: Json
       }
       finance_account_balances: { Args: never; Returns: Json }
-      finance_account_transactions: {
-        Args: { p_account_id: string; p_limit?: number }
-        Returns: Json
-      }
+      finance_account_transactions:
+        | { Args: { p_account_id: string; p_limit?: number }; Returns: Json }
+        | {
+            Args: {
+              p_account_id: string
+              p_date_from?: string
+              p_date_to?: string
+              p_limit?: number
+              p_reference_type?: string
+              p_search?: string
+            }
+            Returns: Json
+          }
       finance_adjust_opening: {
         Args: {
           p_account_id: string
