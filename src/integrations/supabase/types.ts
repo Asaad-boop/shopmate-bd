@@ -5970,6 +5970,10 @@ export type Database = {
         Args: { p_currency: string; p_date: string }
         Returns: number
       }
+      global_search: {
+        Args: { p_limit?: number; p_query: string }
+        Returns: Json
+      }
       post_cod_received: {
         Args: {
           p_amount: number
@@ -6038,6 +6042,8 @@ export type Database = {
         Args: { p_entry_id: string; p_reason: string; p_user_id: string }
         Returns: string
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       [_ in never]: never
