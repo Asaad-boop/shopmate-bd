@@ -113,9 +113,23 @@ export function AttendanceTab() {
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
               <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-48 rounded-xl" />
-              <Button onClick={() => setMarkOpen(true)} className="gap-2 rounded-xl">
-                <Clock className="w-4 h-4" /> Mark Attendance
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => {
+                  const records = todayAttendance || [];
+                  if (!records.length) return;
+                  const header = "Employee,ID,Check In,Check Out,Hours,OT,Status\n";
+                  const csv = records.map((a: any) => `"${a.employees?.full_name}","${a.employees?.employee_id}","${a.check_in || ""}","${a.check_out || ""}",${a.working_hours || 0},${a.overtime_hours || 0},"${a.status}"`).join("\n");
+                  const blob = new Blob([header + csv], { type: "text/csv" });
+                  const url = URL.createObjectURL(blob);
+                  const el = document.createElement("a"); el.href = url; el.download = `attendance-${selectedDate}.csv`; el.click();
+                  URL.revokeObjectURL(url);
+                }} className="gap-2 rounded-xl">
+                  📥 Export CSV
+                </Button>
+                <Button onClick={() => setMarkOpen(true)} className="gap-2 rounded-xl">
+                  <Clock className="w-4 h-4" /> Mark Attendance
+                </Button>
+              </div>
             </div>
 
             {loadingToday ? (
@@ -225,7 +239,21 @@ export function AttendanceTab() {
 
         <TabsContent value="summary">
           <div className="space-y-4">
-            <Input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="w-48 rounded-xl" />
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+              <Input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="w-48 rounded-xl" />
+              <Button variant="outline" onClick={() => {
+                const records = monthlySummary || [];
+                if (!records.length) return;
+                const header = "Employee,ID,Department,Present,Absent,Late,Total Hours,Overtime\n";
+                const csv = records.map((e: any) => `"${e.full_name}","${e.emp_code}","${e.department || ""}",${e.present},${e.absent},${e.late},${e.totalHours.toFixed(1)},${e.overtimeHours.toFixed(1)}`).join("\n");
+                const blob = new Blob([header + csv], { type: "text/csv" });
+                const url = URL.createObjectURL(blob);
+                const el = document.createElement("a"); el.href = url; el.download = `attendance-summary-${selectedMonth}.csv`; el.click();
+                URL.revokeObjectURL(url);
+              }} className="gap-2 rounded-xl">
+                📥 Export CSV
+              </Button>
+            </div>
 
             {loadingMonthly ? (
               <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-14 rounded-xl" />)}</div>

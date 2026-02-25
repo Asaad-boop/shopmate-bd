@@ -118,7 +118,16 @@ export function useUpdatePayroll() {
 export function useMarkPayrollPaid() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, payment_method }: { id: string; payment_method: string }) => {
+    mutationFn: async ({ id, payment_method, post_to_gl }: { id: string; payment_method: string; post_to_gl?: boolean }) => {
+      // Fetch the payroll row first
+      const { data: row, error: fetchErr } = await supabase
+        .from("hrm_payroll")
+        .select("*, employees(full_name, employee_id)")
+        .eq("id", id)
+        .single();
+      if (fetchErr) throw fetchErr;
+
+      // Mark as paid
       const { error } = await supabase
         .from("hrm_payroll")
         .update({
@@ -129,9 +138,47 @@ export function useMarkPayrollPaid() {
         })
         .eq("id", id);
       if (error) throw error;
+
+      // GL posting: Dr Salary Expense / Cr Bank/Cash
+      if (post_to_gl && row.net_salary > 0) {
+        // Get account mappings
+        const { data: accounts } = await supabase
+          .from("chart_of_accounts")
+          .select("id, code")
+          .in("code", ["6200", "1100"]); // 6200=Salaries, 1100=Cash & Bank
+
+        const salaryAcct = accounts?.find((a) => a.code === "6200")?.id;
+        const bankAcct = accounts?.find((a) => a.code === "1100")?.id;
+
+        if (salaryAcct && bankAcct) {
+          const empName = (row.employees as any)?.full_name || "Employee";
+          const empCode = (row.employees as any)?.employee_id || "";
+          const monthStr = `${row.year}-${String(row.month).padStart(2, "0")}`;
+
+          const { data: je, error: jeErr } = await supabase
+            .from("journal_entries")
+            .insert({
+              entry_date: new Date().toISOString().slice(0, 10),
+              description: `Payroll: ${empName} (${empCode}) — ${monthStr}`,
+              reference_type: "payroll",
+              reference_id: id,
+              status: "posted",
+              is_auto: true,
+            })
+            .select("id")
+            .single();
+          if (jeErr) throw jeErr;
+
+          await supabase.from("journal_lines").insert([
+            { journal_id: je.id, account_id: salaryAcct, debit: row.net_salary, credit: 0, description: `Salary expense — ${empName} ${monthStr}` },
+            { journal_id: je.id, account_id: bankAcct, debit: 0, credit: row.net_salary, description: `Salary payment — ${empName} ${monthStr}` },
+          ]);
+        }
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hrm-payroll"] });
+      qc.invalidateQueries({ queryKey: ["journal-entries"] });
       toast.success("Marked as paid");
     },
     onError: (e: any) => toast.error(e.message),
