@@ -6458,6 +6458,18 @@ export type Database = {
         Args: { p_limit?: number; p_query: string }
         Returns: Json
       }
+      inventory_ledger_drilldown: {
+        Args: { p_as_of_date?: string; p_product_id: string }
+        Returns: Json
+      }
+      inventory_valuation_report: {
+        Args: {
+          p_active_only?: boolean
+          p_as_of_date?: string
+          p_include_zero_stock?: boolean
+        }
+        Returns: Json
+      }
       journal_entry_detail: { Args: { p_journal_id: string }; Returns: Json }
       list_all_orders: {
         Args: {
