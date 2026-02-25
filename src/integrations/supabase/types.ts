@@ -6340,8 +6340,23 @@ export type Database = {
         Args: { p_new_cost: number; p_new_qty: number; p_product_id: string }
         Returns: number
       }
+      cashflow_drilldown: {
+        Args: {
+          p_account_codes?: string[]
+          p_date_from: string
+          p_date_to: string
+          p_direction: string
+          p_ref_type: string
+        }
+        Returns: Json
+      }
       cashflow_report: {
-        Args: { p_date_from?: string; p_date_to?: string }
+        Args: {
+          p_account_codes?: string[]
+          p_date_from?: string
+          p_date_to?: string
+          p_include_transfers?: boolean
+        }
         Returns: Json
       }
       close_accounting_period: {
