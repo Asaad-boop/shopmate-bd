@@ -9,6 +9,7 @@ import SearchPage from "./pages/Search";
 import OrdersPage from "./pages/Orders";
 import NewOrder from "./pages/NewOrder";
 import ApprovedOrders from "./pages/ApprovedOrders";
+import AllOrders from "./pages/AllOrders";
 import PreOrderList from "./pages/PreOrderList";
 import ScanToUpdate from "./pages/ScanToUpdate";
 import OldOrdersPage from "./pages/OldOrders";
@@ -65,6 +66,7 @@ const App = () => (
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/orders/approved" element={<ApprovedOrders />} />
             <Route path="/orders/new" element={<NewOrder />} />
+            <Route path="/orders/all" element={<AllOrders />} />
             <Route path="/orders/old" element={<OldOrdersPage />} />
             <Route path="/orders/super-edit" element={<OldOrdersPage />} />
             <Route path="/orders/pre-orders" element={<PreOrderList />} />
