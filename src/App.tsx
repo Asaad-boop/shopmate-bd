@@ -59,6 +59,9 @@ import RolesPermissionsPage from "./pages/RolesPermissions";
 import ImportLegacyOrders from "./pages/ImportLegacyOrders";
 import LegacyBatches from "./pages/LegacyBatches";
 import MarketingPage from "./pages/Marketing";
+import MarketingInfluencersPage from "./pages/MarketingInfluencers";
+import MarketingUGCPage from "./pages/MarketingUGC";
+import MarketingExternalPage from "./pages/MarketingExternal";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -156,6 +159,9 @@ const App = () => (
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/system-health" element={<SystemHealth />} />
             <Route path="/marketing" element={<MarketingPage />} />
+            <Route path="/marketing/influencers" element={<MarketingInfluencersPage />} />
+            <Route path="/marketing/ugc-creators" element={<MarketingUGCPage />} />
+            <Route path="/marketing/external" element={<MarketingExternalPage />} />
 
             {/* Redirects for old routes */}
             <Route path="/customers" element={<Navigate to="/crm" replace />} />

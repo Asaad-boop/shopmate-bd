@@ -2287,6 +2287,77 @@ export type Database = {
           },
         ]
       }
+      external_marketing: {
+        Row: {
+          amount: number
+          campaign_name: string | null
+          channel: string
+          created_at: string
+          id: string
+          notes: string | null
+          payment_method: string | null
+          posting_event_id: string | null
+          product_id: string | null
+          spend_date: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          campaign_name?: string | null
+          channel?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          posting_event_id?: string | null
+          product_id?: string | null
+          spend_date?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          campaign_name?: string | null
+          channel?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          posting_event_id?: string | null
+          product_id?: string | null
+          spend_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "external_marketing_posting_event_id_fkey"
+            columns: ["posting_event_id"]
+            isOneToOne: false
+            referencedRelation: "posting_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "external_marketing_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_profit_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "external_marketing_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "external_marketing_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_on_hand"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
       goods_receipt_items: {
         Row: {
           created_at: string | null
@@ -2893,6 +2964,167 @@ export type Database = {
           imported_count?: number
           skipped_count?: number
           total_rows?: number
+        }
+        Relationships: []
+      }
+      influencer_deal_skus: {
+        Row: {
+          allocation_pct: number | null
+          created_at: string
+          deal_id: string
+          id: string
+          product_id: string
+        }
+        Insert: {
+          allocation_pct?: number | null
+          created_at?: string
+          deal_id: string
+          id?: string
+          product_id: string
+        }
+        Update: {
+          allocation_pct?: number | null
+          created_at?: string
+          deal_id?: string
+          id?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "influencer_deal_skus_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "influencer_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "influencer_deal_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_profit_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "influencer_deal_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "influencer_deal_skus_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_on_hand"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
+      influencer_deals: {
+        Row: {
+          amount_paid: number
+          campaign_name: string
+          created_at: string
+          end_date: string | null
+          id: string
+          influencer_id: string
+          notes: string | null
+          payment_method: string | null
+          payment_status: string
+          posting_event_id: string | null
+          proof_url: string | null
+          revenue_generated: number | null
+          start_date: string
+          total_cost: number
+          updated_at: string
+        }
+        Insert: {
+          amount_paid?: number
+          campaign_name: string
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          influencer_id: string
+          notes?: string | null
+          payment_method?: string | null
+          payment_status?: string
+          posting_event_id?: string | null
+          proof_url?: string | null
+          revenue_generated?: number | null
+          start_date?: string
+          total_cost?: number
+          updated_at?: string
+        }
+        Update: {
+          amount_paid?: number
+          campaign_name?: string
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          influencer_id?: string
+          notes?: string | null
+          payment_method?: string | null
+          payment_status?: string
+          posting_event_id?: string | null
+          proof_url?: string | null
+          revenue_generated?: number | null
+          start_date?: string
+          total_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "influencer_deals_influencer_id_fkey"
+            columns: ["influencer_id"]
+            isOneToOne: false
+            referencedRelation: "influencers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "influencer_deals_posting_event_id_fkey"
+            columns: ["posting_event_id"]
+            isOneToOne: false
+            referencedRelation: "posting_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      influencers: {
+        Row: {
+          contact_info: string | null
+          created_at: string
+          id: string
+          name: string
+          niche: string | null
+          notes: string | null
+          page_link: string | null
+          platform: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          contact_info?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          niche?: string | null
+          notes?: string | null
+          page_link?: string | null
+          platform?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          contact_info?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          niche?: string | null
+          notes?: string | null
+          page_link?: string | null
+          platform?: string
+          status?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -6089,6 +6321,132 @@ export type Database = {
           },
         ]
       }
+      ugc_creators: {
+        Row: {
+          contact: string | null
+          content_type: string | null
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          rate_per_video: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          contact?: string | null
+          content_type?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          rate_per_video?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          contact?: string | null
+          content_type?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          rate_per_video?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ugc_orders: {
+        Row: {
+          amount_paid: number
+          campaign_name: string | null
+          created_at: string
+          creator_id: string
+          delivery_status: string
+          id: string
+          notes: string | null
+          payment_method: string | null
+          payment_status: string
+          posting_event_id: string | null
+          product_id: string | null
+          proof_url: string | null
+          total_cost: number
+          updated_at: string
+          video_count: number
+        }
+        Insert: {
+          amount_paid?: number
+          campaign_name?: string | null
+          created_at?: string
+          creator_id: string
+          delivery_status?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          payment_status?: string
+          posting_event_id?: string | null
+          product_id?: string | null
+          proof_url?: string | null
+          total_cost?: number
+          updated_at?: string
+          video_count?: number
+        }
+        Update: {
+          amount_paid?: number
+          campaign_name?: string | null
+          created_at?: string
+          creator_id?: string
+          delivery_status?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          payment_status?: string
+          posting_event_id?: string | null
+          product_id?: string | null
+          proof_url?: string | null
+          total_cost?: number
+          updated_at?: string
+          video_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ugc_orders_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "ugc_creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ugc_orders_posting_event_id_fkey"
+            columns: ["posting_event_id"]
+            isOneToOne: false
+            referencedRelation: "posting_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ugc_orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_profit_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ugc_orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ugc_orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_on_hand"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
       web_order_notes: {
         Row: {
           call_result: string | null
@@ -6535,6 +6893,10 @@ export type Database = {
             }
             Returns: Json
           }
+      marketing_dashboard_report: {
+        Args: { p_date_from?: string; p_date_to?: string }
+        Returns: Json
+      }
       pnl_account_drilldown: {
         Args: { p_account_code: string; p_date_from: string; p_date_to: string }
         Returns: Json
