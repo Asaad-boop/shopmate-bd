@@ -20,11 +20,10 @@ interface Props {
 }
 
 const REASONS = [
-  "Purchase Received",
-  "Damaged",
-  "Lost",
-  "Return",
-  "Manual Count",
+  "Physical Count Correction",
+  "Damaged Goods",
+  "Lost / Shrinkage",
+  "Sample / Giveaway",
   "Other",
 ];
 
@@ -32,25 +31,15 @@ export default function StockAdjustmentModal({ open, onOpenChange, products, pre
   const { toast } = useToast();
   const qc = useQueryClient();
   const [productId, setProductId] = useState(preselectedProductId || "");
-  const [adjustType, setAdjustType] = useState<"add" | "remove" | "set">("add");
+  const [adjustType, setAdjustType] = useState<"add" | "remove">("add");
   const [quantity, setQuantity] = useState("");
   const [reason, setReason] = useState("");
-  const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [productSearch, setProductSearch] = useState("");
 
   const selectedProduct = products?.find((p) => p.id === productId);
-  const currentStock = selectedProduct?.stock_quantity || 0;
   const qty = parseInt(quantity) || 0;
-
-  const newStock = useMemo(() => {
-    if (adjustType === "add") return currentStock + qty;
-    if (adjustType === "remove") return Math.max(0, currentStock - qty);
-    return qty;
-  }, [adjustType, currentStock, qty]);
-
-  const diff = newStock - currentStock;
 
   const filteredProducts = products?.filter((p) => {
     if (!productSearch) return true;
@@ -63,34 +52,50 @@ export default function StockAdjustmentModal({ open, onOpenChange, products, pre
     setAdjustType("add");
     setQuantity("");
     setReason("");
-    setReference("");
     setNote("");
     setProductSearch("");
   };
 
   const handleSave = async () => {
-    if (!productId || qty <= 0) {
-      toast({ title: "Please select product and enter quantity", variant: "destructive" });
+    if (!productId || qty <= 0 || !reason) {
+      toast({ title: "Please select product, quantity, and reason", variant: "destructive" });
       return;
     }
     setSaving(true);
     try {
-      await supabase
-        .from("products")
-        .update({ stock_quantity: newStock, updated_at: new Date().toISOString() })
-        .eq("id", productId);
+      const adjustNote = `${reason}${note ? ` — ${note}` : ""}`;
 
-      await supabase.from("inventory_movements").insert({
+      // Write to inventory_ledger — the ONLY source of truth
+      const { error: ledgerErr } = await supabase.from("inventory_ledger").insert({
         product_id: productId,
-        movement_type: "manual_adjustment",
-        quantity: diff,
-        notes: `${reason}${note ? ` - ${note}` : ""}${reference ? ` (Ref: ${reference})` : ""}`,
-        reference_type: reason.toLowerCase().replace(/\s+/g, "_"),
+        sku: selectedProduct?.sku || "",
+        txn_type: adjustType === "add" ? "stock_in" : "stock_out",
+        qty_in: adjustType === "add" ? qty : 0,
+        qty_out: adjustType === "remove" ? qty : 0,
+        reference_type: "stock_adjustment",
+        note: adjustNote,
+      });
+      if (ledgerErr) throw ledgerErr;
+
+      // Audit log
+      await supabase.from("audit_logs").insert({
+        entity_type: "inventory_ledger",
+        entity_id: productId,
+        action: "stock_adjustment",
+        after_json: {
+          product_id: productId,
+          sku: selectedProduct?.sku,
+          type: adjustType,
+          quantity: qty,
+          reason,
+          note,
+        },
       });
 
-      toast({ title: `✅ Stock updated: ${selectedProduct?.name} → ${newStock}` });
+      toast({ title: `✅ Stock adjusted: ${selectedProduct?.name} ${adjustType === "add" ? `+${qty}` : `-${qty}`}` });
+      qc.invalidateQueries({ queryKey: ["stock-on-hand"] });
+      qc.invalidateQueries({ queryKey: ["product-ledger"] });
       qc.invalidateQueries({ queryKey: ["inventory-products"] });
-      qc.invalidateQueries({ queryKey: ["inventory-movements"] });
       reset();
       onOpenChange(false);
     } catch (e: any) {
@@ -110,7 +115,7 @@ export default function StockAdjustmentModal({ open, onOpenChange, products, pre
             </div>
             <div>
               <DialogTitle>Adjust Stock</DialogTitle>
-              <DialogDescription>Manually adjust product stock quantity</DialogDescription>
+              <DialogDescription>Creates a STOCK_ADJUSTMENT ledger entry. No direct edits.</DialogDescription>
             </div>
           </div>
         </DialogHeader>
@@ -121,19 +126,14 @@ export default function StockAdjustmentModal({ open, onOpenChange, products, pre
             <Label className="text-xs font-medium text-muted-foreground">Product</Label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search product..."
-                value={productSearch}
-                onChange={(e) => setProductSearch(e.target.value)}
-                className="pl-10 rounded-lg"
-              />
+              <Input placeholder="Search product..." value={productSearch} onChange={(e) => setProductSearch(e.target.value)} className="pl-10 rounded-lg" />
             </div>
             <Select value={productId} onValueChange={setProductId}>
               <SelectTrigger className="rounded-lg"><SelectValue placeholder="Select product" /></SelectTrigger>
               <SelectContent className="max-h-60">
                 {filteredProducts?.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
-                    {p.name} ({p.sku}) — Stock: {p.stock_quantity || 0}
+                    {p.name} ({p.sku})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -142,19 +142,15 @@ export default function StockAdjustmentModal({ open, onOpenChange, products, pre
 
           {/* Adjustment Type */}
           <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground">Adjustment Type</Label>
+            <Label className="text-xs font-medium text-muted-foreground">Direction</Label>
             <RadioGroup value={adjustType} onValueChange={(v) => setAdjustType(v as any)} className="flex gap-4">
               <div className="flex items-center gap-2">
-                <RadioGroupItem value="add" id="add" />
-                <Label htmlFor="add" className="text-sm text-success font-medium cursor-pointer">Add Stock (+)</Label>
+                <RadioGroupItem value="add" id="adj-add" />
+                <Label htmlFor="adj-add" className="text-sm text-success font-medium cursor-pointer">Stock IN (+)</Label>
               </div>
               <div className="flex items-center gap-2">
-                <RadioGroupItem value="remove" id="remove" />
-                <Label htmlFor="remove" className="text-sm text-destructive font-medium cursor-pointer">Remove (-)</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="set" id="set" />
-                <Label htmlFor="set" className="text-sm font-medium cursor-pointer">Set Exact</Label>
+                <RadioGroupItem value="remove" id="adj-remove" />
+                <Label htmlFor="adj-remove" className="text-sm text-destructive font-medium cursor-pointer">Stock OUT (−)</Label>
               </div>
             </RadioGroup>
           </div>
@@ -162,31 +158,23 @@ export default function StockAdjustmentModal({ open, onOpenChange, products, pre
           {/* Quantity */}
           <div className="space-y-2">
             <Label className="text-xs font-medium text-muted-foreground">Quantity</Label>
-            <Input
-              type="number"
-              min={0}
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              placeholder="Enter quantity"
-              className="rounded-lg"
-            />
+            <Input type="number" min={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="Enter quantity" className="rounded-lg" />
           </div>
 
           {/* Preview */}
           {selectedProduct && qty > 0 && (
             <div className="p-4 rounded-xl bg-muted/50 text-sm space-y-1 animate-row-in">
-              <p>Current Stock: <span className="font-bold">{currentStock}</span></p>
-              <p>
-                After Adjustment: <span className={cn("font-bold text-lg", diff > 0 ? "text-success" : diff < 0 ? "text-destructive" : "")}>
-                  {newStock} ({diff >= 0 ? `+${diff}` : diff})
-                </span>
+              <p className="text-muted-foreground text-xs">Ledger entry will be created:</p>
+              <p className={cn("font-bold text-lg", adjustType === "add" ? "text-success" : "text-destructive")}>
+                {adjustType === "add" ? `+${qty} IN` : `−${qty} OUT`}
               </p>
+              <p className="text-[10px] text-muted-foreground">Type: STOCK_ADJUSTMENT • No direct quantity edit</p>
             </div>
           )}
 
-          {/* Reason */}
+          {/* Reason — MANDATORY */}
           <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground">Reason</Label>
+            <Label className="text-xs font-medium text-muted-foreground">Reason <span className="text-destructive">*</span></Label>
             <Select value={reason} onValueChange={setReason}>
               <SelectTrigger className="rounded-lg"><SelectValue placeholder="Select reason" /></SelectTrigger>
               <SelectContent>
@@ -195,23 +183,17 @@ export default function StockAdjustmentModal({ open, onOpenChange, products, pre
             </Select>
           </div>
 
-          {/* Reference */}
-          <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground">Reference (optional)</Label>
-            <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="PO number or note" className="rounded-lg" />
-          </div>
-
           {/* Note */}
           <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground">Note</Label>
-            <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Additional notes..." rows={2} className="rounded-lg resize-none" />
+            <Label className="text-xs font-medium text-muted-foreground">Note (optional)</Label>
+            <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Additional details..." rows={2} className="rounded-lg resize-none" />
           </div>
         </div>
 
         <DialogFooter className="px-6 py-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving || !productId || qty <= 0}>
-            {saving ? "Saving..." : "Save Adjustment"}
+          <Button onClick={handleSave} disabled={saving || !productId || qty <= 0 || !reason}>
+            {saving ? "Saving..." : "Submit Adjustment"}
           </Button>
         </DialogFooter>
       </DialogContent>
