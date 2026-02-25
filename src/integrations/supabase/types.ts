@@ -6024,6 +6024,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      apply_scan_action: {
+        Args: { p_action: string; p_order_id: string; p_reason?: string }
+        Returns: Json
+      }
       calc_cod_fee: {
         Args: { p_cod_amount: number; p_courier: string; p_zone: string }
         Returns: number
@@ -6052,6 +6056,7 @@ export type Database = {
         }
         Returns: Json
       }
+      find_order_by_scan: { Args: { p_scan_text: string }; Returns: Json }
       generate_invoice_id: { Args: never; Returns: string }
       get_exchange_rate: {
         Args: { p_currency: string; p_date: string }
