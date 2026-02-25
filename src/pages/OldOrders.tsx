@@ -1,8 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useLegacyOrders, useLegacyStats, useLegacyBatchList } from "@/hooks/use-legacy-orders";
+import { useLegacyOrders, useLegacyStats, useLegacyBatchList, MAX_BULK_LIMIT } from "@/hooks/use-legacy-orders";
 import { useLegacyCourierSync } from "@/hooks/use-legacy-courier-sync";
 import { useBulkPostAdvance } from "@/hooks/use-advance-posting";
 import { LegacyOrderDrawer } from "@/components/legacy-orders/LegacyOrderDrawer";
@@ -72,6 +72,9 @@ export default function OldOrdersPage() {
   });
   const [showFilters, setShowFilters] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectAllResults, setSelectAllResults] = useState(false);
+  const [batchProcessing, setBatchProcessing] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0 });
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const { syncOrders, syncing: courierSyncing, progress: syncProgress } = useLegacyCourierSync();
@@ -80,22 +83,63 @@ export default function OldOrdersPage() {
   const { data: batches } = useLegacyBatchList();
   const bulkPostAdvance = useBulkPostAdvance();
 
+  const totalResults = orders?.length || 0;
+  const isCapped = selectedIds.size >= MAX_BULK_LIMIT && totalResults > MAX_BULK_LIMIT;
+
   const setFilter = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
   const toggleSelect = (id: string) => {
+    setSelectAllResults(false);
     setSelectedIds((prev) => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
   };
+
   const toggleAll = () => {
     if (!orders) return;
-    if (selectedIds.size === orders.length) setSelectedIds(new Set());
-    else setSelectedIds(new Set(orders.map((o: any) => o.id)));
+    if (selectedIds.size > 0) {
+      setSelectedIds(new Set());
+      setSelectAllResults(false);
+    } else {
+      // Select up to MAX_BULK_LIMIT
+      const ids = orders.slice(0, MAX_BULK_LIMIT).map((o: any) => o.id);
+      setSelectedIds(new Set(ids));
+      setSelectAllResults(false);
+    }
   };
+
+  const handleSelectAllResults = () => {
+    if (!orders) return;
+    setSelectAllResults(true);
+    setSelectedIds(new Set(orders.map((o: any) => o.id)));
+  };
+
+  /** Process a bulk operation in batches of 200 */
+  const processBatch = useCallback(async (
+    items: any[],
+    batchFn: (batch: any[]) => Promise<void>,
+    batchSize = 200
+  ) => {
+    setBatchProcessing(true);
+    setBatchProgress({ done: 0, total: items.length });
+    try {
+      for (let i = 0; i < items.length; i += batchSize) {
+        const batch = items.slice(i, i + batchSize);
+        await batchFn(batch);
+        setBatchProgress({ done: Math.min(i + batchSize, items.length), total: items.length });
+      }
+      toast({ title: `Processed ${items.length} orders successfully` });
+    } catch (err: any) {
+      toast({ title: "Batch processing error", description: err.message, variant: "destructive" });
+    } finally {
+      setBatchProcessing(false);
+      setBatchProgress({ done: 0, total: 0 });
+    }
+  }, [toast]);
 
   const openDrawer = (id: string) => {
     setActiveOrderId(id);
@@ -145,8 +189,16 @@ export default function OldOrdersPage() {
       toast({ title: "No tracking IDs", description: "Selected orders have no tracking IDs to sync", variant: "destructive" });
       return;
     }
-    await syncOrders(toSync);
+    if (toSync.length > MAX_BULK_LIMIT) {
+      // Process in background batches
+      await processBatch(toSync, async (batch) => {
+        await syncOrders(batch);
+      });
+    } else {
+      await syncOrders(toSync);
+    }
     setSelectedIds(new Set());
+    setSelectAllResults(false);
   };
 
   const handleBulkPostAdvance = () => {
@@ -161,11 +213,24 @@ export default function OldOrdersPage() {
       toast({ title: "No eligible orders", description: "Selected orders must have advance_amount > 0, advance_method set, and not yet posted.", variant: "destructive" });
       return;
     }
-    bulkPostAdvance.mutate(eligible.map((o: any) => ({
-      id: o.id,
-      advance_amount: parseFloat(o.advance_amount),
-      advance_method: o.advance_method,
-    })));
+    if (eligible.length > MAX_BULK_LIMIT) {
+      processBatch(
+        eligible.map((o: any) => ({
+          id: o.id,
+          advance_amount: parseFloat(o.advance_amount),
+          advance_method: o.advance_method,
+        })),
+        async (batch) => {
+          await bulkPostAdvance.mutateAsync(batch);
+        }
+      );
+    } else {
+      bulkPostAdvance.mutate(eligible.map((o: any) => ({
+        id: o.id,
+        advance_amount: parseFloat(o.advance_amount),
+        advance_method: o.advance_method,
+      })));
+    }
   };
 
   return (
@@ -312,7 +377,10 @@ export default function OldOrdersPage() {
               <TableHeader>
                 <TableRow className="bg-muted/30">
                   <TableHead className="w-10">
-                    <Checkbox checked={orders && orders.length > 0 && selectedIds.size === orders.length} onCheckedChange={toggleAll} />
+                    <Checkbox
+                      checked={orders && orders.length > 0 && selectedIds.size > 0}
+                      onCheckedChange={toggleAll}
+                    />
                   </TableHead>
                   <TableHead className="text-xs">Invoice</TableHead>
                   <TableHead className="text-xs">Date</TableHead>
@@ -522,6 +590,60 @@ export default function OldOrdersPage() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Selection info bar */}
+          {selectedIds.size > 0 && orders && (
+            <div className="px-4 py-2.5 bg-primary/5 border-t border-primary/20 flex items-center gap-3 flex-wrap">
+              <span className="text-xs font-medium text-foreground">
+                {isCapped && !selectAllResults ? (
+                  <>
+                    <span className="text-primary font-semibold">{MAX_BULK_LIMIT}</span> of{" "}
+                    <span className="font-semibold">{totalResults}</span> selected
+                    <span className="text-muted-foreground ml-1">(system bulk limit = {MAX_BULK_LIMIT})</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-primary font-semibold">{selectedIds.size}</span> order{selectedIds.size !== 1 ? "s" : ""} selected
+                  </>
+                )}
+              </span>
+
+              {totalResults > MAX_BULK_LIMIT && !selectAllResults && (
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0 text-xs text-primary underline"
+                  onClick={handleSelectAllResults}
+                >
+                  Select All Results ({totalResults})
+                </Button>
+              )}
+
+              {selectAllResults && totalResults > MAX_BULK_LIMIT && (
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                  All {totalResults} selected — bulk operations will process in batches of 200
+                </span>
+              )}
+
+              {batchProcessing && (
+                <span className="text-xs text-muted-foreground flex items-center gap-1.5 ml-auto">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Processing {batchProgress.done}/{batchProgress.total}…
+                </span>
+              )}
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs text-muted-foreground ml-auto"
+                onClick={() => { setSelectedIds(new Set()); setSelectAllResults(false); }}
+              >
+                <XCircle className="w-3.5 h-3.5 mr-1" /> Clear
+              </Button>
+            </div>
+          )}
+
           {orders && orders.length > 0 && (
             <div className="p-3 border-t flex items-center justify-between text-xs text-muted-foreground">
               <span>{orders.length} legacy order{orders.length !== 1 ? "s" : ""}</span>
