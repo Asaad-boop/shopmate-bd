@@ -135,7 +135,7 @@ export function usePOStats() {
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
       const total = pos?.length || 0;
-      const inTransit = pos?.filter(p => p.status === 'shipped' || p.status === 'in_transit').length || 0;
+      const inTransit = pos?.filter(p => p.status === 'shipped' || p.status === 'in_transit' || p.status === 'confirmed').length || 0;
       const pendingPayment = pos?.filter(p => (p.remaining_payment_bdt || 0) > 0).reduce((s, p) => s + (p.remaining_payment_bdt || 0), 0) || 0;
       const receivedThisMonth = pos?.filter(p => p.status === 'received' && p.actual_arrival_date && p.actual_arrival_date >= monthStart.slice(0, 10)).length || 0;
       const totalInvested = pos?.reduce((s, p) => s + (p.total_landed_cost_bdt || 0), 0) || 0;

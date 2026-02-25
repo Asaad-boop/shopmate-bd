@@ -19,12 +19,14 @@ import {
 
 const statusConfig: Record<string, { label: string; icon: string; className: string }> = {
   draft: { label: "Draft", icon: "📋", className: "bg-muted text-muted-foreground" },
-  ordered: { label: "Ordered", icon: "📦", className: "bg-info/10 text-info" },
+  confirmed: { label: "Confirmed", icon: "✅", className: "bg-info/10 text-info" },
+  ordered: { label: "Confirmed", icon: "✅", className: "bg-info/10 text-info" },
   shipped: { label: "In Transit", icon: "🚢", className: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300" },
   in_transit: { label: "In Transit", icon: "🚢", className: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300" },
   customs: { label: "Customs", icon: "🛃", className: "bg-warning/10 text-warning" },
   arrived_bd: { label: "Arrived in BD", icon: "📍", className: "bg-info/10 text-info" },
-  received: { label: "Received", icon: "✅", className: "bg-success/10 text-success" },
+  received: { label: "Received", icon: "📦", className: "bg-success/10 text-success" },
+  closed: { label: "Closed", icon: "🔒", className: "bg-muted text-muted-foreground" },
 };
 
 const paymentConfig: Record<string, { label: string; className: string }> = {
@@ -73,10 +75,10 @@ export default function PurchaseOrdersPage() {
   const statusPills = [
     { key: "all", label: "All" },
     { key: "draft", label: "Draft" },
-    { key: "ordered", label: "Ordered" },
-    { key: "shipped", label: "In Transit" },
-    { key: "customs", label: "Customs" },
+    { key: "confirmed", label: "Confirmed" },
+    { key: "in_transit", label: "In Transit" },
     { key: "received", label: "Received" },
+    { key: "closed", label: "Closed" },
   ];
 
   return (
