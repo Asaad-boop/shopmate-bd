@@ -5314,12 +5314,15 @@ export type Database = {
           batch_id: string
           courier_additional: number | null
           courier_cod_fee: number | null
+          courier_compensation: number | null
           courier_delivery_fee: number | null
           courier_discount: number | null
           courier_order_id: string | null
           courier_total_cost: number | null
           created_at: string
           id: string
+          ignore_reason: string | null
+          ignored: boolean
           invoice_id: string | null
           journal_id: string | null
           match_status: string
@@ -5342,12 +5345,15 @@ export type Database = {
           batch_id: string
           courier_additional?: number | null
           courier_cod_fee?: number | null
+          courier_compensation?: number | null
           courier_delivery_fee?: number | null
           courier_discount?: number | null
           courier_order_id?: string | null
           courier_total_cost?: number | null
           created_at?: string
           id?: string
+          ignore_reason?: string | null
+          ignored?: boolean
           invoice_id?: string | null
           journal_id?: string | null
           match_status?: string
@@ -5370,12 +5376,15 @@ export type Database = {
           batch_id?: string
           courier_additional?: number | null
           courier_cod_fee?: number | null
+          courier_compensation?: number | null
           courier_delivery_fee?: number | null
           courier_discount?: number | null
           courier_order_id?: string | null
           courier_total_cost?: number | null
           created_at?: string
           id?: string
+          ignore_reason?: string | null
+          ignored?: boolean
           invoice_id?: string | null
           journal_id?: string | null
           match_status?: string
@@ -6546,6 +6555,10 @@ export type Database = {
         Returns: string
       }
       settlement_auto_match: { Args: { p_batch_id: string }; Returns: Json }
+      settlement_manual_match: {
+        Args: { p_line_id: string; p_order_id: string }
+        Returns: undefined
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       sku_order_drilldown: {
