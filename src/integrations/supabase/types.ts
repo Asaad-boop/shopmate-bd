@@ -2974,6 +2974,121 @@ export type Database = {
         }
         Relationships: []
       }
+      import_shipment_pos: {
+        Row: {
+          created_at: string
+          id: string
+          import_shipment_id: string
+          po_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          import_shipment_id: string
+          po_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          import_shipment_id?: string
+          po_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_shipment_pos_import_shipment_id_fkey"
+            columns: ["import_shipment_id"]
+            isOneToOne: false
+            referencedRelation: "import_shipments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_shipment_pos_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_shipments: {
+        Row: {
+          agent_id: string | null
+          created_at: string
+          customs_cost: number
+          finalized_at: string | null
+          finalized_by: string | null
+          freight_cost: number
+          id: string
+          import_number: string
+          is_finalized: boolean
+          local_transport: number
+          notes: string | null
+          other_charges: number
+          status: string
+          supplier_id: string | null
+          total_landed_cost: number | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id?: string | null
+          created_at?: string
+          customs_cost?: number
+          finalized_at?: string | null
+          finalized_by?: string | null
+          freight_cost?: number
+          id?: string
+          import_number: string
+          is_finalized?: boolean
+          local_transport?: number
+          notes?: string | null
+          other_charges?: number
+          status?: string
+          supplier_id?: string | null
+          total_landed_cost?: number | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string | null
+          created_at?: string
+          customs_cost?: number
+          finalized_at?: string | null
+          finalized_by?: string | null
+          freight_cost?: number
+          id?: string
+          import_number?: string
+          is_finalized?: boolean
+          local_transport?: number
+          notes?: string | null
+          other_charges?: number
+          status?: string
+          supplier_id?: string | null
+          total_landed_cost?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_shipments_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_shipments_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_shipments_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "v_supplier_financials"
+            referencedColumns: ["supplier_id"]
+          },
+        ]
+      }
       influencer_deal_skus: {
         Row: {
           allocation_pct: number | null
