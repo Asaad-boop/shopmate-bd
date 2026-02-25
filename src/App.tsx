@@ -33,6 +33,7 @@ import ImportDashboard from "./pages/ImportDashboard";
 import PurchasingPage from "./pages/Purchasing";
 import CRMPage from "./pages/CRM";
 import FinancePage from "./pages/Finance";
+import FinanceAccountsPage from "./pages/FinanceAccounts";
 import PostingQueue from "./pages/PostingQueue";
 import HRMPage from "./pages/HRM";
 import MetaAdsReport from "./pages/MetaAdsReport";
@@ -95,6 +96,7 @@ const App = () => (
 
             {/* Account & Finance */}
             <Route path="/finance" element={<FinancePage />} />
+            <Route path="/finance/accounts" element={<FinanceAccountsPage />} />
             <Route path="/finance/posting-queue" element={<PostingQueue />} />
             <Route path="/accounting" element={<AccountingPage />} />
             <Route path="/courier-cod" element={<CourierCODPage />} />

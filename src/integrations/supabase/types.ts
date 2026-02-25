@@ -6056,9 +6056,51 @@ export type Database = {
         }
         Returns: Json
       }
+      finance_account_balances: { Args: never; Returns: Json }
+      finance_account_transactions: {
+        Args: { p_account_id: string; p_limit?: number }
+        Returns: Json
+      }
+      finance_adjust_opening: {
+        Args: {
+          p_account_id: string
+          p_entry_date?: string
+          p_new_balance: number
+          p_note: string
+        }
+        Returns: string
+      }
       finance_alerts: { Args: never; Returns: Json }
+      finance_deposit: {
+        Args: {
+          p_account_id: string
+          p_amount: number
+          p_entry_date?: string
+          p_note: string
+        }
+        Returns: string
+      }
       finance_posting_queue_summary: { Args: never; Returns: Json }
       finance_settlement_summary: { Args: never; Returns: Json }
+      finance_transfer: {
+        Args: {
+          p_amount: number
+          p_entry_date?: string
+          p_from_account_id: string
+          p_note: string
+          p_to_account_id: string
+        }
+        Returns: string
+      }
+      finance_withdraw: {
+        Args: {
+          p_account_id: string
+          p_amount: number
+          p_entry_date?: string
+          p_note: string
+        }
+        Returns: string
+      }
       find_order_by_scan: { Args: { p_scan_text: string }; Returns: Json }
       generate_invoice_id: { Args: never; Returns: string }
       get_exchange_rate: {
