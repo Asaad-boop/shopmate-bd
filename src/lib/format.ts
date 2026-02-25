@@ -38,12 +38,40 @@ export const channelConfig: Record<string, { label: string; emoji: string; color
 export const orderStatusConfig: Record<string, { label: string; color: string; emoji: string }> = {
   pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-800', emoji: '🕐' },
   packed: { label: 'Packed', color: 'bg-blue-100 text-blue-800', emoji: '📦' },
+  ready_to_ship: { label: 'Ready to Ship', color: 'bg-cyan-100 text-cyan-800', emoji: '📋' },
   shipped: { label: 'Shipped', color: 'bg-indigo-100 text-indigo-800', emoji: '🚚' },
+  in_transit: { label: 'In Transit', color: 'bg-purple-100 text-purple-800', emoji: '🛣️' },
   delivered: { label: 'Delivered', color: 'bg-green-100 text-green-800', emoji: '✅' },
-  cancelled: { label: 'Cancelled', color: 'bg-red-100 text-red-800', emoji: '❌' },
+  delivery_failed: { label: 'Delivery Failed', color: 'bg-red-100 text-red-700', emoji: '⚠️' },
+  return_requested: { label: 'Return Requested', color: 'bg-amber-100 text-amber-800', emoji: '📩' },
+  return_in_transit: { label: 'Return In Transit', color: 'bg-orange-100 text-orange-700', emoji: '🔙' },
   pending_return: { label: 'Pending Return', color: 'bg-orange-100 text-orange-800', emoji: '🔄' },
   returned: { label: 'Returned', color: 'bg-gray-100 text-gray-800', emoji: '↩️' },
+  partially_delivered: { label: 'Partial Delivery', color: 'bg-teal-100 text-teal-800', emoji: '📦½' },
+  exchanged: { label: 'Exchanged', color: 'bg-violet-100 text-violet-800', emoji: '🔁' },
+  completed: { label: 'Completed', color: 'bg-emerald-100 text-emerald-800', emoji: '🏁' },
+  cancelled: { label: 'Cancelled', color: 'bg-red-100 text-red-800', emoji: '❌' },
   damage_return: { label: 'Damage Return', color: 'bg-red-200 text-red-900', emoji: '💥' },
+};
+
+/** Valid status transitions — enforces pipeline rules */
+export const validTransitions: Record<string, string[]> = {
+  pending: ['packed', 'cancelled'],
+  packed: ['ready_to_ship', 'pending', 'cancelled'],
+  ready_to_ship: ['shipped', 'packed', 'cancelled'],
+  shipped: ['in_transit', 'delivered', 'delivery_failed'],
+  in_transit: ['delivered', 'delivery_failed'],
+  delivered: ['return_requested', 'partially_delivered', 'completed'],
+  delivery_failed: ['return_in_transit', 'shipped'],
+  return_requested: ['return_in_transit'],
+  return_in_transit: ['returned', 'damage_return'],
+  returned: [],
+  partially_delivered: ['completed'],
+  exchanged: [],
+  completed: [],
+  cancelled: [],
+  damage_return: [],
+  pending_return: ['returned', 'damage_return'],
 };
 
 export const paymentStatusConfig: Record<string, { label: string; color: string }> = {

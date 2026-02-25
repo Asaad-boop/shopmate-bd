@@ -5,10 +5,13 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { formatBDT, formatDateTime } from "@/lib/format";
+import { formatBDT, formatDateTime, formatBDT2 } from "@/lib/format";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { orderStatusConfig } from "@/lib/format";
+import { orderStatusConfig, validTransitions } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { getStockImpact } from "@/hooks/use-orders";
+import { useState, useEffect } from "react";
+import { Package, Banknote, Truck, BookOpen, TrendingDown, TrendingUp, Minus } from "lucide-react";
 
 interface OrderDetailsDrawerProps {
   open: boolean;
@@ -17,6 +20,8 @@ interface OrderDetailsDrawerProps {
 }
 
 export function OrderDetailsDrawer({ open, onOpenChange, orderId }: OrderDetailsDrawerProps) {
+  const [activeTab, setActiveTab] = useState<"items" | "payment" | "courier" | "journal" | "stock">("items");
+
   const { data: order, isLoading } = useQuery({
     queryKey: ["order-drawer", orderId],
     queryFn: async () => {
@@ -36,7 +41,7 @@ export function OrderDetailsDrawer({ open, onOpenChange, orderId }: OrderDetails
     queryFn: async () => {
       const { data, error } = await supabase
         .from("order_items")
-        .select("*, products(name, sku, image_url)")
+        .select("*, products(name, sku, image_url, cost_price)")
         .eq("order_id", orderId!);
       if (error) throw error;
       return data || [];
@@ -44,232 +49,372 @@ export function OrderDetailsDrawer({ open, onOpenChange, orderId }: OrderDetails
     enabled: !!orderId && open,
   });
 
+  // Shipment / courier charges
+  const { data: shipment } = useQuery({
+    queryKey: ["order-drawer-shipment", orderId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("courier_shipments")
+        .select("*, couriers(name)")
+        .eq("order_id", orderId!)
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!orderId && open,
+  });
+
+  // Journal entries linked
+  const { data: journals } = useQuery({
+    queryKey: ["order-drawer-journals", orderId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("journal_entries")
+        .select("id, description, status, created_at, reference_type")
+        .eq("reference_id", orderId!)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      return data || [];
+    },
+    enabled: !!orderId && open,
+  });
+
+  // Advance from account_ledger
+  const { data: advances } = useQuery({
+    queryKey: ["order-drawer-advances", orderId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("account_ledger")
+        .select("id, amount, direction, ledger_date, note, ref_type")
+        .eq("ref_id", orderId!)
+        .eq("ref_type", "advance")
+        .order("ledger_date", { ascending: false });
+      return data || [];
+    },
+    enabled: !!orderId && open,
+  });
+
+  // Activity logs
   const { data: activityLogs } = useQuery({
     queryKey: ["order-drawer-activity-logs", orderId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("order_activity_log")
         .select("*")
         .eq("order_id", orderId!)
         .order("created_at", { ascending: false })
         .limit(30);
-      if (error) throw error;
       return data || [];
     },
     enabled: !!orderId && open,
   });
 
-  const { data: webNotes } = useQuery({
-    queryKey: ["order-drawer-web-notes", orderId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("web_order_notes")
-        .select("*")
-        .eq("order_id", orderId!)
-        .order("created_at", { ascending: false })
-        .limit(30);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!orderId && open,
-  });
-
-  // Merge all logs into a unified timeline
-  const allLogs = useMemo(() => {
-    const entries: { id: string; action: string; created_at: string; done_by: string; details?: string }[] = [];
-
-    // Add activity logs
-    activityLogs?.forEach((log: any) => {
-      entries.push({
-        id: log.id,
-        action: log.action,
-        created_at: log.created_at,
-        done_by: log.done_by || "",
-        details: log.details || (log.old_status && log.new_status ? `${log.old_status} → ${log.new_status}` : undefined),
-      });
-    });
-
-    // Add web order notes
-    webNotes?.forEach((note: any) => {
-      entries.push({
-        id: note.id,
-        action: note.content,
-        created_at: note.created_at,
-        done_by: note.created_by || "",
-        details: note.note_type === "call_log" ? `Call result: ${note.call_result || "—"}` : undefined,
-      });
-    });
-
-    // Add "Order Created" entry from order itself
-    if (order) {
-      entries.push({
-        id: "order-created",
-        action: "Order Created",
-        created_at: order.created_at,
-        done_by: order.channel === "shopify" ? "Shopify" : "Staff",
-        details: `Channel: ${order.channel || "manual"} • #${order.order_number}`,
-      });
-    }
-
-    // Sort by created_at descending (most recent first)
-    entries.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-    // Deduplicate by removing entries with identical action + timestamp (within 1s)
-    const seen = new Set<string>();
-    return entries.filter((e) => {
-      const key = `${e.action}__${Math.floor(new Date(e.created_at).getTime() / 1000)}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }, [activityLogs, webNotes, order]);
+  // Stock impact preview
+  const [stockImpact, setStockImpact] = useState<any[]>([]);
+  useEffect(() => {
+    if (!orderId || !open) return;
+    getStockImpact(orderId, "delivered").then(setStockImpact).catch(() => setStockImpact([]));
+  }, [orderId, open]);
 
   const customer = order?.customers as any;
   const subtotal = items?.reduce((s, i: any) => s + (i.unit_price * i.quantity), 0) || 0;
   const deliveryCharge = order?.delivery_charge || 0;
   const total = order?.total_amount || subtotal + deliveryCharge;
+  const advanceTotal = advances?.reduce((s, a: any) => s + (a.direction === "in" ? a.amount : -a.amount), 0) || 0;
+
+  const tabs = [
+    { key: "items" as const, label: "Items", icon: Package },
+    { key: "payment" as const, label: "Payment", icon: Banknote },
+    { key: "courier" as const, label: "Courier", icon: Truck },
+    { key: "journal" as const, label: "Journal", icon: BookOpen },
+    { key: "stock" as const, label: "Stock", icon: TrendingDown },
+  ];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-[540px] overflow-y-auto p-0">
+      <SheetContent className="w-full sm:max-w-[580px] overflow-y-auto p-0">
         <SheetHeader className="p-6 pb-4 border-b">
-          <SheetTitle className="text-lg font-bold">Order Details</SheetTitle>
+          <SheetTitle className="text-lg font-bold flex items-center gap-3">
+            Order Details
+            {order && <StatusBadge config={orderStatusConfig} status={order.status} />}
+          </SheetTitle>
+          {order && (
+            <p className="text-sm text-muted-foreground">
+              {order.invoice_id || order.order_number} • {formatDateTime(order.created_at)}
+            </p>
+          )}
         </SheetHeader>
 
         {isLoading ? (
           <div className="p-6 space-y-4">
             <Skeleton className="h-32 w-full" />
             <Skeleton className="h-48 w-full" />
-            <Skeleton className="h-32 w-full" />
           </div>
         ) : !order ? (
           <div className="p-6 text-center text-muted-foreground">Order not found</div>
         ) : (
-          <div className="p-6 space-y-6">
-            {/* Bill To + Invoice Info */}
-            <div className="border rounded-lg p-4">
-              <div className="grid grid-cols-2 gap-4">
-                {/* Left: Bill To */}
-                <div>
-                  <p className="text-sm font-bold mb-1">Bill to:</p>
-                  <p className="text-sm">{customer?.full_name || "—"}</p>
-                  <p className="text-xs text-muted-foreground">{order.delivery_address || customer?.address || "—"}</p>
-                  <p className="text-xs text-muted-foreground">{customer?.phone || ""}</p>
-                </div>
-                {/* Right: Invoice details */}
-                <div className="space-y-1.5 text-sm">
-                  <div className="flex justify-between">
-                    <span className="font-semibold">Invoice ID#:</span>
-                    <span>{order.order_number}</span>
+          <>
+            {/* Bill To Card */}
+            <div className="px-6 pt-4 pb-2">
+              <div className="border rounded-lg p-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground mb-1">BILL TO</p>
+                    <p className="text-sm font-medium">{customer?.full_name || "—"}</p>
+                    <p className="text-xs text-muted-foreground">{order.delivery_address || customer?.address || "—"}</p>
+                    <p className="text-xs text-muted-foreground">{customer?.phone || ""}</p>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="font-semibold">Invoice date:</span>
-                    <span className="text-xs">{formatDateTime(order.created_at)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-semibold">Courier Status:</span>
-                    <span>{order.courier_status || "—"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-semibold">Ref:</span>
-                    <span className="uppercase">{order.channel || "Manual"}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Products Table */}
-            <div className="border rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/30">
-                    <th className="text-left p-3 font-bold">Products</th>
-                    <th className="text-center p-3 font-bold">Qty</th>
-                    <th className="text-right p-3 font-bold">Unit price</th>
-                    <th className="text-right p-3 font-bold">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items?.map((item: any) => {
-                    const product = item.products;
-                    const name = product?.name || item.product_name_fallback || "Product";
-                    const sku = product?.sku || "";
-                    return (
-                      <tr key={item.id} className="border-b last:border-b-0">
-                        <td className="p-3">
-                          <p className="text-sm">{name}</p>
-                          {sku && <p className="text-xs text-muted-foreground">({sku})</p>}
-                        </td>
-                        <td className="p-3 text-center">{item.quantity}</td>
-                        <td className="p-3 text-right font-mono text-xs">{Number(item.unit_price).toFixed(2)}</td>
-                        <td className="p-3 text-right font-mono text-xs">{(item.unit_price * item.quantity).toFixed(2)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              {/* Totals */}
-              <div className="border-t p-3 space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span className="font-semibold">Sub-Total</span>
-                  <span className="font-mono">{subtotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="font-semibold">Delivery Charge</span>
-                  <span className="font-mono">{deliveryCharge}</span>
-                </div>
-                {(order.discount || 0) > 0 && (
-                  <div className="flex justify-between text-sm text-destructive">
-                    <span className="font-semibold">Discount</span>
-                    <span className="font-mono">-{order.discount}</span>
-                  </div>
-                )}
-                <Separator className="my-1" />
-                <div className="flex justify-between text-sm font-bold">
-                  <span>Total</span>
-                  <span className="font-mono">{Number(total).toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Status */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold">Status:</span>
-              <StatusBadge config={orderStatusConfig} status={order.status} />
-            </div>
-
-            {/* Log Timeline */}
-            <div>
-              <h3 className="text-base font-bold mb-1">Log Timeline</h3>
-              <p className="text-xs text-muted-foreground mb-3">
-                Each log entry will be displayed as a card in chronological order, with the most recent entry on the top.
-              </p>
-              {allLogs.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">No activity logs yet</p>
-              ) : (
-                <div className="space-y-2">
-                  {allLogs.map((log) => (
-                    <div key={log.id} className="border-l-4 border-muted-foreground/20 bg-muted/30 rounded-r-lg p-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-medium flex-1">{log.action}</p>
-                        <div className="text-right shrink-0">
-                          <p className="text-xs text-muted-foreground">At</p>
-                          <p className="text-xs">{formatDateTime(log.created_at)}</p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-xs text-muted-foreground">User Name</p>
-                          <p className="text-xs">{log.done_by || "—"}</p>
-                        </div>
-                      </div>
-                      {log.details && (
-                        <p className="text-xs text-muted-foreground mt-1">{log.details}</p>
-                      )}
+                  <div className="space-y-1 text-right">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium text-muted-foreground">Total</span>
+                      <span className="font-bold">{formatBDT(total)}</span>
                     </div>
-                  ))}
+                    {order.advance_amount > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="font-medium text-muted-foreground">Advance</span>
+                        <span className="text-green-600 font-semibold">{formatBDT(order.advance_amount)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium text-muted-foreground">COD Due</span>
+                      <span className="font-bold text-orange-600">{formatBDT(total - (order.advance_amount || 0))}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Tab Strip */}
+            <div className="px-6 flex gap-1 border-b">
+              {tabs.map((t) => {
+                const Icon = t.icon;
+                return (
+                  <button
+                    key={t.key}
+                    onClick={() => setActiveTab(t.key)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-t-lg transition-colors",
+                      activeTab === t.key
+                        ? "bg-muted text-foreground border border-b-0 border-border"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Tab Content */}
+            <div className="p-6 space-y-4">
+              {/* Items Tab */}
+              {activeTab === "items" && (
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/30">
+                        <th className="text-left p-3 font-bold">Product</th>
+                        <th className="text-center p-3 font-bold">Qty</th>
+                        <th className="text-right p-3 font-bold">Unit</th>
+                        <th className="text-right p-3 font-bold">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items?.map((item: any) => {
+                        const product = item.products;
+                        return (
+                          <tr key={item.id} className="border-b last:border-b-0">
+                            <td className="p-3">
+                              <p className="text-sm font-medium">{product?.name || item.product_name_fallback || "Product"}</p>
+                              {product?.sku && <p className="text-xs text-muted-foreground">{product.sku}</p>}
+                            </td>
+                            <td className="p-3 text-center">{item.quantity}</td>
+                            <td className="p-3 text-right font-mono text-xs">{Number(item.unit_price).toFixed(2)}</td>
+                            <td className="p-3 text-right font-mono text-xs">{(item.unit_price * item.quantity).toFixed(2)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  <div className="border-t p-3 space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-semibold">Sub-Total</span>
+                      <span className="font-mono">{subtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="font-semibold">Delivery</span>
+                      <span className="font-mono">{deliveryCharge}</span>
+                    </div>
+                    {(order.discount || 0) > 0 && (
+                      <div className="flex justify-between text-sm text-destructive">
+                        <span className="font-semibold">Discount</span>
+                        <span className="font-mono">-{order.discount}</span>
+                      </div>
+                    )}
+                    <Separator className="my-1" />
+                    <div className="flex justify-between text-sm font-bold">
+                      <span>Total</span>
+                      <span className="font-mono">{Number(total).toFixed(2)}</span>
+                    </div>
+                  </div>
                 </div>
               )}
+
+              {/* Payment Tab */}
+              {activeTab === "payment" && (
+                <div className="space-y-4">
+                  <div className="border rounded-lg p-4 space-y-3">
+                    <h4 className="font-semibold text-sm">Payment Breakdown</h4>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <span className="text-muted-foreground">Method</span>
+                      <span className="font-medium">{order.payment_method?.toUpperCase() || "COD"}</span>
+                      <span className="text-muted-foreground">Status</span>
+                      <span className="font-medium">{order.payment_status || "pending"}</span>
+                      <span className="text-muted-foreground">Total</span>
+                      <span className="font-bold">{formatBDT(total)}</span>
+                      <span className="text-muted-foreground">Advance Paid</span>
+                      <span className="font-semibold text-green-600">{formatBDT(order.advance_amount || 0)}</span>
+                      <span className="text-muted-foreground">COD Remaining</span>
+                      <span className="font-bold text-orange-600">{formatBDT(total - (order.advance_amount || 0))}</span>
+                    </div>
+                  </div>
+
+                  {advances && advances.length > 0 && (
+                    <div className="border rounded-lg p-4 space-y-2">
+                      <h4 className="font-semibold text-sm">Advance History</h4>
+                      {advances.map((a: any) => (
+                        <div key={a.id} className="flex justify-between text-xs border-b last:border-0 pb-1">
+                          <span>{formatDateTime(a.ledger_date)}</span>
+                          <span className={a.direction === "in" ? "text-green-600" : "text-red-600"}>
+                            {a.direction === "in" ? "+" : "-"}{formatBDT(a.amount)}
+                          </span>
+                          <span className="text-muted-foreground truncate max-w-[120px]">{a.note || "—"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Courier Tab */}
+              {activeTab === "courier" && (
+                <div className="space-y-4">
+                  {shipment ? (
+                    <div className="border rounded-lg p-4 space-y-3">
+                      <h4 className="font-semibold text-sm">Courier Charges — {(shipment as any).couriers?.name || "Unknown"}</h4>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <span className="text-muted-foreground">Tracking</span>
+                        <span className="font-mono text-xs">{shipment.tracking_id || "—"}</span>
+                        <span className="text-muted-foreground">Status</span>
+                        <span>{shipment.booking_status}</span>
+                        <Separator className="col-span-2" />
+                        <span className="text-muted-foreground">Delivery Fee</span>
+                        <span className="font-mono">{formatBDT2(shipment.courier_delivery_fee)}</span>
+                        <span className="text-muted-foreground">COD Fee</span>
+                        <span className="font-mono">{formatBDT2(shipment.courier_cod_fee)}</span>
+                        <span className="text-muted-foreground">Discount</span>
+                        <span className="font-mono text-green-600">-{formatBDT2(shipment.courier_discount)}</span>
+                        <span className="text-muted-foreground">Return Cost</span>
+                        <span className="font-mono">{formatBDT2(shipment.courier_return_cost)}</span>
+                        <Separator className="col-span-2" />
+                        <span className="font-semibold">Total Cost</span>
+                        <span className="font-bold font-mono">{formatBDT2(shipment.courier_total_cost)}</span>
+                        <span className="font-semibold">Net Payable</span>
+                        <span className="font-bold font-mono text-primary">{formatBDT2(shipment.courier_net_payable)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground text-sm">
+                      No courier shipment linked yet
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Journal Tab */}
+              {activeTab === "journal" && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm">Linked Journal Entries</h4>
+                  {journals && journals.length > 0 ? (
+                    journals.map((j: any) => (
+                      <div key={j.id} className="border rounded-lg p-3 flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium">{j.description}</p>
+                          <p className="text-xs text-muted-foreground">{formatDateTime(j.created_at)} • {j.reference_type}</p>
+                        </div>
+                        <Badge variant={j.status === "posted" ? "default" : "secondary"} className="text-xs">
+                          {j.status}
+                        </Badge>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-6">No journal entries linked</p>
+                  )}
+                </div>
+              )}
+
+              {/* Stock Impact Tab */}
+              {activeTab === "stock" && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm">Stock Impact Preview (on Delivery)</h4>
+                  {stockImpact.length > 0 ? (
+                    <div className="border rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b bg-muted/30">
+                            <th className="text-left p-2 font-medium">Product</th>
+                            <th className="text-center p-2 font-medium">Qty</th>
+                            <th className="text-center p-2 font-medium">Current</th>
+                            <th className="text-center p-2 font-medium">After</th>
+                            <th className="text-center p-2 font-medium">Impact</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {stockImpact.map((si: any, i: number) => (
+                            <tr key={i} className="border-b last:border-0">
+                              <td className="p-2 text-xs">{si.productName}</td>
+                              <td className="p-2 text-center">{si.quantity}</td>
+                              <td className="p-2 text-center font-mono">{si.currentStock}</td>
+                              <td className="p-2 text-center font-mono">{si.newStock}</td>
+                              <td className="p-2 text-center">
+                                {si.action === "decrease" && <TrendingDown className="w-4 h-4 text-red-500 mx-auto" />}
+                                {si.action === "increase" && <TrendingUp className="w-4 h-4 text-green-500 mx-auto" />}
+                                {si.action === "none" && <Minus className="w-4 h-4 text-muted-foreground mx-auto" />}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-6">No stock impact data</p>
+                  )}
+                </div>
+              )}
+
+              {/* Activity Timeline (always visible at bottom) */}
+              <Separator />
+              <div>
+                <h4 className="text-sm font-bold mb-2">Activity Log</h4>
+                {activityLogs && activityLogs.length > 0 ? (
+                  <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
+                    {activityLogs.map((log: any) => (
+                      <div key={log.id} className="border-l-4 border-muted-foreground/20 bg-muted/30 rounded-r-lg p-2.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-xs font-medium flex-1">{log.action}</p>
+                          <p className="text-[10px] text-muted-foreground shrink-0">{formatDateTime(log.created_at)}</p>
+                        </div>
+                        {log.details && <p className="text-[10px] text-muted-foreground mt-0.5">{log.details}</p>}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground text-center py-4">No activity yet</p>
+                )}
+              </div>
             </div>
-          </div>
+          </>
         )}
       </SheetContent>
     </Sheet>
