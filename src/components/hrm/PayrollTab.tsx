@@ -111,11 +111,11 @@ export function PayrollTab() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        {p.payment_status === "pending" && (
+                         {p.payment_status === "pending" && (
                           <>
                             <Button size="sm" variant="ghost" onClick={() => setEditRow(p)}>Edit</Button>
-                            <Button size="sm" variant="outline" onClick={() => markPaid.mutate({ id: p.id, payment_method: "bank" })}>
-                              <CreditCard className="w-3 h-3 mr-1" /> Pay
+                            <Button size="sm" variant="outline" onClick={() => markPaid.mutate({ id: p.id, payment_method: "bank", post_to_gl: true })}>
+                              <CreditCard className="w-3 h-3 mr-1" /> Pay & Post
                             </Button>
                           </>
                         )}
