@@ -6512,6 +6512,10 @@ export type Database = {
         Returns: string
       }
       posting_queue_counts: { Args: never; Returns: Json }
+      profit_loss_report: {
+        Args: { p_date_from?: string; p_date_to?: string }
+        Returns: Json
+      }
       reopen_accounting_period: {
         Args: { p_period_key: string }
         Returns: undefined
