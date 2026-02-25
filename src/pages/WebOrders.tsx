@@ -14,7 +14,7 @@ import {
   Search, Phone, MessageCircle, ExternalLink, Radio, ClipboardList, Clock,
   CheckCircle2, PhoneOff, Pause, Wallet, XCircle, CircleCheck, Download,
   Filter, X, CalendarDays, ArrowUpDown, MapPin, Copy, StickyNote, ShoppingBag,
-  CheckCheck, Ban,
+  CheckCheck, Ban, ShieldAlert, AlertTriangle,
 } from "lucide-react";
 import { useBDCourierBulk, getSuccessColor } from "@/hooks/use-bd-courier";
 import {
@@ -110,12 +110,34 @@ export default function WebOrdersPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
-        .select("*, customers(full_name, phone, address, district, thana, total_orders, total_spent, segment)")
+        .select("*, customers(full_name, phone, address, district, thana, total_orders, total_spent, segment, is_blocked, risk_flags)")
         .not("web_order_status", "is", null)
         .order("created_at", { ascending: false })
         .limit(500);
       if (error) throw error;
       return data;
+    },
+  });
+
+  // Duplicate phone detection
+  const phoneCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    orders?.forEach((o) => {
+      const phone = (o.customers as any)?.phone;
+      if (phone) counts.set(phone, (counts.get(phone) || 0) + 1);
+    });
+    return counts;
+  }, [orders]);
+
+  // Mark suspicious mutation
+  const markSuspicious = useMutation({
+    mutationFn: async (orderId: string) => {
+      const { error } = await supabase.from("orders").update({ web_order_status: "on_hold", notes: "⚠️ Marked suspicious" } as any).eq("id", orderId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "⚠️ Order marked suspicious" });
+      queryClient.invalidateQueries({ queryKey: ["web-orders"] });
     },
   });
 
@@ -546,7 +568,7 @@ export default function WebOrdersPage() {
                         onCheckedChange={toggleAll}
                       />
                     </th>
-                    {["Created At", "Customer", "Note", "Order Items", "Success Rate", "Tags", "Site", ""].map((h) => (
+                    {["Created At", "Customer", "District", "Items", "Total", "Risk Score", "Auto Checks", "Site", ""].map((h) => (
                       <th key={h} className="px-4 py-3 text-left text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">
                         {h}
                       </th>
@@ -557,20 +579,22 @@ export default function WebOrdersPage() {
                   {filtered.map((order, idx) => {
                     const customer = order.customers as any;
                     const items = itemsByOrder.get(order.id) || [];
-                    const note = latestNotes instanceof Map ? latestNotes.get(order.id) : null;
                     const sr = getSuccessRate(customer);
-                    const tags = (order as any).tags || [];
                     const isSelected = selected.includes(order.id);
                     const isRepeat = (customer?.total_orders || 0) > 1;
+                    const isBlocked = customer?.is_blocked;
+                    const isDuplicate = customer?.phone && (phoneCounts.get(customer.phone) || 0) > 1;
+                    const riskFlags = customer?.risk_flags || [];
+                    const hasHighReturn = riskFlags.includes("high_return");
+                    const hasFreqCancel = riskFlags.includes("frequent_cancel");
+                    const riskScore = (isBlocked ? 40 : 0) + (hasHighReturn ? 30 : 0) + (hasFreqCancel ? 20 : 0) + (isDuplicate ? 10 : 0) + (sr.percent < 50 && !sr.noData ? 20 : 0);
 
                     return (
                       <tr
                         key={order.id}
                         className={cn(
                           "group border-b border-border/30 transition-all duration-200",
-                          isSelected
-                            ? "bg-primary/5"
-                            : idx % 2 === 1 ? "bg-muted/20" : "",
+                          isSelected ? "bg-primary/5" : isBlocked ? "bg-red-50/30" : idx % 2 === 1 ? "bg-muted/20" : "",
                           "hover:bg-muted/40 hover:shadow-[0_2px_8px_-2px_rgba(0,0,0,0.06)]"
                         )}
                         style={{ height: '72px' }}
@@ -592,14 +616,8 @@ export default function WebOrdersPage() {
                               {isNew(order.created_at) && (
                                 <span className="text-[8px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full animate-pulse-subtle">NEW</span>
                               )}
-                              {(order as any).needs_address_review && (
-                                <span className="text-[8px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">⚠️</span>
-                              )}
                             </div>
-                            <button
-                              onClick={() => navigate(`/web-orders/${order.id}`)}
-                              className="text-[11px] text-primary font-mono hover:underline"
-                            >
+                            <button onClick={() => navigate(`/web-orders/${order.id}`)} className="text-[11px] text-primary font-mono hover:underline">
                               #{order.order_number}
                             </button>
                           </div>
@@ -607,204 +625,129 @@ export default function WebOrdersPage() {
 
                         {/* ── Customer ── */}
                         <td className="px-4 py-3">
-                          <div className="space-y-1 min-w-[180px]">
+                          <div className="space-y-1 min-w-[170px]">
                             <div className="flex items-center gap-1.5">
                               <span className="text-[13px] font-bold text-foreground tracking-tight">{customer?.phone || "—"}</span>
                               {customer?.phone && (
                                 <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <a href={`tel:${customer.phone}`} className="p-1 rounded-md text-blue-500 hover:bg-blue-50 transition-colors">
-                                    <Phone className="w-3 h-3" />
-                                  </a>
-                                  <a href={`https://wa.me/${customer.phone?.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer" className="p-1 rounded-md text-emerald-500 hover:bg-emerald-50 transition-colors">
-                                    <MessageCircle className="w-3 h-3" />
-                                  </a>
+                                  <a href={`tel:${customer.phone}`} className="p-1 rounded-md text-blue-500 hover:bg-blue-50 transition-colors"><Phone className="w-3 h-3" /></a>
+                                  <a href={`https://wa.me/${customer.phone?.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer" className="p-1 rounded-md text-emerald-500 hover:bg-emerald-50 transition-colors"><MessageCircle className="w-3 h-3" /></a>
                                 </div>
                               )}
                             </div>
                             <div className="flex items-center gap-1">
                               <span className="text-[12px] text-foreground/80">{customer?.full_name || "—"}</span>
-                              {customer?.full_name && (
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(customer.full_name); toast({ title: "Copied!" }); }}
-                                  className="text-muted-foreground/40 hover:text-muted-foreground transition-colors p-0.5 opacity-0 group-hover:opacity-100"
-                                >
-                                  <Copy className="w-3 h-3" />
-                                </button>
-                              )}
-                              {isRepeat && (
-                                <span className="text-[9px] font-semibold bg-info/10 text-info px-1.5 py-0.5 rounded-full">🔄 Repeat</span>
-                              )}
+                              {isBlocked && <span className="text-[8px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full">🚫 BLOCKED</span>}
+                              {isRepeat && <span className="text-[9px] font-semibold bg-info/10 text-info px-1.5 py-0.5 rounded-full">🔄</span>}
                             </div>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="flex items-center gap-1 text-[11px] text-muted-foreground cursor-default">
-                                  <MapPin className="w-3 h-3 flex-shrink-0" />
-                                  <span className="truncate max-w-[150px]">{customer?.address || customer?.district || "—"}</span>
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent side="bottom" className="max-w-[300px] text-xs">
-                                {customer?.address || "No address"}
-                              </TooltipContent>
-                            </Tooltip>
                           </div>
                         </td>
 
-                        {/* ── Note ── */}
-                        <td className="px-4 py-3 min-w-[130px]">
-                          {note ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="cursor-default">
-                                  <p className="text-[12px] text-foreground/80 truncate max-w-[140px] leading-relaxed">{note.content}</p>
-                                  <p className="text-[10px] text-muted-foreground mt-0.5">{timeAgo(note.created_at)}</p>
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent side="bottom" className="max-w-[300px] text-xs">
-                                {note.content}
-                              </TooltipContent>
-                            </Tooltip>
-                          ) : (
-                            <button
-                              onClick={() => navigate(`/web-orders/${order.id}`)}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1 px-2 py-1 rounded-md border border-dashed border-border hover:border-foreground/30"
-                            >
-                              <StickyNote className="w-3 h-3" /> Add note
-                            </button>
-                          )}
+                        {/* ── District ── */}
+                        <td className="px-4 py-3">
+                          <span className="text-[12px] text-muted-foreground">{customer?.district || "—"}</span>
                         </td>
 
-                        {/* ── Order Items ── */}
+                        {/* ── Items ── */}
                         <td className="px-4 py-3">
-                          <div className="space-y-1.5 min-w-[160px]">
+                          <div className="space-y-1 min-w-[140px]">
                             {items.slice(0, 2).map((item) => {
                               const product = item.products as any;
-                              const pName = product?.name || (item as any).product_name_fallback || "Product";
                               return (
-                                <div key={item.id} className="flex items-center gap-2.5">
-                                  <div className="w-9 h-9 rounded-lg bg-muted/60 flex items-center justify-center overflow-hidden flex-shrink-0 border border-border/40">
-                                    {product?.image_url ? (
-                                      <img src={product.image_url} alt="" className="w-full h-full object-cover" />
-                                    ) : (
-                                      <ShoppingBag className="w-3.5 h-3.5 text-muted-foreground" />
-                                    )}
+                                <div key={item.id} className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-lg bg-muted/60 flex items-center justify-center overflow-hidden flex-shrink-0 border border-border/40">
+                                    {product?.image_url ? <img src={product.image_url} alt="" className="w-full h-full object-cover" /> : <ShoppingBag className="w-3 h-3 text-muted-foreground" />}
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className="text-[12px] font-bold text-primary truncate max-w-[100px]">{product?.sku || "-"}</p>
-                                    <div className="flex items-center gap-1.5 mt-0.5">
-                                      <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-md font-medium text-muted-foreground">{formatBDT(item.unit_price)}</span>
-                                      <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-md font-bold">{item.quantity}×</span>
-                                    </div>
+                                    <p className="text-[11px] font-bold text-primary truncate max-w-[90px]">{product?.sku || "-"}</p>
+                                    <span className="text-[10px] text-muted-foreground">{item.quantity}×</span>
                                   </div>
                                 </div>
                               );
                             })}
-                            {items.length > 2 && (
-                              <span className="inline-flex items-center text-[10px] text-primary font-semibold bg-primary/5 px-2 py-0.5 rounded-full">
-                                +{items.length - 2} more
-                              </span>
-                            )}
+                            {items.length > 2 && <span className="text-[10px] text-primary font-semibold">+{items.length - 2} more</span>}
                             {items.length === 0 && <span className="text-[11px] text-muted-foreground italic">No items</span>}
                           </div>
                         </td>
 
-                        {/* ── Success Rate ── */}
+                        {/* ── Total ── */}
                         <td className="px-4 py-3">
-                          {sr.loading ? (
-                            <Skeleton className="h-11 w-24 rounded-lg" />
-                          ) : sr.noData ? (
-                            <span className="text-sm font-bold text-muted-foreground/30">—</span>
-                          ) : (
+                          <span className="text-[13px] font-bold text-foreground">{formatBDT(order.total_amount || 0)}</span>
+                        </td>
+
+                        {/* ── Risk Score ── */}
+                        <td className="px-4 py-3">
+                          {riskScore > 0 ? (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <div className="flex items-center gap-2.5 cursor-default">
-                                  <div className="relative w-11 h-11 flex-shrink-0">
-                                    <svg className="w-11 h-11 -rotate-90" viewBox="0 0 36 36">
-                                      <circle cx="18" cy="18" r="14" fill="none" stroke="hsl(var(--muted))" strokeWidth="2.5" strokeOpacity="0.3" />
-                                      <circle
-                                        cx="18" cy="18" r="14" fill="none"
-                                        stroke={getSuccessColor(sr.percent)}
-                                        strokeWidth="2.5"
-                                        strokeDasharray={`${sr.percent * 0.88} 88`}
-                                        strokeLinecap="round"
-                                        className="transition-all duration-700 ease-out"
-                                      />
-                                    </svg>
-                                    <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold" style={{ color: getSuccessColor(sr.percent) }}>
-                                      {sr.percent}%
-                                    </span>
-                                  </div>
-                                  <div className="text-[11px] leading-relaxed">
-                                    <p className="font-bold" style={{ color: getSuccessColor(sr.percent) }}>{sr.delivered}/{sr.total}</p>
-                                    <p className="text-muted-foreground">Rating: {sr.rating}★</p>
-                                  </div>
+                                <div className={cn(
+                                  "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold",
+                                  riskScore >= 60 ? "bg-red-100 text-red-700 border border-red-200" :
+                                  riskScore >= 30 ? "bg-amber-100 text-amber-700 border border-amber-200" :
+                                  "bg-yellow-50 text-yellow-700 border border-yellow-200"
+                                )}>
+                                  <AlertTriangle className="w-3 h-3" />
+                                  {riskScore >= 60 ? "HIGH" : riskScore >= 30 ? "MED" : "LOW"}
                                 </div>
                               </TooltipTrigger>
-                              <TooltipContent side="bottom" className="text-xs space-y-1">
-                                <p>Success Rate: <strong>{sr.percent}%</strong></p>
-                                <p>Delivered: {sr.delivered} / Total: {sr.total}</p>
-                                <p>Rating: {"★".repeat(sr.rating)}{"☆".repeat(5 - sr.rating)}</p>
+                              <TooltipContent side="bottom" className="text-xs space-y-0.5">
+                                <p className="font-semibold">Risk Score: {riskScore}</p>
+                                {isBlocked && <p>🚫 Customer is blocked</p>}
+                                {hasHighReturn && <p>⚠️ High return rate</p>}
+                                {hasFreqCancel && <p>❌ Frequent cancellations</p>}
+                                {isDuplicate && <p>📋 Duplicate phone in queue</p>}
+                                {sr.percent < 50 && !sr.noData && <p>📉 Low success rate ({sr.percent}%)</p>}
                               </TooltipContent>
                             </Tooltip>
+                          ) : (
+                            <span className="text-[11px] text-emerald-600 font-medium">✅ OK</span>
                           )}
                         </td>
 
-                        {/* ── Tags ── */}
+                        {/* ── Auto Checks ── */}
                         <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-1 items-center">
-                            {tags.map((t: string, i: number) => (
-                              <span key={i} className="text-[10px] h-5 px-2 rounded-full border border-border bg-muted/50 text-muted-foreground font-medium inline-flex items-center">{t}</span>
-                            ))}
-                            <button className="text-[10px] h-5 px-2 rounded-full border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors opacity-0 group-hover:opacity-100">
-                              + Tag
-                            </button>
+                          <div className="flex flex-wrap gap-1">
+                            {isBlocked && <span className="text-[9px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full">🚫 Blocked</span>}
+                            {isDuplicate && <span className="text-[9px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">📋 Dup Phone</span>}
+                            {hasHighReturn && <span className="text-[9px] font-bold bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full">↩️ Returns</span>}
+                            {hasFreqCancel && <span className="text-[9px] font-bold bg-red-50 text-red-600 px-1.5 py-0.5 rounded-full">❌ Cancels</span>}
+                            {!isBlocked && !isDuplicate && !hasHighReturn && !hasFreqCancel && <span className="text-[10px] text-muted-foreground">—</span>}
                           </div>
                         </td>
 
                         {/* ── Site ── */}
                         <td className="px-4 py-3">
                           {order.channel === "shopify" ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full">
-                              🛍️ Shopify
-                            </span>
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full">🛍️ Shopify</span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-muted text-muted-foreground px-2.5 py-1 rounded-full capitalize">
-                              {order.channel}
-                            </span>
+                            <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-muted text-muted-foreground px-2.5 py-1 rounded-full capitalize">{order.channel}</span>
                           )}
                         </td>
 
                         {/* ── Actions ── */}
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => navigate(`/web-orders/${order.id}`)}
-                              className="text-[12px] font-semibold text-primary hover:text-primary-dark inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-primary/20 hover:bg-primary/5 transition-all"
-                            >
+                            <button onClick={() => navigate(`/web-orders/${order.id}`)} className="text-[12px] font-semibold text-primary hover:text-primary-dark inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-primary/20 hover:bg-primary/5 transition-all">
                               Open <ExternalLink className="w-3 h-3" />
                             </button>
-                            {/* Quick actions on hover */}
                             <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); bulkMutation.mutate("confirm"); setSelected([order.id]); }}
-                                    className="p-1.5 rounded-md text-emerald-600 hover:bg-emerald-50 transition-colors"
-                                  >
-                                    <CheckCheck className="w-3.5 h-3.5" />
-                                  </button>
+                                  <button onClick={(e) => { e.stopPropagation(); setSelected([order.id]); bulkMutation.mutate("confirm"); }} className="p-1.5 rounded-md text-emerald-600 hover:bg-emerald-50 transition-colors"><CheckCheck className="w-3.5 h-3.5" /></button>
                                 </TooltipTrigger>
                                 <TooltipContent>Confirm</TooltipContent>
                               </Tooltip>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); bulkMutation.mutate("cancel"); setSelected([order.id]); }}
-                                    className="p-1.5 rounded-md text-red-500 hover:bg-red-50 transition-colors"
-                                  >
-                                    <Ban className="w-3.5 h-3.5" />
-                                  </button>
+                                  <button onClick={(e) => { e.stopPropagation(); setSelected([order.id]); bulkMutation.mutate("cancel"); }} className="p-1.5 rounded-md text-red-500 hover:bg-red-50 transition-colors"><Ban className="w-3.5 h-3.5" /></button>
                                 </TooltipTrigger>
                                 <TooltipContent>Cancel</TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button onClick={(e) => { e.stopPropagation(); markSuspicious.mutate(order.id); }} className="p-1.5 rounded-md text-amber-600 hover:bg-amber-50 transition-colors"><ShieldAlert className="w-3.5 h-3.5" /></button>
+                                </TooltipTrigger>
+                                <TooltipContent>Mark Suspicious</TooltipContent>
                               </Tooltip>
                             </div>
                           </div>
@@ -814,7 +757,7 @@ export default function WebOrdersPage() {
                   })}
                   {filtered.length === 0 && (
                     <tr>
-                      <td colSpan={9}>
+                      <td colSpan={10}>
                         <EmptyState tab={activeTab} />
                       </td>
                     </tr>
