@@ -5965,6 +5965,17 @@ export type Database = {
       dashboard_cash_position: { Args: never; Returns: Json }
       dashboard_today_kpis: { Args: never; Returns: Json }
       dashboard_working_capital: { Args: never; Returns: Json }
+      export_all_orders: {
+        Args: {
+          p_date_from?: string
+          p_date_to?: string
+          p_limit?: number
+          p_search?: string
+          p_source?: string[]
+          p_status?: string[]
+        }
+        Returns: Json
+      }
       generate_invoice_id: { Args: never; Returns: string }
       get_exchange_rate: {
         Args: { p_currency: string; p_date: string }
@@ -5972,6 +5983,27 @@ export type Database = {
       }
       global_search: {
         Args: { p_limit?: number; p_query: string }
+        Returns: Json
+      }
+      list_all_orders: {
+        Args: {
+          p_amount_max?: number
+          p_amount_min?: number
+          p_courier?: string[]
+          p_date_from?: string
+          p_date_to?: string
+          p_delivered_from?: string
+          p_delivered_to?: string
+          p_exceptions_only?: boolean
+          p_has_advance?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_settlement_status?: string
+          p_source?: string[]
+          p_status?: string[]
+          p_sync_status?: string
+        }
         Returns: Json
       }
       post_cod_received: {
