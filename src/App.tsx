@@ -36,6 +36,7 @@ import FinancePage from "./pages/Finance";
 import FinanceAccountsPage from "./pages/FinanceAccounts";
 import PostingQueue from "./pages/PostingQueue";
 import FinanceSettlementsPage from "./pages/FinanceSettlements";
+import FinancePayablesPage from "./pages/FinancePayables";
 import HRMPage from "./pages/HRM";
 import MetaAdsReport from "./pages/MetaAdsReport";
 import MetaAdsCampaignProducts from "./pages/MetaAdsCampaignProducts";
@@ -101,6 +102,7 @@ const App = () => (
             <Route path="/finance/posting-queue" element={<PostingQueue />} />
             <Route path="/finance/posting" element={<PostingQueue />} />
             <Route path="/finance/settlements" element={<FinanceSettlementsPage />} />
+            <Route path="/finance/payables" element={<FinancePayablesPage />} />
             <Route path="/accounting" element={<AccountingPage />} />
             <Route path="/courier-cod" element={<CourierCODPage />} />
             <Route path="/expenses" element={<ExpensesPage />} />
