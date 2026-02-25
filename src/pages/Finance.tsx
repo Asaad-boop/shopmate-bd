@@ -99,7 +99,7 @@ const NAV_TILES = [
   { label: "Accounts", icon: Building2, path: "/finance/accounts", desc: "Chart of accounts & balances" },
   { label: "Posting Queue", icon: ClipboardList, path: "/finance/posting-queue", desc: "Review pending journal entries" },
   { label: "Settlements", icon: FileCheck, path: "/finance/settlements", desc: "Courier statement processing" },
-  { label: "Payables", icon: CreditCard, path: "/purchasing", desc: "Supplier payment tracking" },
+  { label: "Payables", icon: CreditCard, path: "/finance/payables", desc: "Supplier payables & aging" },
   { label: "Ledger", icon: BookOpen, path: "/accounting", desc: "General ledger & trial balance" },
   { label: "Period Close", icon: Lock, path: "/accounting", desc: "Close accounting periods" },
 ];

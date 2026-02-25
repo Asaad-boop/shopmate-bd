@@ -6515,6 +6515,11 @@ export type Database = {
       settlement_auto_match: { Args: { p_batch_id: string }; Returns: Json }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      supplier_payable_detail: {
+        Args: { p_supplier_id: string }
+        Returns: Json
+      }
+      supplier_payables_aging: { Args: never; Returns: Json }
     }
     Enums: {
       [_ in never]: never
