@@ -6964,6 +6964,10 @@ export type Database = {
       }
       posting_queue_counts: { Args: never; Returns: Json }
       preview_event_journal: { Args: { p_event_id: string }; Returns: Json }
+      procurement_dashboard_report: {
+        Args: { p_month_start?: string }
+        Returns: Json
+      }
       profit_loss_report: {
         Args: { p_date_from?: string; p_date_to?: string }
         Returns: Json

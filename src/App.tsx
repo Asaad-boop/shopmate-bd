@@ -31,6 +31,7 @@ import SuppliersPage from "./pages/Suppliers";
 import AgentsPage from "./pages/Agents";
 import ImportDashboard from "./pages/ImportDashboard";
 import PurchasingPage from "./pages/Purchasing";
+import ProcurementDashboard from "./pages/Procurement";
 import CRMPage from "./pages/CRM";
 import FinancePage from "./pages/Finance";
 import FinanceAccountsPage from "./pages/FinanceAccounts";
@@ -121,6 +122,7 @@ const App = () => (
             <Route path="/expenses" element={<ExpensesPage />} />
 
             {/* Imports & Goods Purchase */}
+            <Route path="/procurement" element={<ProcurementDashboard />} />
             <Route path="/purchasing" element={<PurchasingPage />} />
             <Route path="/purchase-orders" element={<PurchaseOrdersPage />} />
             <Route path="/purchase-orders/new" element={<PurchaseOrderDetailPage />} />
