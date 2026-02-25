@@ -6332,6 +6332,10 @@ export type Database = {
         Args: { p_action: string; p_order_id: string; p_reason?: string }
         Returns: Json
       }
+      balance_snapshot_report: {
+        Args: { p_as_of_date: string; p_include_zero?: boolean }
+        Returns: Json
+      }
       calc_cod_fee: {
         Args: { p_cod_amount: number; p_courier: string; p_zone: string }
         Returns: number
