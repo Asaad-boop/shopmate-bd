@@ -13,6 +13,7 @@ import AllOrders from "./pages/AllOrders";
 import PreOrderList from "./pages/PreOrderList";
 import ScanToUpdate from "./pages/ScanToUpdate";
 import OldOrdersPage from "./pages/OldOrders";
+import SuperEdit from "./pages/SuperEdit";
 import OrderDetail from "./pages/OrderDetail";
 import WebOrdersPage from "./pages/WebOrders";
 import WebOrderDetail from "./pages/WebOrderDetail";
@@ -68,7 +69,7 @@ const App = () => (
             <Route path="/orders/new" element={<NewOrder />} />
             <Route path="/orders/all" element={<AllOrders />} />
             <Route path="/orders/old" element={<OldOrdersPage />} />
-            <Route path="/orders/super-edit" element={<OldOrdersPage />} />
+            <Route path="/orders/super-edit" element={<SuperEdit />} />
             <Route path="/orders/pre-orders" element={<PreOrderList />} />
             <Route path="/orders/scan" element={<ScanToUpdate />} />
             <Route path="/orders/import-legacy" element={<ImportLegacyOrders />} />
