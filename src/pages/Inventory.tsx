@@ -20,13 +20,14 @@ import {
   Package, DollarSign, AlertTriangle, XCircle, Skull,
   Search, Download, Upload, Plus, MoreVertical,
   Pencil, History, ArrowUpDown, X, RotateCcw,
-  ChevronUp, ChevronDown, ArrowUp, ArrowDown,
+  ChevronUp, ChevronDown, ArrowUp, ArrowDown, PackageOpen,
 } from "lucide-react";
 import StockAdjustmentModal from "@/components/inventory/StockAdjustmentModal";
 import StockMovementDrawer from "@/components/inventory/StockMovementDrawer";
 import BulkImportModal from "@/components/inventory/BulkImportModal";
 import InventoryBulkBar from "@/components/inventory/InventoryBulkBar";
 import AddProductModal from "@/components/products/AddProductModal";
+import OpeningStockModal from "@/components/inventory/OpeningStockModal";
 
 type StockFilterType = "all" | "in" | "low" | "out" | "dead";
 type SortField = "name" | "stock" | "value" | "salesDay" | "daysLeft" | "sellingPrice" | "costPrice";
@@ -71,6 +72,7 @@ export default function InventoryPage() {
   const [adjustProductId, setAdjustProductId] = useState<string | undefined>();
   const [importOpen, setImportOpen] = useState(false);
   const [addProductOpen, setAddProductOpen] = useState(false);
+  const [openingStockOpen, setOpeningStockOpen] = useState(false);
   const [editProductId, setEditProductId] = useState<string | null>(null);
   const [movementProduct, setMovementProduct] = useState<any>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -271,6 +273,9 @@ export default function InventoryPage() {
             <Badge variant="secondary" className="text-xs font-semibold tabular-nums">{kpis.total} SKUs</Badge>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setOpeningStockOpen(true)} className="gap-1.5">
+              <PackageOpen className="w-3.5 h-3.5" /> Opening Stock
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => setImportOpen(true)} className="gap-1.5">
               <Download className="w-3.5 h-3.5" /> Import CSV
             </Button>
@@ -604,6 +609,7 @@ export default function InventoryPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <OpeningStockModal open={openingStockOpen} onOpenChange={setOpeningStockOpen} products={products || []} />
     </div>
   );
 }
