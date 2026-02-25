@@ -6539,6 +6539,14 @@ export type Database = {
       settlement_auto_match: { Args: { p_batch_id: string }; Returns: Json }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      sku_order_drilldown: {
+        Args: { p_date_from: string; p_date_to: string; p_product_id: string }
+        Returns: Json
+      }
+      sku_profitability_report: {
+        Args: { p_date_from?: string; p_date_to?: string }
+        Returns: Json
+      }
       supplier_payable_detail: {
         Args: { p_supplier_id: string }
         Returns: Json
