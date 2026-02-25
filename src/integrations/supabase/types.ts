@@ -2494,6 +2494,13 @@ export type Database = {
             referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "goods_receipts_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "v_supplier_financials"
+            referencedColumns: ["supplier_id"]
+          },
         ]
       }
       hrm_attendance: {
@@ -4984,6 +4991,13 @@ export type Database = {
             referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "v_supplier_financials"
+            referencedColumns: ["supplier_id"]
+          },
         ]
       }
       purchase_order_items: {
@@ -5226,6 +5240,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "suppliers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "v_supplier_financials"
+            referencedColumns: ["supplier_id"]
           },
         ]
       }
@@ -6117,11 +6138,19 @@ export type Database = {
             referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "supplier_payments_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "v_supplier_financials"
+            referencedColumns: ["supplier_id"]
+          },
         ]
       }
       suppliers: {
         Row: {
           address: string | null
+          agent_id: string | null
           alipay_id: string | null
           bank_account_name: string | null
           bank_account_number: string | null
@@ -6152,6 +6181,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          agent_id?: string | null
           alipay_id?: string | null
           bank_account_name?: string | null
           bank_account_number?: string | null
@@ -6182,6 +6212,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          agent_id?: string | null
           alipay_id?: string | null
           bank_account_name?: string | null
           bank_account_number?: string | null
@@ -6210,7 +6241,15 @@ export type Database = {
           wechat_id?: string | null
           whatsapp?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       system_issues: {
         Row: {
@@ -6673,6 +6712,16 @@ export type Database = {
             referencedColumns: ["product_id"]
           },
         ]
+      }
+      v_supplier_financials: {
+        Row: {
+          open_po_count: number | null
+          supplier_id: string | null
+          total_due: number | null
+          total_paid: number | null
+          total_purchase_value: number | null
+        }
+        Relationships: []
       }
     }
     Functions: {
