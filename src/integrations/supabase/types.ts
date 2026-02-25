@@ -6328,6 +6328,10 @@ export type Database = {
         Args: { p_new_cost: number; p_new_qty: number; p_product_id: string }
         Returns: number
       }
+      cashflow_report: {
+        Args: { p_date_from?: string; p_date_to?: string }
+        Returns: Json
+      }
       close_accounting_period: {
         Args: { p_closed_by?: string; p_period_key: string }
         Returns: undefined
