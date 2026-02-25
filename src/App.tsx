@@ -42,6 +42,7 @@ import HRMPage from "./pages/HRM";
 import MetaAdsReport from "./pages/MetaAdsReport";
 import MetaAdsCampaignProducts from "./pages/MetaAdsCampaignProducts";
 import ReportsPage from "./pages/Reports";
+import ReportsExecutivePage from "./pages/ReportsExecutive";
 import AccountingPage from "./pages/Accounting";
 import CourierCODPage from "./pages/CourierCOD";
 import ExpensesPage from "./pages/Expenses";
@@ -130,6 +131,7 @@ const App = () => (
 
             {/* Reports */}
             <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/reports/executive" element={<ReportsExecutivePage />} />
 
             {/* Access */}
             <Route path="/security/roles" element={<RolesPermissionsPage />} />
