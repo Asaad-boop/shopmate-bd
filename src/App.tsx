@@ -30,6 +30,7 @@ import PurchaseOrderDetailPage from "./pages/PurchaseOrderDetail";
 import SuppliersPage from "./pages/Suppliers";
 import AgentsPage from "./pages/Agents";
 import ImportDashboard from "./pages/ImportDashboard";
+import ImportManagement from "./pages/ImportManagement";
 import PurchasingPage from "./pages/Purchasing";
 import ProcurementDashboard from "./pages/Procurement";
 import CRMPage from "./pages/CRM";
@@ -130,6 +131,7 @@ const App = () => (
             <Route path="/suppliers" element={<SuppliersPage />} />
             <Route path="/agents" element={<AgentsPage />} />
             <Route path="/import-dashboard" element={<ImportDashboard />} />
+            <Route path="/imports" element={<ImportManagement />} />
 
             {/* HRM, CRM */}
             <Route path="/crm" element={<CRMPage />} />
