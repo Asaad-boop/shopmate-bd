@@ -6337,6 +6337,10 @@ export type Database = {
       dashboard_cash_position: { Args: never; Returns: Json }
       dashboard_today_kpis: { Args: never; Returns: Json }
       dashboard_working_capital: { Args: never; Returns: Json }
+      executive_report: {
+        Args: { p_date_from?: string; p_date_to?: string }
+        Returns: Json
+      }
       export_all_orders: {
         Args: {
           p_date_from?: string
