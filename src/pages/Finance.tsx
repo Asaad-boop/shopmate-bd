@@ -1,124 +1,259 @@
-import { useState, useEffect, useCallback } from "react";
-import { usePeriod, useFinanceStats } from "@/hooks/use-finance";
-import { HeroCards } from "@/components/finance/HeroCards";
-import { OverviewTab } from "@/components/finance/OverviewTab";
-import { TransactionsTab } from "@/components/finance/TransactionsTab";
-import { PLStatementTab } from "@/components/finance/PLStatementTab";
-import { AccountsTab } from "@/components/finance/AccountsTab";
-import { PayableTab } from "@/components/finance/PayableTab";
-import { ReceivableTab } from "@/components/finance/ReceivableTab";
-import { AddTransactionModal } from "@/components/finance/AddTransactionModal";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useFinanceCashPosition,
+  useFinanceWorkingCapital,
+  useFinancePostingQueue,
+  useFinanceSettlementSummary,
+  useFinanceAlerts,
+} from "@/hooks/use-finance-dashboard";
+import { formatBDT } from "@/lib/format";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import {
+  Banknote, Building2, Smartphone, Wallet, DollarSign,
+  Package, Truck, Users, CreditCard,
+  ClipboardList, AlertTriangle, RefreshCw,
+  BookOpen, FileCheck, Receipt, CalendarCheck, Lock,
+  ArrowRight, BarChart3,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Plus, FileText, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const heading = { fontFamily: "'Playfair Display', serif" };
-const mono = { fontFamily: "'DM Mono', monospace" };
+/* ── tiny metric card ─────────────────────────────── */
+function MetricCard({
+  label, value, icon: Icon, loading, accent, onClick, sub,
+}: {
+  label: string; value: string | number; icon: any; loading?: boolean;
+  accent?: string; onClick?: () => void; sub?: string;
+}) {
+  if (loading) return <Skeleton className="h-[110px] rounded-xl" />;
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "bg-card border border-border rounded-xl p-4 text-left transition-all hover:shadow-md hover:border-primary/30 group",
+        onClick && "cursor-pointer",
+      )}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-medium text-muted-foreground">{label}</span>
+        <div className={cn("p-1.5 rounded-lg", accent || "bg-primary/10 text-primary")}>
+          <Icon className="w-4 h-4" />
+        </div>
+      </div>
+      <p className="text-xl font-bold text-foreground">{typeof value === "number" ? formatBDT(value) : value}</p>
+      {sub && <p className="text-[11px] text-muted-foreground mt-0.5">{sub}</p>}
+      {onClick && (
+        <ArrowRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity mt-1" />
+      )}
+    </button>
+  );
+}
 
-const TABS = [
-  { id: "overview", label: "📊 Overview" },
-  { id: "transactions", label: "📋 Transactions" },
-  { id: "pnl", label: "📈 P&L Statement" },
-  { id: "accounts", label: "🏦 Accounts" },
-  { id: "payable", label: "💸 Payable" },
-  { id: "receivable", label: "💰 Receivable" },
+/* ── count card (for posting queue / settlements) ─── */
+function CountCard({
+  label, count, loading, onClick, variant,
+}: {
+  label: string; count: number; loading?: boolean; onClick?: () => void;
+  variant?: "warning" | "destructive" | "default";
+}) {
+  if (loading) return <Skeleton className="h-[72px] rounded-lg" />;
+  return (
+    <button
+      onClick={onClick}
+      className="bg-card border border-border rounded-lg px-4 py-3 text-left hover:shadow-sm hover:border-primary/20 transition-all flex items-center justify-between gap-3 group"
+    >
+      <div>
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-lg font-bold text-foreground">{count}</p>
+      </div>
+      {count > 0 && (
+        <Badge variant={variant === "destructive" ? "destructive" : variant === "warning" ? "outline" : "secondary"} className="text-[10px]">
+          {count}
+        </Badge>
+      )}
+    </button>
+  );
+}
+
+/* ── alert row ───────────────────────────────────── */
+function AlertRow({ label, count, onClick }: { label: string; count: number; onClick?: () => void }) {
+  if (count === 0) return null;
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center justify-between w-full px-3 py-2 rounded-lg hover:bg-muted/60 transition-colors text-left"
+    >
+      <div className="flex items-center gap-2">
+        <AlertTriangle className="w-3.5 h-3.5 text-warning" />
+        <span className="text-sm text-foreground">{label}</span>
+      </div>
+      <Badge variant="destructive" className="text-[10px]">{count}</Badge>
+    </button>
+  );
+}
+
+/* ── nav tile ─────────────────────────────────────── */
+const NAV_TILES = [
+  { label: "Accounts", icon: Building2, path: "/finance/accounts", desc: "Chart of accounts & balances" },
+  { label: "Posting Queue", icon: ClipboardList, path: "/finance/posting-queue", desc: "Review pending journal entries" },
+  { label: "Settlements", icon: FileCheck, path: "/courier-cod", desc: "COD reconciliation & settlements" },
+  { label: "Payables", icon: CreditCard, path: "/purchasing", desc: "Supplier payment tracking" },
+  { label: "Ledger", icon: BookOpen, path: "/accounting", desc: "General ledger & trial balance" },
+  { label: "Period Close", icon: Lock, path: "/accounting", desc: "Close accounting periods" },
 ];
 
-const PERIOD_OPTIONS = [
-  { value: "this_month", label: "This Month" },
-  { value: "last_month", label: "Last Month" },
-  { value: "this_quarter", label: "This Quarter" },
-  { value: "this_year", label: "This Year" },
-];
-
+/* ── main page ────────────────────────────────────── */
 export default function FinancePage() {
-  const [activeTab, setActiveTab] = useState("overview");
-  const [modalOpen, setModalOpen] = useState(false);
-  const { period, setPeriod, dateRange, prevRange } = usePeriod();
-  const { data: stats, isLoading: statsLoading } = useFinanceStats(dateRange, prevRange);
+  const nav = useNavigate();
+  const qc = useQueryClient();
+  const cash = useFinanceCashPosition();
+  const wc = useFinanceWorkingCapital();
+  const pq = useFinancePostingQueue();
+  const ss = useFinanceSettlementSummary();
+  const alerts = useFinanceAlerts();
 
-  // Keyboard shortcut: Ctrl+T = new transaction
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === "t") { e.preventDefault(); setModalOpen(true); }
-    if (e.key === "Escape") setModalOpen(false);
-  }, []);
+  const totalLiquid = (cash.data?.cash ?? 0) + (cash.data?.bank ?? 0) + (cash.data?.bkash ?? 0) + (cash.data?.nagad ?? 0);
 
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyDown]);
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ["finance-cash-position"] });
+    qc.invalidateQueries({ queryKey: ["finance-working-capital"] });
+    qc.invalidateQueries({ queryKey: ["finance-posting-queue"] });
+    qc.invalidateQueries({ queryKey: ["finance-settlement-summary"] });
+    qc.invalidateQueries({ queryKey: ["finance-alerts"] });
+  };
 
   return (
-    <div className="min-h-screen" style={{ background: "#f4f5f9", fontFamily: "'DM Sans', sans-serif" }}>
-      {/* HEADER — Dark Navy */}
-      <div className="sticky top-0 z-30" style={{ background: "#0f172a" }}>
-        <div className="flex items-center justify-between px-6 h-[54px]">
-          {/* Left */}
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="border-b border-border bg-card sticky top-0 z-20">
+        <div className="flex items-center justify-between px-6 h-14 max-w-[1400px] mx-auto">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center">
-              <BarChart3 className="w-4 h-4 text-white" />
+            <div className="p-2 rounded-lg bg-primary/10">
+              <BarChart3 className="w-5 h-5 text-primary" />
             </div>
-            <h1 className="text-white text-lg font-bold" style={heading}>Finance</h1>
-            <div className="w-px h-6 bg-white/20 mx-1" />
-            <Select value={period} onValueChange={(v) => setPeriod(v as any)}>
-              <SelectTrigger className="w-[150px] h-8 bg-white/10 border-white/20 text-white text-xs hover:bg-white/15">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PERIOD_OPTIONS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <div>
+              <h1 className="text-lg font-bold text-foreground">Finance Control Tower</h1>
+              <p className="text-[11px] text-muted-foreground -mt-0.5">Ledger-backed real-time view</p>
+            </div>
           </div>
-          {/* Right */}
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="text-white/80 hover:text-white hover:bg-white/10 border border-white/20 text-xs h-8">
-              📊 Reports
-            </Button>
-            <Button variant="ghost" size="sm" className="text-white/80 hover:text-white hover:bg-white/10 border border-white/20 text-xs h-8">
-              📤 Export PDF
-            </Button>
-            <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs h-8" onClick={() => setModalOpen(true)}>
-              <Plus className="w-3.5 h-3.5 mr-1" /> Add Transaction
-            </Button>
+          <Button variant="outline" size="sm" onClick={refresh} className="gap-1.5 text-xs">
+            <RefreshCw className="w-3.5 h-3.5" /> Refresh
+          </Button>
+        </div>
+      </div>
+
+      <div className="p-6 max-w-[1400px] mx-auto space-y-6">
+        {/* ─── 1. Cash Position ───────────────────── */}
+        <section>
+          <h2 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Cash Position</h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            <MetricCard label="Cash" value={cash.data?.cash ?? 0} icon={Banknote} loading={cash.isLoading} accent="bg-success/10 text-success" />
+            <MetricCard label="Bank" value={cash.data?.bank ?? 0} icon={Building2} loading={cash.isLoading} accent="bg-info/10 text-info" />
+            <MetricCard label="bKash" value={cash.data?.bkash ?? 0} icon={Smartphone} loading={cash.isLoading} accent="bg-[hsl(330,70%,92%)] text-[hsl(330,70%,40%)]" />
+            <MetricCard label="Nagad" value={cash.data?.nagad ?? 0} icon={Wallet} loading={cash.isLoading} accent="bg-warning/10 text-warning" />
+            <MetricCard label="Total Liquid Cash" value={totalLiquid} icon={DollarSign} loading={cash.isLoading} accent="bg-primary/10 text-primary" sub="Sum of all accounts" />
           </div>
+        </section>
+
+        {/* ─── 2. Working Capital ─────────────────── */}
+        <section>
+          <h2 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Working Capital</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <MetricCard label="Inventory Value" value={wc.data?.inventory_value ?? 0} icon={Package} loading={wc.isLoading} />
+            <MetricCard label="Courier Receivable" value={wc.data?.courier_receivable ?? 0} icon={Truck} loading={wc.isLoading} sub="Delivered, not settled" />
+            <MetricCard label="Supplier Payables" value={wc.data?.supplier_payable ?? 0} icon={Users} loading={wc.isLoading} sub="Outstanding dues" />
+            <MetricCard label="Customer Advance Liability" value={wc.data?.customer_advances ?? 0} icon={CreditCard} loading={wc.isLoading} sub="Undelivered advance orders" />
+          </div>
+        </section>
+
+        {/* ─── 3 & 4: Posting Queue + Settlement ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Posting Queue */}
+          <section className="bg-card border border-border rounded-xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <ClipboardList className="w-4 h-4 text-primary" /> Posting Queue
+              </h2>
+              <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => nav("/finance/posting-queue")}>
+                View All <ArrowRight className="w-3 h-3 ml-1" />
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <CountCard label="Pending Advances" count={pq.data?.pending_advances ?? 0} loading={pq.isLoading} onClick={() => nav("/finance/posting-queue")} variant="warning" />
+              <CountCard label="Pending Delivered" count={pq.data?.pending_delivered ?? 0} loading={pq.isLoading} onClick={() => nav("/finance/posting-queue")} />
+              <CountCard label="Pending Settlements" count={pq.data?.pending_settlements ?? 0} loading={pq.isLoading} onClick={() => nav("/finance/posting-queue")} variant="warning" />
+              <CountCard label="Pending Expenses" count={pq.data?.pending_expenses ?? 0} loading={pq.isLoading} onClick={() => nav("/finance/posting-queue")} />
+            </div>
+          </section>
+
+          {/* Settlement Summary */}
+          <section className="bg-card border border-border rounded-xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Receipt className="w-4 h-4 text-primary" /> Settlement Summary
+                <Badge variant="secondary" className="text-[10px]">This Week</Badge>
+              </h2>
+              <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => nav("/courier-cod")}>
+                View All <ArrowRight className="w-3 h-3 ml-1" />
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <CountCard label="Statements Uploaded" count={ss.data?.statements_this_week ?? 0} loading={ss.isLoading} onClick={() => nav("/courier-cod")} />
+              <CountCard label="Orders Matched" count={ss.data?.orders_matched ?? 0} loading={ss.isLoading} onClick={() => nav("/courier-cod")} />
+              <CountCard label="Orders Posted" count={ss.data?.orders_posted ?? 0} loading={ss.isLoading} onClick={() => nav("/courier-cod")} />
+              <CountCard label="Mismatches" count={ss.data?.mismatch_count ?? 0} loading={ss.isLoading} onClick={() => nav("/courier-cod")} variant="destructive" />
+            </div>
+          </section>
         </div>
 
-        {/* TABS */}
-        <div className="flex items-center gap-0 px-6 border-t border-white/10 overflow-x-auto scrollbar-none">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                "px-4 py-2.5 text-xs font-medium transition-all border-b-2",
-                activeTab === tab.id
-                  ? "border-emerald-400 text-emerald-400"
-                  : "border-transparent text-white/60 hover:text-white/90"
+        {/* ─── 5. Alerts ──────────────────────────── */}
+        <section className="bg-card border border-border rounded-xl p-5">
+          <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-warning" /> Finance Alerts
+          </h2>
+          {alerts.isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <AlertRow label="Settlements pending > 5 days" count={alerts.data?.settlement_pending_5d ?? 0} onClick={() => nav("/courier-cod")} />
+              <AlertRow label="Duplicate posting prevented" count={alerts.data?.duplicate_posting_blocked ?? 0} />
+              <AlertRow label="Unmapped payment method accounts" count={alerts.data?.unmapped_methods ?? 0} onClick={() => nav("/accounting")} />
+              <AlertRow label="Negative stock impacting finance" count={alerts.data?.negative_stock_finance ?? 0} onClick={() => nav("/inventory")} />
+              {(alerts.data?.settlement_pending_5d ?? 0) === 0 &&
+               (alerts.data?.duplicate_posting_blocked ?? 0) === 0 &&
+               (alerts.data?.unmapped_methods ?? 0) === 0 &&
+               (alerts.data?.negative_stock_finance ?? 0) === 0 && (
+                <p className="text-sm text-muted-foreground py-2 text-center">✅ No active alerts</p>
               )}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+            </div>
+          )}
+        </section>
+
+        {/* ─── 6. Navigation Tiles ────────────────── */}
+        <section>
+          <h2 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Finance Modules</h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            {NAV_TILES.map((t) => (
+              <button
+                key={t.label}
+                onClick={() => nav(t.path)}
+                className="bg-card border border-border rounded-xl p-4 text-left hover:shadow-md hover:border-primary/30 transition-all group"
+              >
+                <div className="p-2 rounded-lg bg-primary/10 text-primary w-fit mb-3 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                  <t.icon className="w-4 h-4" />
+                </div>
+                <p className="text-sm font-semibold text-foreground">{t.label}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{t.desc}</p>
+              </button>
+            ))}
+          </div>
+        </section>
       </div>
-
-      {/* CONTENT */}
-      <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
-        {/* Hero Cards — always visible */}
-        <HeroCards stats={stats} isLoading={statsLoading} />
-
-        {/* Tab Content */}
-        {activeTab === "overview" && <OverviewTab dateRange={dateRange} onSwitchTab={setActiveTab} />}
-        {activeTab === "transactions" && <TransactionsTab />}
-        {activeTab === "pnl" && <PLStatementTab dateRange={dateRange} prevRange={prevRange} />}
-        {activeTab === "accounts" && <AccountsTab />}
-        {activeTab === "payable" && <PayableTab />}
-        {activeTab === "receivable" && <ReceivableTab />}
-      </div>
-
-      {/* Add Transaction Modal */}
-      <AddTransactionModal open={modalOpen} onOpenChange={setModalOpen} />
     </div>
   );
 }
