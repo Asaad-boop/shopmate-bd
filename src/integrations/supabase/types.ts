@@ -6394,6 +6394,17 @@ export type Database = {
         Returns: string
       }
       find_order_by_scan: { Args: { p_scan_text: string }; Returns: Json }
+      general_ledger_lines: {
+        Args: {
+          p_account_id?: string
+          p_date_from?: string
+          p_date_to?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+        }
+        Returns: Json
+      }
       generate_invoice_id: { Args: never; Returns: string }
       get_exchange_rate: {
         Args: { p_currency: string; p_date: string }
@@ -6403,6 +6414,7 @@ export type Database = {
         Args: { p_limit?: number; p_query: string }
         Returns: Json
       }
+      journal_entry_detail: { Args: { p_journal_id: string }; Returns: Json }
       list_all_orders: {
         Args: {
           p_amount_max?: number
