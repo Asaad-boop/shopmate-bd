@@ -6,7 +6,6 @@ import {
   Package,
   ShoppingCart,
   Boxes,
-  Ship,
   Globe,
   Users,
   Wallet,
@@ -23,18 +22,18 @@ import {
   Activity,
   Megaphone,
   Truck,
-  FileCheck,
-  Scale,
-  Receipt,
-  Clock,
-  PieChart,
-  DollarSign,
-  FolderOpen,
-  Settings2,
-  Calculator,
-  ShieldAlert,
   Shield,
   Upload,
+  Search,
+  CheckCircle,
+  ScanLine,
+  ShieldAlert,
+  FolderOpen,
+  ShieldCheck,
+  BookOpen,
+  DollarSign,
+  Scale,
+  Clock,
   Archive,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -48,147 +47,85 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/" },
+  { label: "Search", icon: Search, path: "/search" },
   {
     label: "Orders",
     icon: ShoppingCart,
     children: [
-      { label: "All Orders", path: "/orders", icon: List },
+      { label: "Approved Orders", path: "/orders/approved", icon: CheckCircle },
       { label: "Add New Order", path: "/orders/new", icon: Plus },
-      { label: "Old Orders (Legacy)", path: "/orders/old", icon: Archive },
-      { label: "Import Legacy", path: "/orders/import-legacy", icon: Upload },
-      { label: "Legacy Batches", path: "/orders/legacy-batches", icon: FileText },
+      { label: "Order List", path: "/orders", icon: List },
+      { label: "All List", path: "/orders/old", icon: Archive },
+      { label: "Super Edit", path: "/orders/super-edit", icon: FileText },
+      { label: "Pre Order List", path: "/orders/pre-orders", icon: Package },
+      { label: "Scan to Update", path: "/orders/scan", icon: ScanLine },
     ],
   },
-  { label: "Web Orders", icon: Globe, path: "/web-orders" },
   {
-    label: "Products",
-    icon: Package,
+    label: "Web Orders",
+    icon: Globe,
     children: [
+      { label: "Web Order List", path: "/web-orders", icon: List },
+      { label: "Fake Order Block Reports", path: "/web-orders/fake-reports", icon: ShieldAlert },
+    ],
+  },
+  {
+    label: "Inventory",
+    icon: Boxes,
+    children: [
+      { label: "Inventory Dashboard", path: "/inventory", icon: BarChart3 },
       { label: "Product List", path: "/products", icon: List },
-      { label: "Add Product", path: "/products/new", icon: Plus },
-    ],
-  },
-  { label: "Inventory", icon: Boxes, path: "/inventory" },
-  {
-    label: "Purchasing",
-    icon: ClipboardList,
-    children: [
-      { label: "Suppliers", path: "/suppliers", icon: Users },
-      { label: "Purchase Orders", path: "/purchase-orders", icon: List },
-      { label: "Goods Receive (GRN)", path: "/purchasing?tab=grn", icon: Package },
-      { label: "Supplier Payments", path: "/purchasing?tab=payments", icon: Wallet },
-      { label: "Payables & Aging", path: "/purchasing?tab=payables", icon: Clock },
-      { label: "Landed Costs", path: "/purchasing?tab=landed-costs", icon: Ship },
-      { label: "Reports", path: "/purchasing?tab=reports", icon: PieChart },
-    ],
-  },
-  {
-    label: "China Import",
-    icon: Ship,
-    children: [
-      { label: "Import Dashboard", path: "/import-dashboard", icon: BarChart3 },
-      { label: "Purchase Orders", path: "/purchase-orders", icon: List },
-      { label: "Agents", path: "/agents", icon: Handshake },
-    ],
-  },
-  { label: "Customers", icon: Users, path: "/customers" },
-  { label: "Finance", icon: Wallet, path: "/finance" },
-  {
-    label: "Accounting",
-    icon: ClipboardList,
-    children: [
-      { label: "Chart of Accounts", path: "/accounting?tab=coa", icon: List },
-      { label: "Journal Entries", path: "/accounting?tab=journals", icon: FileText },
-      { label: "Trial Balance", path: "/accounting?tab=trial_balance", icon: BarChart3 },
-      { label: "General Ledger", path: "/accounting?tab=general_ledger", icon: FileText },
-      { label: "Period Close", path: "/accounting?tab=period_close", icon: ClipboardList },
-    ],
-  },
-  {
-    label: "Courier & COD",
-    icon: Truck,
-    children: [
-      { label: "Couriers", path: "/courier-cod?tab=couriers", icon: Truck },
-      { label: "Courier Charges", path: "/courier-cod?tab=charges", icon: Receipt },
-      { label: "Statements", path: "/courier-cod?tab=statements", icon: FileCheck },
-      { label: "Reconciliation", path: "/courier-cod?tab=reconciliation", icon: Scale },
-      { label: "Settlements & Aging", path: "/courier-cod?tab=settlements", icon: Clock },
-      { label: "Reports", path: "/courier-cod?tab=reports", icon: PieChart },
-    ],
-  },
-  {
-    label: "Expenses",
-    icon: DollarSign,
-    children: [
-      { label: "Categories", path: "/expenses?tab=categories", icon: FolderOpen },
-      { label: "Expenses", path: "/expenses?tab=expenses", icon: Receipt },
-      { label: "Allocation Rules", path: "/expenses?tab=rules", icon: Settings2 },
-      { label: "Allocations", path: "/expenses?tab=allocations", icon: Calculator },
-      { label: "Reports", path: "/expenses?tab=reports", icon: PieChart },
-    ],
-  },
-  {
-    label: "Reports",
-    icon: BarChart3,
-    children: [
-      { label: "Executive Dashboard", path: "/reports?tab=executive", icon: LayoutDashboard },
-      { label: "Profit & Loss", path: "/reports?tab=pnl", icon: FileText },
-      { label: "Balance Snapshot", path: "/reports?tab=balance", icon: Scale },
-      { label: "Cashflow", path: "/reports?tab=cashflow", icon: DollarSign },
-      { label: "SKU Profitability", path: "/reports?tab=sku", icon: Package },
-      { label: "Courier Performance", path: "/reports?tab=courier", icon: Truck },
-      { label: "Inventory Valuation", path: "/reports?tab=inventory", icon: Boxes },
-      { label: "Supplier Payables", path: "/reports?tab=supplier", icon: Users },
-      { label: "Expense Analytics", path: "/reports?tab=expense", icon: PieChart },
-    ],
-  },
-  {
-    label: "HRM",
-    icon: UserCog,
-    children: [
-      { label: "Dashboard", path: "/hrm", icon: BarChart3 },
-      { label: "Employees", path: "/hrm/employees", icon: Users },
-      { label: "Attendance", path: "/hrm/attendance", icon: FileText },
-      { label: "Payroll", path: "/hrm/payroll", icon: Wallet },
-      { label: "Performance", path: "/hrm/performance", icon: BarChart3 },
-      { label: "Leave", path: "/hrm/leave", icon: FileText },
-      { label: "Tasks", path: "/hrm/tasks", icon: List },
+      { label: "Add New Product", path: "/products/new", icon: Plus },
+      { label: "Category & Brand", path: "/inventory/categories", icon: FolderOpen },
+      { label: "Warranty", path: "/inventory/warranty", icon: ShieldCheck },
     ],
   },
   {
     label: "Meta Ads",
     icon: Megaphone,
     children: [
-      { label: "Report", path: "/meta-ads/report", icon: BarChart3 },
-      { label: "Campaign Products", path: "/meta-ads/campaign-products", icon: List },
+      { label: "Meta Ads Report", path: "/meta-ads/report", icon: BarChart3 },
+      { label: "Campaign Product Link", path: "/meta-ads/campaign-products", icon: List },
     ],
   },
-  { label: "CRM", icon: Handshake, path: "/crm" },
   {
-    label: "Exceptions",
-    icon: ShieldAlert,
+    label: "Account & Finance",
+    icon: Wallet,
     children: [
-      { label: "Exceptions Queue", path: "/exceptions?tab=queue", icon: List },
-      { label: "Rules & Checks", path: "/exceptions?tab=rules", icon: Settings2 },
-      { label: "Resolution Log", path: "/exceptions?tab=log", icon: FileText },
-      { label: "Health Dashboard", path: "/exceptions?tab=health", icon: BarChart3 },
+      { label: "Accounts", path: "/finance", icon: BookOpen },
+      { label: "Posting Queue", path: "/finance/posting-queue", icon: ClipboardList },
+      { label: "Settlements", path: "/courier-cod?tab=settlements", icon: DollarSign },
+      { label: "Payables", path: "/purchasing?tab=payables", icon: Clock },
+      { label: "Ledger", path: "/accounting?tab=general_ledger", icon: FileText },
+    ],
+  },
+  { label: "HRM", icon: UserCog, path: "/hrm" },
+  { label: "CRM", icon: Handshake, path: "/crm" },
+  { label: "Reports", icon: BarChart3, path: "/reports" },
+  { label: "Settings", icon: Settings, path: "/settings" },
+  {
+    label: "Imports & Goods Purchase",
+    icon: Upload,
+    children: [
+      { label: "Purchase Dashboard", path: "/purchasing", icon: BarChart3 },
+      { label: "Import", path: "/import-dashboard", icon: Upload },
     ],
   },
   {
-    label: "Security",
+    label: "Access",
     icon: Shield,
     children: [
       { label: "Roles & Permissions", path: "/security/roles", icon: UserCog },
       { label: "Audit Logs", path: "/security/audit-logs", icon: FileText },
     ],
   },
-  { label: "Settings", icon: Settings, path: "/settings" },
   { label: "System Health", icon: Activity, path: "/system-health" },
+  { label: "Marketing", icon: Megaphone, path: "/marketing" },
 ];
 
 export function AppSidebar() {
   const location = useLocation();
-  const [expandedGroups, setExpandedGroups] = useState<string[]>(["Orders", "Products"]);
+  const [expandedGroups, setExpandedGroups] = useState<string[]>(["Orders"]);
   const { settings: company } = useCompanySettings();
 
   const toggleGroup = (label: string) => {
@@ -204,6 +141,7 @@ export function AppSidebar() {
     }
     return location.pathname === path;
   };
+
   const isGroupActive = (item: NavItem) =>
     item.children?.some((c) => {
       const [pathPart] = c.path.split('?');
@@ -212,7 +150,6 @@ export function AppSidebar() {
 
   return (
     <aside className="flex flex-col h-screen w-[260px] bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 sticky top-0">
-      {/* Header: Logo + Avatar */}
       <div className="flex items-center justify-between px-5 pt-6 pb-4">
         <Link to="/" className="flex items-center gap-2 min-w-0">
           {company?.logo ? (
@@ -233,7 +170,6 @@ export function AppSidebar() {
         </button>
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 pb-4 space-y-0.5">
         {navItems.map((item) => {
           if (item.children) {
