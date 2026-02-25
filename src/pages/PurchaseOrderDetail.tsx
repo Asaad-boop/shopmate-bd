@@ -376,34 +376,68 @@ export default function PurchaseOrderDetailPage() {
     }
   }, [poNumber, orderDate, importType, supplierId, agentId, status, paymentStatus, cnyRate, shippingMethod, shippingAgent, trackingNumber, portOfEntry, expectedArrival, actualArrival, shippingCostCny, shippingChargeBdt, notes, items, payments, additionalCosts, timeline, isNew, id, isAgent, productCostCny, productCostBdt, shippingCostBdt, additionalCostsBdt, grandTotalBdt, costPerUnit, totalPaid, remaining]);
 
-  // Receive goods
-  const handleReceiveGoods = async () => {
+  // Status transitions - PO does NOT affect inventory
+  const STATUS_FLOW = ["draft", "confirmed", "in_transit", "received", "closed"] as const;
+  
+  const advanceStatus = async (targetStatus: string) => {
     if (!id) return;
     try {
-      for (const item of items) {
-        if (!item.product_id || (item.received_quantity || 0) <= 0) continue;
-        const { data: prod } = await supabase.from("products").select("stock_quantity").eq("id", item.product_id).single();
-        if (prod) {
-          await supabase.from("products").update({
-            stock_quantity: (prod.stock_quantity || 0) + (item.received_quantity || 0),
-          }).eq("id", item.product_id);
-        }
-        await supabase.from("inventory_movements").insert({
-          product_id: item.product_id,
-          movement_type: "purchase_in",
-          quantity: item.received_quantity || 0,
-          reference_type: "purchase_order",
-          reference_id: id,
-          notes: `PO: ${poNumber} (${isAgent ? "Via Agent" : "Direct Import"})`,
-        });
-      }
-      setStatus("received");
-      await supabase.from("purchase_orders").update({ status: "received", actual_arrival_date: format(new Date(), "yyyy-MM-dd") }).eq("id", id);
+      await supabase.from("purchase_orders").update({ 
+        status: targetStatus,
+        ...(targetStatus === "received" ? { actual_arrival_date: format(new Date(), "yyyy-MM-dd") } : {}),
+      }).eq("id", id);
+      setStatus(targetStatus);
       queryClient.invalidateQueries({ queryKey: ["purchase-order", id] });
-      queryClient.invalidateQueries({ queryKey: ["inventory-products"] });
-      toast({ title: "Goods received and inventory updated!" });
+      queryClient.invalidateQueries({ queryKey: ["po-stats"] });
+      toast({ title: `PO status updated to ${targetStatus.toUpperCase()}` });
     } catch (err: any) {
-      toast({ title: "Error receiving goods", description: err.message, variant: "destructive" });
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const nextStatus = STATUS_FLOW[STATUS_FLOW.indexOf(status as any) + 1];
+
+  // Post payment to finance (Dr Supplier Payable / Cr Bank)
+  const postPaymentToFinance = async (amount: number, paymentMethod: string) => {
+    if (!supplierId || !id) return;
+    try {
+      // Create supplier_payment record and post via RPC
+      const { data: sp, error: spErr } = await supabase
+        .from("supplier_payments")
+        .insert({
+          supplier_id: supplierId,
+          amount,
+          payment_method: paymentMethod,
+          payment_date: format(new Date(), "yyyy-MM-dd"),
+          payment_number: `PO-PAY-${Date.now().toString(36).toUpperCase()}`,
+          status: "draft",
+          notes: `PO Payment: ${poNumber}`,
+        })
+        .select("id")
+        .single();
+      if (spErr) throw spErr;
+
+      // Find a suitable pay account
+      const { data: accounts } = await supabase
+        .from("chart_of_accounts")
+        .select("id")
+        .eq("account_type", "asset")
+        .eq("is_active", true)
+        .ilike("name", `%${paymentMethod === "Cash" ? "cash" : "bank"}%`)
+        .limit(1);
+      
+      const payAccountId = accounts?.[0]?.id;
+      if (payAccountId && sp) {
+        await supabase.rpc("post_supplier_payment", {
+          p_payment_id: sp.id,
+          p_amount: amount,
+          p_pay_account_id: payAccountId,
+        });
+        toast({ title: `৳${amount.toLocaleString()} posted: Dr Supplier Payable / Cr ${paymentMethod}` });
+      }
+    } catch (err: any) {
+      console.error("Finance posting failed:", err.message);
+      // Non-blocking — payment is still saved on PO
     }
   };
 
@@ -531,10 +565,16 @@ export default function PurchaseOrderDetailPage() {
             {isAgent ? "🤝 Via Agent" : "🚀 Direct"}
           </Badge>
           <Badge className={`text-[10px] font-semibold ${
-            status === "received" ? "bg-success/10 text-success" :
+            status === "received" || status === "closed" ? "bg-success/10 text-success" :
+            status === "confirmed" ? "bg-info/10 text-info" :
             status === "shipped" || status === "in_transit" ? "bg-purple-100 text-purple-700" :
             "bg-muted text-muted-foreground"
-          }`}>{status}</Badge>
+          }`}>{status.toUpperCase()}</Badge>
+          {nextStatus && (
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => advanceStatus(nextStatus)}>
+              → {nextStatus.toUpperCase()}
+            </Button>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <POPdfExport
@@ -1009,6 +1049,10 @@ export default function PurchaseOrderDetailPage() {
                   setNewPayNote("");
                   setNewPayType("PRODUCT_ADVANCE");
                   toast({ title: editingPayIdx !== null ? "Payment updated" : "Payment added" });
+                  // Post to finance (Dr Supplier Payable / Cr Bank)
+                  if (editingPayIdx === null && newPayAmount > 0) {
+                    postPaymentToFinance(newPayAmount, newPayMethod);
+                  }
                 }}
               >
                 <Plus className="w-3.5 h-3.5" /> {editingPayIdx !== null ? "Update Payment" : "Add Payment"}
@@ -1228,71 +1272,34 @@ export default function PurchaseOrderDetailPage() {
             </div>
           </section>
 
-          {/* Receive Goods */}
-          <section className="rounded-2xl border-2 border-success/30 bg-success/5 p-5">
+          {/* Status Actions — No stock change at PO stage */}
+          <section className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-5">
             <h2 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-              <Package className="w-4 h-4 text-success" /> Receive Goods
+              📋 PO Status Flow
             </h2>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Ordered</TableHead>
-                  <TableHead>Received</TableHead>
-                  <TableHead>Condition</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((item, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="text-sm font-medium">{item.product_name || `Item ${i + 1}`}</TableCell>
-                    <TableCell>{item.quantity}</TableCell>
-                    <TableCell>
-                      <Input type="number" value={item.received_quantity || ""} onChange={(e) => updateItem(i, "received_quantity", Number(e.target.value))} className="h-8 w-20" />
-                    </TableCell>
-                    <TableCell>
-                      <Select value={item.condition || "good"} onValueChange={(v) => updateItem(i, "condition", v)}>
-                        <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="good">Good</SelectItem>
-                          <SelectItem value="damaged">Damaged</SelectItem>
-                          <SelectItem value="missing">Missing</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            {remaining > 0 ? (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button className="mt-3 gap-1.5 bg-success hover:bg-success/90">
-                    <CheckCircle2 className="w-4 h-4" /> Receive & Update Inventory
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>⚠️ Outstanding Balance</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      ৳{Math.max(0, remaining).toLocaleString()} still due — receive anyway?
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleReceiveGoods} className="bg-success hover:bg-success/90">
-                      Yes, Receive
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            ) : (
+            <div className="flex items-center gap-2 flex-wrap mb-4">
+              {STATUS_FLOW.map((s, i) => (
+                <div key={s} className="flex items-center gap-1">
+                  <Badge variant={status === s ? "default" : "outline"} className={`text-xs ${status === s ? "" : "opacity-50"}`}>
+                    {s.toUpperCase()}
+                  </Badge>
+                  {i < STATUS_FLOW.length - 1 && <span className="text-muted-foreground text-xs">→</span>}
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              ⚠️ PO status changes do NOT affect inventory. Use GRN (Goods Receive Note) to update stock after physical receipt.
+            </p>
+            {nextStatus && (
               <Button
-                className="mt-3 gap-1.5 bg-success hover:bg-success/90"
-                onClick={handleReceiveGoods}
+                className="gap-1.5"
+                onClick={() => advanceStatus(nextStatus)}
               >
-                <CheckCircle2 className="w-4 h-4" /> Receive & Update Inventory
+                <CheckCircle2 className="w-4 h-4" /> Advance to {nextStatus.toUpperCase()}
               </Button>
+            )}
+            {status === "closed" && (
+              <Badge variant="secondary" className="text-sm">✅ PO Closed</Badge>
             )}
           </section>
 
