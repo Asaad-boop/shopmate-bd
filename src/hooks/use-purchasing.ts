@@ -55,6 +55,7 @@ export function useCreateGRN() {
     mutationFn: async (payload: {
       supplier_id: string;
       po_id?: string;
+      import_shipment_id?: string;
       receipt_date: string;
       receipt_type: string;
       notes?: string;
@@ -74,6 +75,7 @@ export function useCreateGRN() {
           grn_number: grnNumber,
           supplier_id: payload.supplier_id,
           po_id: payload.po_id || null,
+          import_shipment_id: payload.import_shipment_id || null,
           receipt_date: payload.receipt_date,
           receipt_type: payload.receipt_type,
           notes: payload.notes || null,
