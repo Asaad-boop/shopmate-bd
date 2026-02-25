@@ -5960,6 +5960,11 @@ export type Database = {
         Args: { p_closed_by?: string; p_period_key: string }
         Returns: undefined
       }
+      dashboard_14day_trend: { Args: never; Returns: Json }
+      dashboard_alerts: { Args: never; Returns: Json }
+      dashboard_cash_position: { Args: never; Returns: Json }
+      dashboard_today_kpis: { Args: never; Returns: Json }
+      dashboard_working_capital: { Args: never; Returns: Json }
       generate_invoice_id: { Args: never; Returns: string }
       get_exchange_rate: {
         Args: { p_currency: string; p_date: string }
