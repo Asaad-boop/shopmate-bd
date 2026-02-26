@@ -54,24 +54,70 @@ export const orderStatusConfig: Record<string, { label: string; color: string; e
   damage_return: { label: 'Damage Return', color: 'bg-red-200 text-red-900', emoji: '💥' },
 };
 
-/** Valid status transitions — enforces pipeline rules */
+/** Valid status transitions — strict pipeline rules */
 export const validTransitions: Record<string, string[]> = {
-  pending: ['packed', 'cancelled'],
-  packed: ['ready_to_ship', 'pending', 'cancelled'],
-  ready_to_ship: ['shipped', 'packed', 'cancelled'],
-  shipped: ['in_transit', 'delivered', 'delivery_failed'],
-  in_transit: ['delivered', 'delivery_failed'],
-  delivered: ['return_requested', 'partially_delivered', 'completed'],
-  delivery_failed: ['return_in_transit', 'shipped'],
-  return_requested: ['return_in_transit'],
-  return_in_transit: ['returned', 'damage_return'],
-  returned: [],
+  pending:             ['packed', 'cancelled'],
+  packed:              ['ready_to_ship', 'pending', 'cancelled'],
+  ready_to_ship:       ['shipped', 'packed', 'cancelled'],
+  shipped:             ['in_transit', 'delivered', 'delivery_failed'],
+  in_transit:          ['delivered', 'delivery_failed'],
+  delivered:           ['return_requested', 'partially_delivered', 'completed'],
+  delivery_failed:     ['return_in_transit', 'shipped'],
+  return_requested:    ['return_in_transit'],
+  return_in_transit:   ['returned', 'damage_return'],
+  returned:            [],
   partially_delivered: ['completed'],
-  exchanged: [],
-  completed: [],
-  cancelled: [],
-  damage_return: [],
-  pending_return: ['returned', 'damage_return'],
+  exchanged:           [],
+  completed:           [],
+  cancelled:           [],
+  damage_return:       [],
+  pending_return:      ['returned', 'damage_return'],
+};
+
+/** Action buttons config per status — maps status to available UI actions */
+export const statusActions: Record<string, { key: string; label: string; icon: string; variant?: string }[]> = {
+  pending:           [
+    { key: 'packed', label: 'Mark Packed', icon: 'Package' },
+    { key: 'cancelled', label: 'Cancel', icon: 'XCircle', variant: 'destructive' },
+  ],
+  packed:            [
+    { key: 'ready_to_ship', label: 'Ready to Ship', icon: 'ClipboardCheck' },
+    { key: 'pending', label: 'Back to Pending', icon: 'Undo2' },
+    { key: 'cancelled', label: 'Cancel', icon: 'XCircle', variant: 'destructive' },
+  ],
+  ready_to_ship:     [
+    { key: 'shipped', label: 'Send to Courier', icon: 'Send' },
+    { key: 'packed', label: 'Back to Packed', icon: 'Undo2' },
+    { key: 'cancelled', label: 'Cancel', icon: 'XCircle', variant: 'destructive' },
+  ],
+  shipped:           [
+    { key: 'in_transit', label: 'In Transit', icon: 'Truck' },
+    { key: 'delivered', label: 'Mark Delivered', icon: 'CheckCircle' },
+    { key: 'delivery_failed', label: 'Delivery Failed', icon: 'AlertTriangle' },
+  ],
+  in_transit:        [
+    { key: 'delivered', label: 'Mark Delivered', icon: 'CheckCircle' },
+    { key: 'delivery_failed', label: 'Delivery Failed', icon: 'AlertTriangle' },
+  ],
+  delivered:         [
+    { key: 'return_requested', label: 'Return Request', icon: 'RotateCcw' },
+    { key: 'completed', label: 'Mark Completed', icon: 'Flag' },
+  ],
+  delivery_failed:   [
+    { key: 'return_in_transit', label: 'Return In Transit', icon: 'RotateCcw' },
+    { key: 'shipped', label: 'Re-Ship', icon: 'Send' },
+  ],
+  return_requested:  [
+    { key: 'return_in_transit', label: 'Start Return', icon: 'Truck' },
+  ],
+  return_in_transit: [
+    { key: 'returned', label: 'Mark Returned', icon: 'PackageCheck' },
+    { key: 'damage_return', label: 'Damage Return', icon: 'AlertOctagon' },
+  ],
+  pending_return:    [
+    { key: 'returned', label: 'Mark Returned', icon: 'PackageCheck' },
+    { key: 'damage_return', label: 'Damage Return', icon: 'AlertOctagon' },
+  ],
 };
 
 export const paymentStatusConfig: Record<string, { label: string; color: string }> = {

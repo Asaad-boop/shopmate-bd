@@ -10,8 +10,8 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { StatusBadge, ChannelBadge } from "@/components/ui/status-badge";
-import { orderStatusConfig, validTransitions, formatBDT, formatDate, formatDateTime, channelConfig } from "@/lib/format";
-import { applyStatusChange, applyDamageReturn } from "@/hooks/use-orders";
+import { orderStatusConfig, validTransitions, statusActions, formatBDT, formatDate, formatDateTime, channelConfig } from "@/lib/format";
+import { applyStatusChange, applyDamageReturn, applyBulkStatusChange } from "@/hooks/use-orders";
 import { StatusChangeModal } from "@/components/orders/StatusChangeModal";
 import { DamageReturnModal } from "@/components/orders/DamageReturnModal";
 import { ScanMode } from "@/components/orders/ScanMode";
@@ -29,6 +29,7 @@ import {
   ScanLine, Banknote, ChevronLeft, ChevronRight,
   MoreHorizontal, Eye, CheckCircle, Truck, ArrowLeftRight, XCircle,
   MessageSquare, ImageIcon, User, ShieldCheck, ExternalLink,
+  Package, ClipboardCheck, Send, RotateCcw, AlertTriangle, AlertOctagon, Flag, Undo2,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import * as XLSX from "xlsx";
@@ -224,18 +225,17 @@ export default function OrdersPage() {
   /* ────────── Bulk ────────── */
   const handleBulkStatus = async (newStatus: string) => {
     setChanging(true);
-    let success = 0;
-    for (const id of selectedIds) {
-      const order = orders?.find((o) => o.id === id);
-      if (!order) continue;
-      const allowed = validTransitions[order.status || "pending"] || [];
-      if (!allowed.includes(newStatus)) continue;
-      await applyStatusChange(id, newStatus, order.status || null);
-      success++;
-    }
+    const result = await applyBulkStatusChange(
+      Array.from(selectedIds),
+      newStatus,
+      orders || []
+    );
     queryClient.invalidateQueries({ queryKey: ["orders-cockpit"] });
     queryClient.invalidateQueries({ queryKey: ["order-status-counts"] });
-    toast({ title: `✅ ${success} orders updated to ${orderStatusConfig[newStatus]?.label}` });
+    toast({
+      title: `✅ ${result.success} updated, ${result.skipped} skipped`,
+      description: result.errors.length > 0 ? result.errors.slice(0, 3).join("; ") : undefined,
+    });
     setSelectedIds(new Set());
     setChanging(false);
   };
@@ -609,7 +609,7 @@ export default function OrdersPage() {
                               <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
                             </button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48 bg-popover z-50">
+                          <DropdownMenuContent align="end" className="w-52 bg-popover z-50">
                             <DropdownMenuItem onClick={() => setDrawerOrderId(o.id)}>
                               <Eye className="w-4 h-4 mr-2" /> View Details
                             </DropdownMenuItem>
@@ -617,25 +617,31 @@ export default function OrdersPage() {
                               <ExternalLink className="w-4 h-4 mr-2" /> Full Page
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            {(validTransitions[o.status || "pending"] || []).includes("packed") && (
-                              <DropdownMenuItem onClick={() => handleStatusChange(o.id, o.invoice_id || o.order_number || "", "packed")}>
-                                <CheckCircle className="w-4 h-4 mr-2" /> Mark Packed
-                              </DropdownMenuItem>
+                            {(statusActions[o.status || "pending"] || []).map((action) => {
+                              const iconMap: Record<string, any> = {
+                                Package, ClipboardCheck, Send, Truck, CheckCircle,
+                                XCircle, RotateCcw, AlertTriangle, AlertOctagon, Flag, Undo2,
+                              };
+                              const Icon = iconMap[action.icon] || Package;
+                              const isDanger = action.variant === "destructive";
+                              return (
+                                <DropdownMenuItem
+                                  key={action.key}
+                                  onClick={() => handleStatusChange(o.id, o.invoice_id || o.order_number || "", action.key)}
+                                  className={cn(isDanger && "text-destructive")}
+                                >
+                                  <Icon className="w-4 h-4 mr-2" /> {action.label}
+                                </DropdownMenuItem>
+                              );
+                            })}
+                            {o.status === "delivered" && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => navigate(`/exchanges?order=${o.id}`)}>
+                                  <ArrowLeftRight className="w-4 h-4 mr-2" /> Exchange
+                                </DropdownMenuItem>
+                              </>
                             )}
-                            {(validTransitions[o.status || "pending"] || []).includes("shipped") && (
-                              <DropdownMenuItem onClick={() => handleStatusChange(o.id, o.invoice_id || o.order_number || "", "shipped")}>
-                                <Truck className="w-4 h-4 mr-2" /> Mark Shipped
-                              </DropdownMenuItem>
-                            )}
-                            {(validTransitions[o.status || "pending"] || []).includes("delivered") && (
-                              <DropdownMenuItem onClick={() => handleStatusChange(o.id, o.invoice_id || o.order_number || "", "delivered")}>
-                                <CheckCircle className="w-4 h-4 mr-2 text-emerald-600" /> Mark Delivered
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleStatusChange(o.id, o.invoice_id || o.order_number || "", "cancelled")} className="text-destructive">
-                              <XCircle className="w-4 h-4 mr-2" /> Cancel Order
-                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </td>
@@ -682,10 +688,12 @@ export default function OrdersPage() {
             onOpenChange={(open) => !open && setStatusModal(null)}
             orderId={statusModal.orderId}
             orderNumber={statusModal.orderNumber}
+            currentStatus={orders?.find((o) => o.id === statusModal.orderId)?.status || "pending"}
             newStatus={statusModal.newStatus}
             newStatusLabel={orderStatusConfig[statusModal.newStatus]?.label || statusModal.newStatus}
             onConfirm={confirmStatusChange}
             loading={changing}
+            orderTotal={orders?.find((o) => o.id === statusModal.orderId)?.total_amount || 0}
           />
         )}
         {damageModal && (
