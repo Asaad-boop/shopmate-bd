@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatBDT, formatNumber } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,7 +21,7 @@ import { TopProductsPanel } from "./TopProductsPanel";
 
 interface Props { from: string; to: string; }
 
-export function ExecutiveMode({ from, to }: Props) {
+export const ExecutiveMode = memo(function ExecutiveMode({ from, to }: Props) {
   const navigate = useNavigate();
   const { data: kpis, isLoading: kpiL } = useExecKpis(from, to);
   const { data: pipeline, isLoading: pipeL } = useExecPipeline(from, to);
@@ -181,4 +181,4 @@ export function ExecutiveMode({ from, to }: Props) {
       </div>
     </div>
   );
-}
+});

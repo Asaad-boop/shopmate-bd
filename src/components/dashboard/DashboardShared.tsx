@@ -2,7 +2,9 @@ import { useNavigate } from "react-router-dom";
 import { formatBDT, formatNumber } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { AnimatedCounter } from "@/components/ui/animated-counter";
 import { ArrowUpRight, ArrowDownRight, ArrowRight } from "lucide-react";
+import { memo } from "react";
 
 export function delta(cur: number, prev: number): { pct: number; positive: boolean } {
   if (prev === 0) return { pct: cur > 0 ? 100 : 0, positive: cur >= 0 };
@@ -10,7 +12,7 @@ export function delta(cur: number, prev: number): { pct: number; positive: boole
   return { pct: Math.abs(Math.round(pct * 10) / 10), positive: pct >= 0 };
 }
 
-export function HeroKpi({
+export const HeroKpi = memo(function HeroKpi({
   label, value, sub, icon: Icon, delta: d, onClick, loading, accent,
 }: {
   label: string;
@@ -26,10 +28,14 @@ export function HeroKpi({
   return (
     <button
       onClick={onClick}
-      className="bg-card rounded-2xl p-5 text-left transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 group border border-transparent hover:border-primary/10 w-full"
+      className="bg-card rounded-2xl p-5 text-left w-full
+        transition-all duration-[220ms] ease-[cubic-bezier(0.4,0,0.2,1)]
+        hover:shadow-lg hover:-translate-y-[3px]
+        active:scale-[0.98]
+        group border border-transparent hover:border-primary/10"
     >
       <div className="flex items-start justify-between mb-3">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${accent || "bg-primary/10 text-primary"}`}>
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors duration-200 ${accent || "bg-primary/10 text-primary"}`}>
           <Icon className="w-5 h-5" />
         </div>
         {d && d.pct > 0 && (
@@ -39,14 +45,14 @@ export function HeroKpi({
           </span>
         )}
       </div>
-      <p className="text-2xl font-bold font-mono tracking-tight">{value}</p>
+      <AnimatedCounter value={value} className="text-2xl font-bold font-mono tracking-tight" />
       <p className="text-[11px] font-medium text-muted-foreground mt-1 uppercase tracking-wider">{label}</p>
       {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
     </button>
   );
-}
+});
 
-export function AlertItem({
+export const AlertItem = memo(function AlertItem({
   label, count, amount, severity, to,
 }: {
   label: string;
@@ -65,7 +71,9 @@ export function AlertItem({
   return (
     <button
       onClick={() => nav(to)}
-      className="w-full flex items-center justify-between px-3.5 py-3 rounded-xl hover:bg-accent/60 transition-colors text-left group"
+      className="w-full flex items-center justify-between px-3.5 py-3 rounded-xl
+        hover:bg-accent/60 transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]
+        text-left group"
     >
       <div className="flex items-center gap-3 min-w-0">
         <span className={`w-2 h-2 rounded-full shrink-0 ${severity === "critical" ? "bg-destructive" : severity === "high" ? "bg-warning" : "bg-muted-foreground/40"}`} />
@@ -73,16 +81,16 @@ export function AlertItem({
       </div>
       <div className="flex items-center gap-2 shrink-0">
         {amount != null && amount > 0 && (
-          <span className="text-xs text-muted-foreground font-mono">{formatBDT(amount)}</span>
+          <span className="text-xs text-muted-foreground font-mono tabular-nums">{formatBDT(amount)}</span>
         )}
         <Badge className={`text-xs ${colors[severity]}`}>{count}</Badge>
-        <ArrowRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+        <ArrowRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
       </div>
     </button>
   );
-}
+});
 
-export function PipelineStage({
+export const PipelineStage = memo(function PipelineStage({
   label, emoji, count, amount, onClick, active,
 }: {
   label: string;
@@ -95,17 +103,20 @@ export function PipelineStage({
   return (
     <button
       onClick={onClick}
-      className={`flex-1 min-w-[120px] rounded-xl p-4 text-center transition-all duration-200 hover:shadow-md ${active ? "bg-primary/10 ring-1 ring-primary/20" : "bg-card hover:bg-accent/50"}`}
+      className={`flex-1 min-w-[120px] rounded-xl p-4 text-center
+        transition-all duration-[220ms] ease-[cubic-bezier(0.4,0,0.2,1)]
+        hover:shadow-md hover:-translate-y-[2px] active:scale-[0.98]
+        ${active ? "bg-primary/10 ring-1 ring-primary/20" : "bg-card hover:bg-accent/50"}`}
     >
       <span className="text-lg">{emoji}</span>
-      <p className="text-xl font-bold font-mono mt-1">{formatNumber(count)}</p>
+      <p className="text-xl font-bold font-mono mt-1 tabular-nums">{formatNumber(count)}</p>
       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mt-0.5">{label}</p>
-      <p className="text-xs text-muted-foreground font-mono mt-0.5">{formatBDT(amount)}</p>
+      <p className="text-xs text-muted-foreground font-mono mt-0.5 tabular-nums">{formatBDT(amount)}</p>
     </button>
   );
-}
+});
 
-export function QuickActionBtn({
+export const QuickActionBtn = memo(function QuickActionBtn({
   icon: Icon, label, onClick,
 }: {
   icon: React.ElementType;
@@ -115,7 +126,10 @@ export function QuickActionBtn({
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center gap-2 p-3 rounded-xl bg-card hover:bg-accent/50 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 min-w-[88px]"
+      className="flex flex-col items-center gap-2 p-3 rounded-xl bg-card
+        transition-all duration-[220ms] ease-[cubic-bezier(0.4,0,0.2,1)]
+        hover:bg-accent/50 hover:shadow-md hover:-translate-y-[2px]
+        active:scale-[0.98] min-w-[88px]"
     >
       <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
         <Icon className="w-4.5 h-4.5" />
@@ -123,4 +137,4 @@ export function QuickActionBtn({
       <span className="text-[11px] font-medium text-center leading-tight">{label}</span>
     </button>
   );
-}
+});

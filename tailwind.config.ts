@@ -90,10 +90,30 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "stagger-in": {
+          "0%": { opacity: "0", transform: "translateY(8px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "crossfade-in": {
+          "0%": { opacity: "0", transform: "translateY(6px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "crossfade-out": {
+          "0%": { opacity: "1", transform: "translateY(0)" },
+          "100%": { opacity: "0", transform: "translateY(6px)" },
+        },
+        "spin-once": {
+          "0%": { transform: "rotate(0deg)" },
+          "100%": { transform: "rotate(360deg)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "stagger-in": "stagger-in 260ms cubic-bezier(0.4, 0, 0.2, 1) both",
+        "crossfade-in": "crossfade-in 220ms cubic-bezier(0.4, 0, 0.2, 1) both",
+        "crossfade-out": "crossfade-out 180ms cubic-bezier(0.4, 0, 0.2, 1) both",
+        "spin-once": "spin-once 600ms cubic-bezier(0.4, 0, 0.2, 1)",
       },
     },
   },

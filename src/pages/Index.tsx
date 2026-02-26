@@ -1,10 +1,9 @@
-import { useState, useMemo, lazy, Suspense } from "react";
+import { useState, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RefreshCw, FileDown, BarChart3, Truck, Wallet } from "lucide-react";
 
-// Lazy-load mode components
 const ExecutiveMode = lazy(() => import("@/components/dashboard/ExecutiveMode").then(m => ({ default: m.ExecutiveMode })));
 const OperationsMode = lazy(() => import("@/components/dashboard/OperationsMode").then(m => ({ default: m.OperationsMode })));
 const FinanceMode = lazy(() => import("@/components/dashboard/FinanceMode").then(m => ({ default: m.FinanceMode })));
@@ -40,17 +39,31 @@ function getStoredMode(): DashboardMode {
 export default function Dashboard() {
   const [mode, setMode] = useState<DashboardMode>(getStoredMode);
   const [datePreset, setDatePreset] = useState("today");
+  const [refreshing, setRefreshing] = useState(false);
+  const [contentKey, setContentKey] = useState(0);
+  const refreshIconRef = useRef<SVGSVGElement>(null);
   const { from, to, label: periodLabel } = useMemo(() => getDateRange(datePreset), [datePreset]);
 
-  const handleModeChange = (m: DashboardMode) => {
+  const handleModeChange = useCallback((m: DashboardMode) => {
     setMode(m);
+    setContentKey(k => k + 1); // trigger crossfade
     try { localStorage.setItem("dashboard_mode", m); } catch {}
-  };
+  }, []);
+
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    refreshIconRef.current?.classList.add("animate-spin-once");
+    setContentKey(k => k + 1);
+    setTimeout(() => {
+      setRefreshing(false);
+      refreshIconRef.current?.classList.remove("animate-spin-once");
+    }, 800);
+  }, []);
 
   const currentConfig = MODE_CONFIG.find(c => c.key === mode)!;
 
   return (
-    <div className="space-y-6 max-w-[1400px] mx-auto">
+    <div className="space-y-6 max-w-[1400px] mx-auto animate-stagger-in">
       {/* ─── Sticky Header ─── */}
       <div className="flex flex-col gap-3 sticky top-0 z-10 bg-background/80 backdrop-blur-md -mx-6 px-6 py-3 -mt-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -71,8 +84,9 @@ export default function Dashboard() {
                 <SelectItem value="30d">Last 30 Days</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={() => window.location.reload()}>
-              <RefreshCw className="w-3.5 h-3.5" /> Refresh
+            <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={handleRefresh} disabled={refreshing}>
+              <RefreshCw ref={refreshIconRef} className="w-3.5 h-3.5" />
+              {refreshing ? "Refreshing…" : "Refresh"}
             </Button>
             <Button variant="ghost" size="sm" className="h-9 gap-1.5">
               <FileDown className="w-3.5 h-3.5" /> PDF
@@ -89,7 +103,8 @@ export default function Dashboard() {
                 key={c.key}
                 onClick={() => handleModeChange(c.key)}
                 className={`
-                  flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
+                  flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium
+                  transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]
                   ${active
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
@@ -104,19 +119,21 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ─── Mode Content ─── */}
-      <Suspense fallback={
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} className="h-[120px] rounded-2xl" />)}
+      {/* ─── Mode Content with crossfade ─── */}
+      <div key={contentKey} className="animate-crossfade-in min-h-[400px]">
+        <Suspense fallback={
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} className="h-[120px] rounded-2xl" />)}
+            </div>
+            <Skeleton className="h-[300px] rounded-2xl" />
           </div>
-          <Skeleton className="h-[300px] rounded-2xl" />
-        </div>
-      }>
-        {mode === "executive" && <ExecutiveMode from={from} to={to} />}
-        {mode === "operations" && <OperationsMode from={from} to={to} />}
-        {mode === "finance" && <FinanceMode from={from} to={to} />}
-      </Suspense>
+        }>
+          {mode === "executive" && <ExecutiveMode from={from} to={to} />}
+          {mode === "operations" && <OperationsMode from={from} to={to} />}
+          {mode === "finance" && <FinanceMode from={from} to={to} />}
+        </Suspense>
+      </div>
     </div>
   );
 }

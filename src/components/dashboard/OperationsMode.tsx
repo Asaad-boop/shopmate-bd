@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatBDT, formatNumber, formatDateTime } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,7 +16,7 @@ import {
 
 interface Props { from: string; to: string; }
 
-export function OperationsMode({ from, to }: Props) {
+export const OperationsMode = memo(function OperationsMode({ from, to }: Props) {
   const navigate = useNavigate();
   const { data: kpis, isLoading: kpiL } = useOpsKpis(from, to);
   const { data: alerts, isLoading: alertL } = useExecAlerts();
@@ -155,4 +156,4 @@ export function OperationsMode({ from, to }: Props) {
       <HourlyOrdersPanel />
     </div>
   );
-}
+});
