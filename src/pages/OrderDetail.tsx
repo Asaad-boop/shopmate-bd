@@ -139,8 +139,10 @@ function OrderDetailInner() {
   const isPending = status === "pending";
   const isLocked = ["delivered", "returned", "cancelled", "damage_return", "completed", "exchanged"].includes(status);
   const isDelivered = status === "delivered";
+  const isInTransit = status === "in_transit";
+  const canExchangeStatus = isDelivered || isInTransit;
   const hasFullExchange = (orderExchanges || []).some(e => e.status === "completed" || e.status === "replacement_sent");
-  const canInitiateExchange = isDelivered && !hasFullExchange;
+  const canInitiateExchange = canExchangeStatus && !hasFullExchange;
 
   // Courier charges computed
   const netPayableResult = useMemo(() => {
@@ -556,7 +558,7 @@ function OrderDetailInner() {
 
                 {/* Exchange Button */}
                 {canInitiateExchange && (
-                  <div className="pt-1 border-t border-border/30">
+                  <div className="pt-1 border-t border-border/30 space-y-1">
                     <Button
                       variant="outline"
                       size="sm"
@@ -565,6 +567,9 @@ function OrderDetailInner() {
                     >
                       <ArrowRightLeft className="w-3.5 h-3.5" /> Initiate Exchange
                     </Button>
+                    <p className="text-[9px] text-muted-foreground text-center leading-tight">
+                      Use for wrong/defective item cases. Creates a linked exchange order.
+                    </p>
                   </div>
                 )}
               </CardContent>
