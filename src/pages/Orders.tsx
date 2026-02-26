@@ -1,17 +1,15 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { AgGridReact } from "ag-grid-react";
-import { ColDef } from "ag-grid-community";
-import "ag-grid-community/styles/ag-grid.css";
-import "ag-grid-community/styles/ag-theme-alpine.css";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { StatusBadge, ChannelBadge } from "@/components/ui/status-badge";
 import { orderStatusConfig, validTransitions, statusActions, formatBDT, formatDate, channelConfig } from "@/lib/format";
 import { applyStatusChange, applyDamageReturn, applyBulkStatusChange } from "@/hooks/use-orders";
 import { StatusChangeModal } from "@/components/orders/StatusChangeModal";
@@ -21,8 +19,6 @@ import { printBulkInvoices, printPickingList, printPackingSlip, printBarcodeLabe
 import { BulkActionToolbar } from "@/components/orders/BulkActionToolbar";
 import { OrderDetailsDrawer } from "@/components/orders/OrderDetailsDrawer";
 import { CODReconciliation } from "@/components/orders/CODReconciliation";
-import { OrdersQuickStats } from "@/components/orders/OrdersQuickStats";
-import { OrdersFilterBar, OrderFilters, defaultOrderFilters } from "@/components/orders/OrdersFilterBar";
 import { NoteModal } from "@/components/orders/NoteModal";
 import { CourierEntryModal } from "@/components/orders/CourierEntryModal";
 import { OrdersErrorBoundary } from "@/components/orders/OrdersErrorBoundary";
@@ -30,74 +26,37 @@ import { useToast } from "@/hooks/use-toast";
 import { useCompanySettings } from "@/hooks/use-company-settings";
 import { useInvoiceSettings } from "@/hooks/use-invoice-settings";
 import {
-  ScanLine, Banknote, MoreHorizontal, Eye, CheckCircle, Truck, ArrowLeftRight, XCircle,
-  ExternalLink, Package, ClipboardCheck, Send, RotateCcw, AlertTriangle, AlertOctagon, Flag, Undo2,
+  ScanLine, Banknote, MoreHorizontal, Eye, ExternalLink, Truck, ArrowLeftRight,
+  Search, RefreshCw, Plus, Download, FileText, FileSpreadsheet,
+  Package, ClipboardCheck, Send, RotateCcw, AlertTriangle, AlertOctagon, Flag, Undo2, CheckCircle, XCircle,
+  Clock, Route, MapPin, Hash, CreditCard,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { toast as sonnerToast } from "sonner";
+import { cn } from "@/lib/utils";
 
 /* ═══════════════════════════════════════════════════════
-   AG Grid Actions Cell Renderer (React component)
+   Status Pipeline Tabs
    ═══════════════════════════════════════════════════════ */
+
+const PIPELINE_TABS = [
+  { key: "all", label: "All", emoji: "📋", color: "from-slate-500 to-slate-600", soft: "bg-slate-50 text-slate-700 border-slate-200", active: "bg-slate-600" },
+  { key: "pending", label: "Pending", emoji: "🕐", color: "from-amber-400 to-amber-500", soft: "bg-amber-50 text-amber-700 border-amber-200", active: "bg-amber-500" },
+  { key: "packed", label: "Packed", emoji: "📦", color: "from-blue-400 to-blue-500", soft: "bg-blue-50 text-blue-700 border-blue-200", active: "bg-blue-500" },
+  { key: "ready_to_ship", label: "RTS", emoji: "📋", color: "from-cyan-400 to-cyan-500", soft: "bg-cyan-50 text-cyan-700 border-cyan-200", active: "bg-cyan-500" },
+  { key: "shipped", label: "Shipped", emoji: "🚚", color: "from-indigo-400 to-indigo-500", soft: "bg-indigo-50 text-indigo-700 border-indigo-200", active: "bg-indigo-500" },
+  { key: "in_transit", label: "In Transit", emoji: "🛣️", color: "from-violet-400 to-violet-500", soft: "bg-violet-50 text-violet-700 border-violet-200", active: "bg-violet-500" },
+  { key: "delivered", label: "Delivered", emoji: "✅", color: "from-emerald-400 to-emerald-500", soft: "bg-emerald-50 text-emerald-700 border-emerald-200", active: "bg-emerald-500" },
+  { key: "returned", label: "Returned", emoji: "↩️", color: "from-gray-400 to-gray-500", soft: "bg-gray-100 text-gray-700 border-gray-300", active: "bg-gray-600" },
+  { key: "exchanged", label: "Exchanged", emoji: "🔁", color: "from-orange-400 to-orange-500", soft: "bg-orange-50 text-orange-700 border-orange-200", active: "bg-orange-500" },
+  { key: "cancelled", label: "Cancelled", emoji: "❌", color: "from-red-400 to-red-500", soft: "bg-red-50 text-red-700 border-red-200", active: "bg-red-500" },
+  { key: "damage_return", label: "Damage", emoji: "💥", color: "from-rose-400 to-rose-500", soft: "bg-rose-50 text-rose-700 border-rose-200", active: "bg-rose-500" },
+];
+
 const iconMap: Record<string, any> = {
   Package, ClipboardCheck, Send, Truck, CheckCircle,
   XCircle, RotateCcw, AlertTriangle, AlertOctagon, Flag, Undo2,
 };
-
-function ActionsCellRenderer(params: any) {
-  const data = params.data;
-  const ctx = params.context;
-  if (!data) return null;
-
-  const actions = statusActions[data.status] || [];
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button className="w-7 h-7 rounded-lg hover:bg-accent flex items-center justify-center">
-          <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52 bg-popover z-[60]">
-        <DropdownMenuItem onClick={() => ctx?.onViewDrawer(data.id)}>
-          <Eye className="w-4 h-4 mr-2" /> View Details
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => ctx?.onFullPage(data.id)}>
-          <ExternalLink className="w-4 h-4 mr-2" /> Full Page
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        {actions.map((action: any) => {
-          const Icon = iconMap[action.icon] || Package;
-          return (
-            <DropdownMenuItem
-              key={action.key}
-              onClick={() => ctx?.onStatusChange(data.id, data.invoice_id || data.order_number, action.key)}
-              className={action.variant === "destructive" ? "text-destructive" : ""}
-            >
-              <Icon className="w-4 h-4 mr-2" /> {action.label}
-            </DropdownMenuItem>
-          );
-        })}
-        {data.status === "ready_to_ship" && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => ctx?.onCourierEntry([data.id])}>
-              <Truck className="w-4 h-4 mr-2" /> Courier Entry
-            </DropdownMenuItem>
-          </>
-        )}
-        {data.status === "delivered" && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => ctx?.onExchange(data.id)}>
-              <ArrowLeftRight className="w-4 h-4 mr-2" /> Exchange
-            </DropdownMenuItem>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
 
 /* ═══════════════════════════════════════════════════════
    Main Orders Cockpit
@@ -108,10 +67,10 @@ function OrdersCockpit() {
   const queryClient = useQueryClient();
   const { settings: companySettings } = useCompanySettings();
   const { invoiceSettings } = useInvoiceSettings();
-  const gridRef = useRef<AgGridReact>(null);
 
-  // ────────── State ──────────
-  const [filters, setFilters] = useState<OrderFilters>(defaultOrderFilters);
+  // State
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusTab, setStatusTab] = useState("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [scanMode, setScanMode] = useState(false);
@@ -122,15 +81,16 @@ function OrdersCockpit() {
   const [statusModal, setStatusModal] = useState<{ open: boolean; orderId: string; orderNumber: string; newStatus: string } | null>(null);
   const [damageModal, setDamageModal] = useState<{ open: boolean; orderId: string; orderNumber: string } | null>(null);
   const [changing, setChanging] = useState(false);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 30;
 
-  // ────────── Debounced search ──────────
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  // Debounced search
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(filters.search), 300);
+    const t = setTimeout(() => setDebouncedSearch(searchInput), 300);
     return () => clearTimeout(t);
-  }, [filters.search]);
+  }, [searchInput]);
 
-  // ────────── Data fetch ──────────
+  // Data fetch
   const { data: orders, isLoading, refetch } = useQuery({
     queryKey: ["orders-cockpit", statusTab],
     queryFn: async () => {
@@ -142,7 +102,6 @@ function OrdersCockpit() {
           .order("order_date", { ascending: false })
           .or("web_order_status.is.null,web_order_status.eq.confirm")
           .limit(500);
-
         if (statusTab !== "all") q = q.eq("status", statusTab);
         const { data, error } = await q;
         if (error) throw error;
@@ -157,15 +116,9 @@ function OrdersCockpit() {
   const { data: statusCounts } = useQuery({
     queryKey: ["order-status-counts"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("orders")
-        .select("status, web_order_status")
-        .or("web_order_status.is.null,web_order_status.eq.confirm");
+      const { data } = await supabase.from("orders").select("status, web_order_status").or("web_order_status.is.null,web_order_status.eq.confirm");
       const counts: Record<string, number> = { all: data?.length || 0 };
-      data?.forEach((o: any) => {
-        const s = o.status || "pending";
-        counts[s] = (counts[s] || 0) + 1;
-      });
+      data?.forEach((o: any) => { const s = o.status || "pending"; counts[s] = (counts[s] || 0) + 1; });
       return counts;
     },
     staleTime: 15_000,
@@ -174,9 +127,7 @@ function OrdersCockpit() {
   const { data: shipmentMap } = useQuery({
     queryKey: ["orders-shipment-map"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("courier_shipments")
-        .select("order_id, courier_id, tracking_id, courier_total_cost, courier_net_payable, booking_status, couriers(name)");
+      const { data } = await supabase.from("courier_shipments").select("order_id, courier_id, tracking_id, courier_total_cost, courier_net_payable, booking_status, couriers(name)");
       const map: Record<string, any> = {};
       data?.forEach((s: any) => { map[s.order_id] = s; });
       return map;
@@ -184,7 +135,7 @@ function OrdersCockpit() {
     staleTime: 30_000,
   });
 
-  // ────────── Realtime ──────────
+  // Realtime
   useEffect(() => {
     const channel = supabase
       .channel("orders-realtime")
@@ -196,193 +147,67 @@ function OrdersCockpit() {
     return () => { supabase.removeChannel(channel); };
   }, [queryClient]);
 
-  // ────────── Filtered rows ──────────
+  // Filtered rows
   const filteredRows = useMemo(() => {
     if (!orders) return [];
     return orders.filter((o) => {
       if (debouncedSearch) {
         const s = debouncedSearch.toLowerCase();
         const customer = o.customers as any;
-        const matches =
-          o.order_number?.toLowerCase().includes(s) ||
-          o.invoice_id?.toLowerCase().includes(s) ||
-          customer?.full_name?.toLowerCase().includes(s) ||
-          customer?.phone?.includes(s) ||
-          o.pathao_tracking_code?.toLowerCase().includes(s);
+        const matches = o.order_number?.toLowerCase().includes(s) || o.invoice_id?.toLowerCase().includes(s) || customer?.full_name?.toLowerCase().includes(s) || customer?.phone?.includes(s) || o.pathao_tracking_code?.toLowerCase().includes(s);
         if (!matches) return false;
       }
-      if (filters.source !== "all" && (o.channel || "manual") !== filters.source) return false;
-      if (filters.courier !== "all") {
-        const shipment = shipmentMap?.[o.id];
-        const courierName = (shipment?.couriers?.name || "").toLowerCase();
-        if (!courierName.includes(filters.courier)) return false;
-      }
-      if (filters.dateFrom && new Date(o.order_date) < filters.dateFrom) return false;
-      if (filters.dateTo) {
-        const end = new Date(filters.dateTo);
-        end.setHours(23, 59, 59);
-        if (new Date(o.order_date) > end) return false;
-      }
-      if (filters.amountMin && (o.total_amount || 0) < Number(filters.amountMin)) return false;
-      if (filters.amountMax && (o.total_amount || 0) > Number(filters.amountMax)) return false;
       return true;
     });
-  }, [orders, debouncedSearch, filters, shipmentMap]);
+  }, [orders, debouncedSearch]);
 
-  // ────────── AG Grid row data (flattened) ──────────
-  const rowData = useMemo(() => {
-    return filteredRows.map(o => {
-      const c = o.customers as any;
-      const items = (o.order_items || []) as any[];
-      const s = shipmentMap?.[o.id];
-      const totalItems = items.reduce((sum: number, i: any) => sum + (i.quantity || 0), 0);
-      const firstProduct = items[0]?.products;
+  // Paginated
+  const paginatedRows = useMemo(() => {
+    const start = page * PAGE_SIZE;
+    return filteredRows.slice(start, start + PAGE_SIZE);
+  }, [filteredRows, page]);
 
-      return {
-        id: o.id,
-        order_date: o.order_date,
-        invoice_id: o.invoice_id || o.order_number || "—",
-        order_number: o.order_number,
-        customer_name: c?.full_name || "—",
-        customer_phone: c?.phone || "",
-        district: o.delivery_district || c?.district || "—",
-        items_count: totalItems,
-        items_label: firstProduct?.name
-          ? `${firstProduct.name}${items.length > 1 ? ` +${items.length - 1}` : ""}`
-          : `${totalItems} item(s)`,
-        status: o.status || "pending",
-        channel: o.channel || "manual",
-        total_amount: o.total_amount || 0,
-        advance_amount: o.advance_amount || 0,
-        notes: o.notes || "",
-        courier_name: s?.couriers?.name || (o.pathao_consignment_id ? "Pathao" : ""),
-        tracking_id: o.pathao_tracking_code || s?.tracking_id || "",
-        courier_cost: s?.courier_total_cost ?? null,
-        net_payable: s?.courier_net_payable ?? null,
-        is_blocked: c?.is_blocked,
-        total_orders: c?.total_orders || 0,
-        booking_status: s?.booking_status || "",
-      };
-    });
-  }, [filteredRows, shipmentMap]);
+  const totalPages = Math.ceil(filteredRows.length / PAGE_SIZE);
 
-  // ────────── Column Defs ──────────
-  const columnDefs: ColDef[] = useMemo(() => [
-    {
-      colId: "select",
-      headerCheckboxSelection: true,
-      checkboxSelection: true,
-      width: 45,
-      pinned: "left",
-      suppressMenu: true,
-      headerName: "",
-    },
-    {
-      field: "order_date", headerName: "Date", width: 110, pinned: "left",
-      valueFormatter: (p: any) => formatDate(p.value),
-    },
-    {
-      field: "invoice_id", headerName: "Invoice", width: 140, pinned: "left",
-      cellRenderer: (p: any) =>
-        `<span class="text-xs font-semibold" style="color: hsl(var(--primary)); cursor: pointer;">${p.value}</span>`,
-    },
-    {
-      field: "customer_name", headerName: "Customer", width: 175, pinned: "left",
-      cellRenderer: (p: any) => {
-        const blocked = p.data?.is_blocked
-          ? '<span style="font-size:9px;font-weight:700;color:#dc2626;background:#fee2e2;padding:0 4px;border-radius:3px;margin-left:4px;">BLOCKED</span>'
-          : '';
-        const verified = (p.data?.total_orders || 0) >= 3
-          ? '<span style="color:#10b981;margin-left:2px;">✓</span>'
-          : '';
-        return `<div style="line-height:1.3;">
-          <div style="font-size:12px;font-weight:600;">${p.value}${verified}${blocked}</div>
-          <div style="font-size:11px;color:hsl(var(--muted-foreground));">${p.data?.customer_phone || ""}</div>
-        </div>`;
-      },
-    },
-    { field: "district", headerName: "Area", width: 100 },
-    {
-      field: "items_count", headerName: "Items", width: 80, type: "numericColumn",
-      cellRenderer: (p: any) =>
-        `<span style="font-size:11px;" title="${p.data?.items_label || ""}">${p.value} pcs</span>`,
-    },
-    {
-      field: "status", headerName: "Status", width: 135,
-      cellRenderer: (p: any) => {
-        const cfg = orderStatusConfig[p.value] || { label: p.value, emoji: "", color: "bg-muted text-muted-foreground" };
-        return `<span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${cfg.color}">${cfg.emoji} ${cfg.label}</span>`;
-      },
-    },
-    { field: "courier_name", headerName: "Courier", width: 100 },
-    {
-      field: "tracking_id", headerName: "Tracking", width: 140,
-      cellRenderer: (p: any) => p.value
-        ? `<span style="font-size:11px;font-family:monospace;color:hsl(var(--primary));">${p.value}</span>`
-        : '<span style="color:hsl(var(--muted-foreground));opacity:0.3;">—</span>',
-    },
-    {
-      field: "total_amount", headerName: "Total", width: 100, type: "numericColumn",
-      valueFormatter: (p: any) => formatBDT(p.value),
-    },
-    {
-      field: "advance_amount", headerName: "Advance", width: 90, type: "numericColumn",
-      cellRenderer: (p: any) => p.value > 0
-        ? `<span class="inline-flex px-1.5 py-0.5 rounded-md text-emerald-800 bg-emerald-100" style="font-size:10px;font-weight:700;">৳${(p.value || 0).toLocaleString()}</span>`
-        : '<span style="color:hsl(var(--muted-foreground));opacity:0.3;">—</span>',
-    },
-    {
-      field: "courier_cost", headerName: "Cour. Cost", width: 100, type: "numericColumn",
-      valueFormatter: (p: any) => p.value != null ? formatBDT(p.value, true) : "—",
-    },
-    {
-      field: "net_payable", headerName: "Net Pay", width: 100, type: "numericColumn",
-      valueFormatter: (p: any) => p.value != null ? formatBDT(p.value, true) : "—",
-    },
-    {
-      field: "channel", headerName: "Source", width: 95,
-      cellRenderer: (p: any) => {
-        const cfg = channelConfig[p.value] || channelConfig.manual;
-        return `<span class="inline-flex px-2 py-0.5 rounded-full font-medium ${cfg.color}" style="font-size:10px;">${cfg.emoji} ${cfg.label}</span>`;
-      },
-    },
-    {
-      field: "booking_status", headerName: "Sync", width: 85,
-      cellRenderer: (p: any) => {
-        const v = p.value || "";
-        if (!v) return '<span style="color:hsl(var(--muted-foreground));opacity:0.3;">—</span>';
-        const color = v === "booked" || v === "SYNCED"
-          ? "bg-green-100 text-green-800"
-          : v === "FAILED" || v === "error"
-            ? "bg-red-100 text-red-800"
-            : "bg-muted text-muted-foreground";
-        return `<span class="inline-flex px-1.5 py-0.5 rounded-full font-medium ${color}" style="font-size:10px;">${v}</span>`;
-      },
-    },
-    {
-      colId: "actions",
-      headerName: "",
-      width: 50,
-      pinned: "right",
-      suppressMenu: true,
-      sortable: false,
-      cellRenderer: ActionsCellRenderer,
-    },
-  ], []);
+  // Row data
+  const getRowData = useCallback((o: any) => {
+    const c = o.customers as any;
+    const items = (o.order_items || []) as any[];
+    const s = shipmentMap?.[o.id];
+    const totalItems = items.reduce((sum: number, i: any) => sum + (i.quantity || 0), 0);
+    const firstProduct = items[0]?.products;
+    return {
+      id: o.id,
+      order_date: o.order_date,
+      invoice_id: o.invoice_id || o.order_number || "—",
+      customer_name: c?.full_name || "—",
+      customer_phone: c?.phone || "",
+      district: o.delivery_district || c?.district || "—",
+      items_count: totalItems,
+      first_product: firstProduct,
+      items_extra: items.length > 1 ? items.length - 1 : 0,
+      status: o.status || "pending",
+      channel: o.channel || "manual",
+      total_amount: o.total_amount || 0,
+      advance_amount: o.advance_amount || 0,
+      courier_name: s?.couriers?.name || (o.pathao_consignment_id ? "Pathao" : ""),
+      tracking_id: o.pathao_tracking_code || s?.tracking_id || "",
+      courier_cost: s?.courier_total_cost ?? null,
+      net_payable: s?.courier_net_payable ?? null,
+      is_blocked: c?.is_blocked,
+      total_orders: c?.total_orders || 0,
+      booking_status: s?.booking_status || "",
+      notes: o.notes || "",
+    };
+  }, [shipmentMap]);
 
-  const defaultColDef = useMemo(() => ({
-    sortable: true,
-    resizable: true,
-    suppressMenu: true,
-  }), []);
-
-  // ────────── Handlers ──────────
+  // Handlers
   const handleStatusChange = useCallback((orderId: string, orderNumber: string, newStatus: string) => {
     const order = orders?.find((o) => o.id === orderId);
     const currentStatus = order?.status || "pending";
     const allowed = validTransitions[currentStatus] || [];
     if (!allowed.includes(newStatus)) {
-      toast({ title: "❌ Invalid transition", description: `${orderStatusConfig[currentStatus]?.label} → ${orderStatusConfig[newStatus]?.label} is not allowed`, variant: "destructive" });
+      toast({ title: "❌ Invalid transition", description: `${orderStatusConfig[currentStatus]?.label} → ${orderStatusConfig[newStatus]?.label} not allowed`, variant: "destructive" });
       return;
     }
     if (newStatus === "damage_return") {
@@ -429,10 +254,7 @@ function OrdersCockpit() {
       const result = await applyBulkStatusChange(Array.from(selectedIds), newStatus, orders || []);
       queryClient.invalidateQueries({ queryKey: ["orders-cockpit"] });
       queryClient.invalidateQueries({ queryKey: ["order-status-counts"] });
-      toast({
-        title: `✅ ${result.success} updated, ${result.skipped} skipped`,
-        description: result.errors.length > 0 ? result.errors.slice(0, 3).join("; ") : undefined,
-      });
+      toast({ title: `✅ ${result.success} updated, ${result.skipped} skipped`, description: result.errors.length > 0 ? result.errors.slice(0, 3).join("; ") : undefined });
     } catch (err: any) {
       sonnerToast.error("Bulk action failed", { description: err.message });
     }
@@ -453,30 +275,11 @@ function OrdersCockpit() {
     const exportData = filteredRows.map((o) => {
       const customer = o.customers as any;
       const shipment = shipmentMap?.[o.id];
-      return {
-        Invoice: o.invoice_id || o.order_number,
-        Date: formatDate(o.order_date),
-        Customer: customer?.full_name || "",
-        Phone: customer?.phone || "",
-        District: o.delivery_district || customer?.district || "",
-        Status: o.status || "pending",
-        Source: o.channel || "manual",
-        Courier: shipment?.couriers?.name || "",
-        Tracking: o.pathao_tracking_code || shipment?.tracking_id || "",
-        Total: o.total_amount || 0,
-        "Courier Cost": shipment?.courier_total_cost ?? "",
-        "Net Payable": shipment?.courier_net_payable ?? "",
-        Advance: o.advance_amount || 0,
-        Notes: o.notes || "",
-      };
+      return { Invoice: o.invoice_id || o.order_number, Date: formatDate(o.order_date), Customer: customer?.full_name || "", Phone: customer?.phone || "", District: o.delivery_district || customer?.district || "", Status: o.status || "pending", Total: o.total_amount || 0, Courier: shipment?.couriers?.name || "", Tracking: o.pathao_tracking_code || shipment?.tracking_id || "", Advance: o.advance_amount || 0 };
     });
-
     if (type === "csv") {
       const headers = Object.keys(exportData[0]);
-      const csv = [
-        headers.join(","),
-        ...exportData.map((r) => headers.map((h) => `"${String((r as any)[h] ?? "").replace(/"/g, '""')}"`).join(","))
-      ].join("\n");
+      const csv = [headers.join(","), ...exportData.map((r) => headers.map((h) => `"${String((r as any)[h] ?? "").replace(/"/g, '""')}"`).join(","))].join("\n");
       const blob = new Blob([csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a"); a.href = url; a.download = `orders-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
@@ -490,123 +293,379 @@ function OrdersCockpit() {
     toast({ title: `📄 Exported ${exportData.length} orders as ${type.toUpperCase()}` });
   };
 
-  // ────────── Grid context (passed to cell renderers) ──────────
-  const gridContext = useMemo(() => ({
-    onStatusChange: handleStatusChange,
-    onViewDrawer: (id: string) => setDrawerOrderId(id),
-    onFullPage: (id: string) => navigate(`/orders/${id}`),
-    onCourierEntry: (ids: string[]) => setCourierEntryIds(ids),
-    onExchange: (id: string) => navigate(`/exchanges?order=${id}`),
-  }), [handleStatusChange, navigate]);
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
-  // ────────── Grid events ──────────
-  const onSelectionChanged = useCallback((e: any) => {
-    const rows = e.api.getSelectedRows();
-    setSelectedIds(new Set(rows.map((r: any) => r.id)));
-  }, []);
+  const toggleAll = () => {
+    if (selectedIds.size === paginatedRows.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(paginatedRows.map(o => o.id)));
+    }
+  };
 
-  const onRowClicked = useCallback((e: any) => {
-    const colId = e.column?.getColId?.();
-    if (colId === "select" || colId === "actions") return;
-    if (e.data?.id) setDrawerOrderId(e.data.id);
-  }, []);
+  const allSelected = paginatedRows.length > 0 && selectedIds.size === paginatedRows.length;
 
-  // ────────── Render ──────────
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)]">
-      {/* Page Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b bg-card">
-        <div>
-          <h1 className="text-xl font-bold text-foreground tracking-tight">Orders</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Operations Cockpit — {rowData.length.toLocaleString()} orders
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setCodPanelOpen(true)}>
-            <Banknote className="w-3.5 h-3.5 mr-1" /> COD Panel
-          </Button>
-          <Button
-            variant={scanMode ? "default" : "outline"}
-            size="sm"
-            className="h-8 text-xs"
-            onClick={() => setScanMode(!scanMode)}
-          >
-            <ScanLine className="w-3.5 h-3.5 mr-1" /> Scan
-          </Button>
-          {selectedIds.size > 0 && (
-            <Button
-              size="sm"
-              className="h-8 text-xs"
-              onClick={() => setCourierEntryIds(Array.from(selectedIds))}
-            >
-              <Truck className="w-3.5 h-3.5 mr-1" /> Courier Entry ({selectedIds.size})
+    <div className="flex flex-col h-[calc(100vh-64px)] bg-background">
+      {/* ═══ Header ═══ */}
+      <div className="px-6 pt-5 pb-4 bg-card border-b border-border/50">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-xl font-bold text-foreground tracking-tight">Orders</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">{filteredRows.length.toLocaleString()} orders</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setCodPanelOpen(true)}>
+              <Banknote className="w-3.5 h-3.5 mr-1" /> COD
             </Button>
-          )}
+            <Button variant={scanMode ? "default" : "outline"} size="sm" className="h-8 text-xs" onClick={() => setScanMode(!scanMode)}>
+              <ScanLine className="w-3.5 h-3.5 mr-1" /> Scan
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 text-xs">
+                  <Download className="w-3.5 h-3.5 mr-1" /> Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-popover z-50">
+                <DropdownMenuItem onClick={() => handleExport("csv")}><FileText className="w-4 h-4 mr-2" /> CSV</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("excel")}><FileSpreadsheet className="w-4 h-4 mr-2" /> Excel</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => refetch()}>
+              <RefreshCw className="w-3.5 h-3.5" />
+            </Button>
+            <Button size="sm" className="h-8 text-xs shadow-sm" onClick={() => navigate("/orders/new")}>
+              <Plus className="w-3.5 h-3.5 mr-1" /> New Order
+            </Button>
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search invoice, customer, phone, tracking…"
+            className="pl-9 h-9 bg-background/60 border-border/50 rounded-xl"
+            value={searchInput}
+            onChange={(e) => { setSearchInput(e.target.value); setPage(0); }}
+          />
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <OrdersQuickStats
-        counts={statusCounts || { all: 0 }}
-        activeStatus={statusTab}
-        onStatusClick={(s) => { setStatusTab(s); setSelectedIds(new Set()); }}
-      />
+      {/* ═══ Status Pipeline ═══ */}
+      <div className="flex items-center gap-1.5 overflow-x-auto px-6 py-3 bg-card/50 border-b border-border/30" style={{ scrollbarWidth: "none" }}>
+        {PIPELINE_TABS.map((tab) => {
+          const count = statusCounts?.[tab.key] || 0;
+          const isActive = statusTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => { setStatusTab(tab.key); setPage(0); setSelectedIds(new Set()); }}
+              className={cn(
+                "relative flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all duration-300 whitespace-nowrap shrink-0",
+                isActive
+                  ? `${tab.active} text-white border-transparent shadow-lg shadow-current/20 scale-[1.03]`
+                  : `${tab.soft} hover:shadow-sm hover:scale-[1.01]`
+              )}
+            >
+              {isActive && (
+                <span className="absolute inset-x-0 -bottom-[13px] mx-auto w-8 h-0.5 rounded-full bg-current" />
+              )}
+              <span className="text-sm">{tab.emoji}</span>
+              {tab.label}
+              <span className={cn(
+                "min-w-[20px] h-[18px] px-1 rounded-md text-[10px] font-bold flex items-center justify-center",
+                isActive ? "bg-white/25" : "bg-black/[0.06]"
+              )}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
       {/* Scan Mode */}
       {scanMode && (
-        <div className="px-6 py-3 border-b">
+        <div className="px-6 py-3 border-b border-border/30">
           <ScanMode onStatusChange={handleStatusChange} />
         </div>
       )}
 
-      {/* Filter Bar */}
-      <OrdersFilterBar
-        filters={filters}
-        onFiltersChange={(f) => setFilters(f)}
-        onRefresh={() => refetch()}
-        onExport={handleExport}
-        onNewOrder={() => navigate("/orders/new")}
-        totalOrders={rowData.length}
-      />
+      {/* ═══ In-Transit Controls ═══ */}
+      {statusTab === "in_transit" && (
+        <div className="flex items-center gap-3 px-6 py-2.5 bg-violet-50/50 border-b border-violet-200/30">
+          <Route className="w-4 h-4 text-violet-600" />
+          <span className="text-xs font-medium text-violet-700">In-Transit Mode</span>
+          <Button variant="outline" size="sm" className="h-7 text-[11px] ml-auto border-violet-300 text-violet-700 hover:bg-violet-100">
+            <RefreshCw className="w-3 h-3 mr-1" /> Sync All
+          </Button>
+        </div>
+      )}
 
-      {/* AG Grid */}
-      <div className="flex-1 ag-theme-alpine" style={{ width: "100%" }}>
-        <AgGridReact
-          ref={gridRef}
-          rowData={rowData}
-          columnDefs={columnDefs}
-          defaultColDef={defaultColDef}
-          context={gridContext}
-          rowHeight={44}
-          headerHeight={40}
-          animateRows={false}
-          suppressCellFocus={true}
-          suppressRowClickSelection={true}
-          rowSelection="multiple"
-          onSelectionChanged={onSelectionChanged}
-          onRowClicked={onRowClicked}
-          pagination={true}
-          paginationPageSize={50}
-          paginationPageSizeSelector={[25, 50, 100]}
-          overlayLoadingTemplate='<span class="text-muted-foreground">Loading orders…</span>'
-          overlayNoRowsTemplate='<span class="text-muted-foreground">No orders match filters</span>'
-          loading={isLoading}
-          getRowId={(params) => params.data.id}
-        />
+      {/* ═══ Select All Bar ═══ */}
+      {paginatedRows.length > 0 && (
+        <div className="flex items-center gap-3 px-6 py-2 border-b border-border/20 bg-card/30">
+          <Checkbox checked={allSelected} onCheckedChange={toggleAll} className="rounded" />
+          <span className="text-[11px] text-muted-foreground font-medium">
+            {selectedIds.size > 0 ? `${selectedIds.size} selected` : "Select all"}
+          </span>
+          {selectedIds.size > 0 && (
+            <Button variant="outline" size="sm" className="h-6 text-[10px] px-2 ml-auto" onClick={() => setCourierEntryIds(Array.from(selectedIds))}>
+              <Truck className="w-3 h-3 mr-1" /> Courier Entry
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* ═══ Order List ═══ */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+        {isLoading ? (
+          Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="bg-card rounded-2xl p-4 animate-pulse">
+              <div className="flex items-center gap-4">
+                <Skeleton className="w-5 h-5 rounded" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-32 ml-auto" />
+              </div>
+            </div>
+          ))
+        ) : paginatedRows.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+            <Package className="w-12 h-12 mb-3 opacity-30" />
+            <p className="text-sm font-medium">No orders found</p>
+            <p className="text-xs mt-1">Try adjusting your search or filters</p>
+          </div>
+        ) : (
+          paginatedRows.map((o, idx) => {
+            const row = getRowData(o);
+            const isSelected = selectedIds.has(row.id);
+            const statusCfg = orderStatusConfig[row.status] || { label: row.status, color: "bg-muted text-muted-foreground", emoji: "" };
+            const chCfg = channelConfig[row.channel] || channelConfig.manual;
+            const actions = statusActions[row.status] || [];
+
+            return (
+              <div
+                key={row.id}
+                className={cn(
+                  "group bg-card rounded-2xl border border-border/40 px-4 py-3.5 transition-all duration-200",
+                  "hover:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.08)] hover:border-border/60 hover:-translate-y-[1px]",
+                  isSelected && "ring-2 ring-primary/30 border-primary/40 bg-primary-light/30",
+                )}
+                style={{ animationDelay: `${idx * 20}ms` }}
+              >
+                <div className="flex items-center gap-3">
+                  {/* Checkbox */}
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => toggleSelect(row.id)}
+                    className="rounded shrink-0"
+                  />
+
+                  {/* LEFT: Date + Invoice + Customer */}
+                  <div className="flex items-center gap-4 min-w-0 flex-1">
+                    {/* Date */}
+                    <div className="shrink-0 w-[70px]">
+                      <p className="text-[11px] text-muted-foreground font-medium">{formatDate(row.order_date)}</p>
+                    </div>
+
+                    {/* Invoice */}
+                    <button
+                      onClick={() => setDrawerOrderId(row.id)}
+                      className="shrink-0 text-xs font-bold text-primary hover:underline underline-offset-2 transition-colors"
+                    >
+                      {row.invoice_id}
+                    </button>
+
+                    {/* Customer */}
+                    <div className="min-w-0 shrink-0 max-w-[160px]">
+                      <div className="flex items-center gap-1">
+                        <p className="text-xs font-semibold text-foreground truncate">{row.customer_name}</p>
+                        {row.total_orders >= 3 && <span className="text-emerald-500 text-[10px]">✓</span>}
+                        {row.is_blocked && <span className="text-[9px] font-bold text-destructive bg-destructive/10 px-1 rounded">B</span>}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground truncate">{row.customer_phone}</p>
+                    </div>
+                  </div>
+
+                  {/* CENTER: Product + District */}
+                  <div className="hidden md:flex items-center gap-4 flex-1 min-w-0">
+                    {/* Product */}
+                    <div className="flex items-center gap-2 min-w-0 max-w-[200px]">
+                      {row.first_product?.image_url ? (
+                        <img src={row.first_product.image_url} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0 border border-border/50" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                          <Package className="w-3.5 h-3.5 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-medium text-foreground truncate">
+                          {row.first_product?.name || `${row.items_count} item(s)`}
+                        </p>
+                        {row.first_product?.sku && (
+                          <p className="text-[10px] text-muted-foreground truncate">{row.first_product.sku}</p>
+                        )}
+                      </div>
+                      {row.items_extra > 0 && (
+                        <span className="text-[10px] font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md shrink-0">
+                          +{row.items_extra}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Qty badge */}
+                    <span className="shrink-0 text-[10px] font-bold text-foreground bg-muted px-1.5 py-0.5 rounded-md">
+                      <Hash className="w-2.5 h-2.5 inline mr-0.5" />{row.items_count}
+                    </span>
+
+                    {/* District */}
+                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0">
+                      <MapPin className="w-3 h-3" />
+                      <span className="truncate max-w-[80px]">{row.district}</span>
+                    </div>
+                  </div>
+
+                  {/* RIGHT: Status + Financial + Actions */}
+                  <div className="flex items-center gap-3 shrink-0">
+                    {/* Status */}
+                    <span className={cn(
+                      "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all animate-flip-in",
+                      statusCfg.color
+                    )}>
+                      {statusCfg.emoji} {statusCfg.label}
+                    </span>
+
+                    {/* Courier */}
+                    {row.courier_name && (
+                      <span className="hidden lg:inline-flex text-[10px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
+                        {row.courier_name}
+                      </span>
+                    )}
+
+                    {/* Tracking */}
+                    {row.tracking_id && (
+                      <span className="hidden lg:inline-flex text-[10px] font-mono text-primary/70 bg-primary-light px-2 py-0.5 rounded-md truncate max-w-[100px]">
+                        {row.tracking_id}
+                      </span>
+                    )}
+
+                    {/* Total */}
+                    <div className="text-right shrink-0 min-w-[70px]">
+                      <p className="text-xs font-bold text-foreground tabular-nums">{formatBDT(row.total_amount)}</p>
+                      {row.advance_amount > 0 && (
+                        <p className="text-[10px] font-semibold text-emerald-600 tabular-nums flex items-center justify-end gap-0.5">
+                          <CreditCard className="w-2.5 h-2.5" />
+                          {formatBDT(row.advance_amount)}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Sync badge */}
+                    {row.booking_status && (
+                      <span className={cn(
+                        "hidden xl:inline-flex text-[9px] font-bold px-1.5 py-0.5 rounded-md",
+                        row.booking_status === "booked" || row.booking_status === "SYNCED"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : row.booking_status === "FAILED" || row.booking_status === "error"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-muted text-muted-foreground"
+                      )}>
+                        {row.booking_status}
+                      </span>
+                    )}
+
+                    {/* Source */}
+                    <span className={cn("hidden xl:inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-medium", chCfg.color)}>
+                      {chCfg.emoji}
+                    </span>
+
+                    {/* Actions dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="w-7 h-7 rounded-xl hover:bg-muted flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-52 bg-popover z-[60]">
+                        <DropdownMenuItem onClick={() => setDrawerOrderId(row.id)}>
+                          <Eye className="w-4 h-4 mr-2" /> View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate(`/orders/${row.id}`)}>
+                          <ExternalLink className="w-4 h-4 mr-2" /> Full Page
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        {actions.map((action: any) => {
+                          const Icon = iconMap[action.icon] || Package;
+                          return (
+                            <DropdownMenuItem
+                              key={action.key}
+                              onClick={() => handleStatusChange(row.id, row.invoice_id, action.key)}
+                              className={action.variant === "destructive" ? "text-destructive" : ""}
+                            >
+                              <Icon className="w-4 h-4 mr-2" /> {action.label}
+                            </DropdownMenuItem>
+                          );
+                        })}
+                        {row.status === "ready_to_ship" && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => setCourierEntryIds([row.id])}>
+                              <Truck className="w-4 h-4 mr-2" /> Courier Entry
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                        {row.status === "delivered" && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => navigate(`/exchanges?order=${row.id}`)}>
+                              <ArrowLeftRight className="w-4 h-4 mr-2" /> Exchange
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
 
-      {/* Bulk Action Toolbar */}
+      {/* ═══ Pagination ═══ */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 px-6 py-3 border-t border-border/30 bg-card/50">
+          <Button variant="outline" size="sm" className="h-7 text-xs" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+            Previous
+          </Button>
+          <span className="text-xs text-muted-foreground font-medium px-2">
+            Page {page + 1} of {totalPages}
+          </span>
+          <Button variant="outline" size="sm" className="h-7 text-xs" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
+            Next
+          </Button>
+        </div>
+      )}
+
+      {/* ═══ Bulk Action Toolbar ═══ */}
       <BulkActionToolbar
         selectedCount={selectedIds.size}
-        onDeselect={() => { setSelectedIds(new Set()); gridRef.current?.api?.deselectAll(); }}
+        onDeselect={() => setSelectedIds(new Set())}
         onStatusChange={handleBulkStatus}
         onPrint={handleBulkPrint}
         onCourier={() => setCourierEntryIds(Array.from(selectedIds))}
         changing={changing}
       />
 
-      {/* Modals */}
+      {/* ═══ Modals ═══ */}
       {statusModal && (
         <StatusChangeModal
           open={statusModal.open}
@@ -639,20 +698,13 @@ function OrdersCockpit() {
           note={noteModal.note}
         />
       )}
-
-      {/* Courier Entry Modal */}
       <CourierEntryModal
         open={courierEntryIds.length > 0}
         onOpenChange={(open) => !open && setCourierEntryIds([])}
         orderIds={courierEntryIds}
         orders={orders || []}
-        onComplete={() => {
-          setCourierEntryIds([]);
-          setSelectedIds(new Set());
-          gridRef.current?.api?.deselectAll();
-        }}
+        onComplete={() => { setCourierEntryIds([]); setSelectedIds(new Set()); }}
       />
-
       <CODReconciliation open={codPanelOpen} onOpenChange={setCodPanelOpen} />
       <OrderDetailsDrawer
         open={!!drawerOrderId}
@@ -663,9 +715,6 @@ function OrdersCockpit() {
   );
 }
 
-/* ═══════════════════════════════════════════════════════
-   Export with Error Boundary
-   ═══════════════════════════════════════════════════════ */
 export default function OrdersPage() {
   return (
     <OrdersErrorBoundary>
