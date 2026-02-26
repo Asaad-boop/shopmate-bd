@@ -7262,6 +7262,22 @@ export type Database = {
       dashboard_cash_position: { Args: never; Returns: Json }
       dashboard_today_kpis: { Args: never; Returns: Json }
       dashboard_working_capital: { Args: never; Returns: Json }
+      exec_dashboard_alerts: { Args: never; Returns: Json }
+      exec_dashboard_charts: { Args: { p_days?: number }; Returns: Json }
+      exec_dashboard_finance: { Args: never; Returns: Json }
+      exec_dashboard_inventory: { Args: never; Returns: Json }
+      exec_dashboard_kpis: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Json
+      }
+      exec_dashboard_marketing: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Json
+      }
+      exec_dashboard_pipeline: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Json
+      }
       executive_report: {
         Args: { p_date_from: string; p_date_to: string }
         Returns: Json
