@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatBDT, formatNumber } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,7 +25,7 @@ const PIE_COLORS = [
 
 interface Props { from: string; to: string; }
 
-export function FinanceMode({ from, to }: Props) {
+export const FinanceMode = memo(function FinanceMode({ from, to }: Props) {
   const navigate = useNavigate();
   const { data: kpis, isLoading: kpiL } = useFinKpis(from, to);
   const { data: finance, isLoading: finL } = useExecFinance();
@@ -234,4 +234,4 @@ export function FinanceMode({ from, to }: Props) {
       </Card>
     </div>
   );
-}
+});
