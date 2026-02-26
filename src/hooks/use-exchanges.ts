@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import type { ExpectedItem } from "@/hooks/use-return-cases";
 
 export interface ExchangeRequest {
   id: string;
@@ -178,18 +179,54 @@ export function useCreateExchange() {
       }
 
       // Audit log
-      await supabase.from("audit_logs").insert({
+      await supabase.from("audit_logs").insert([{
         entity_type: "exchange",
         entity_id: exReq.id,
         action: "exchange_created",
-        after_json: { exchange_number: exReq.exchange_number, reason: params.reason, price_difference: priceDiff },
-      });
+        after_json: { exchange_number: exReq.exchange_number, reason: params.reason, price_difference: priceDiff } as any,
+      }]);
+
+      // Auto-create return case for the return items
+      if (params.return_items.length > 0) {
+        const expectedItems: ExpectedItem[] = params.return_items.map((i) => ({
+          product_id: i.product_id,
+          product_name: i.product_name,
+          sku: i.sku,
+          quantity: i.quantity,
+          unit_price: i.unit_price,
+        }));
+
+        const { data: rc } = await supabase
+          .from("return_cases")
+          .insert({
+            parent_order_id: params.order_id,
+            exchange_case_id: exReq.id,
+            expected_items: expectedItems as any,
+            notes: `Auto-created from exchange ${exReq.exchange_number}`,
+          })
+          .select()
+          .single();
+
+        if (rc) {
+          await supabase
+            .from("orders")
+            .update({
+              return_pending: true,
+              return_case_id: rc.id,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", params.order_id);
+        }
+      }
 
       return exReq;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["exchanges"] });
       qc.invalidateQueries({ queryKey: ["order-exchanges"] });
+      qc.invalidateQueries({ queryKey: ["return-cases"] });
+      qc.invalidateQueries({ queryKey: ["order"] });
+      qc.invalidateQueries({ queryKey: ["orders"] });
       toast({ title: "Exchange request created" });
     },
     onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
