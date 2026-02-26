@@ -64,6 +64,7 @@ import MarketingPage from "./pages/Marketing";
 import MarketingInfluencersPage from "./pages/MarketingInfluencers";
 import MarketingUGCPage from "./pages/MarketingUGC";
 import MarketingExternalPage from "./pages/MarketingExternal";
+import ExchangesPage from "./pages/Exchanges";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -93,6 +94,7 @@ const App = () => (
             <Route path="/orders/import-legacy" element={<ImportLegacyOrders />} />
             <Route path="/orders/legacy-batches" element={<LegacyBatches />} />
             <Route path="/orders/:id" element={<OrderDetail />} />
+            <Route path="/exchanges" element={<ExchangesPage />} />
 
             {/* Web Orders */}
             <Route path="/web-orders" element={<WebOrdersPage />} />
