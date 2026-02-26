@@ -560,7 +560,7 @@ function OrderDetailInner() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full text-xs h-9 rounded-xl gap-1.5 border-purple-300 text-purple-700 hover:bg-purple-50"
+                      className="w-full text-xs h-9 rounded-xl gap-1.5 border-amber-400 text-amber-700 hover:bg-amber-50 dark:border-amber-600 dark:text-amber-400 dark:hover:bg-amber-950"
                       onClick={() => setShowExchangeModal(true)}
                     >
                       <ArrowRightLeft className="w-3.5 h-3.5" /> Initiate Exchange
