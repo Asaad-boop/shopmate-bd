@@ -74,8 +74,9 @@ export function useCreateDeal() {
       influencer_id: string; campaign_name: string; start_date: string; end_date?: string;
       total_cost: number; payment_method: string; notes?: string;
       sku_ids?: { product_id: string; allocation_pct: number }[];
+      [key: string]: any;
     }) => {
-      const { sku_ids, ...dealData } = p;
+      const { sku_ids, sku_id, ...dealData } = p;
       const { data, error } = await supabase.from("influencer_deals").insert(dealData).select("id").single();
       if (error) throw error;
       if (sku_ids?.length) {
