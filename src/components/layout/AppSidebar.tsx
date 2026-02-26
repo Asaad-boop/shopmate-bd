@@ -203,9 +203,9 @@ export function AppSidebar() {
                         to={child.path}
                         className={cn(
                           "flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all duration-200",
-                          isActive(child.path)
-                            ? "bg-sidebar-accent text-sidebar-foreground font-medium"
-                            : "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                        isActive(child.path)
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                          : "text-sidebar-muted hover:text-sidebar-foreground hover:bg-muted"
                         )}
                       >
                         {child.icon && <child.icon className="w-4 h-4" strokeWidth={1.8} />}
@@ -224,9 +224,9 @@ export function AppSidebar() {
               to={item.path!}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
-                isActive(item.path!)
-                  ? "bg-sidebar-accent text-sidebar-foreground shadow-sm"
-                  : "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
+              isActive(item.path!)
+                ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
+                : "text-sidebar-muted hover:text-sidebar-foreground hover:bg-muted"
               )}
             >
               <item.icon className="w-[18px] h-[18px] flex-shrink-0" strokeWidth={1.8} />
