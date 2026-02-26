@@ -7257,6 +7257,17 @@ export type Database = {
         Args: { p_date_from: string; p_date_to: string }
         Returns: Json
       }
+      dash_hourly_orders: { Args: { p_source?: string }; Returns: Json }
+      dash_order_flow_trend: { Args: { p_days?: number }; Returns: Json }
+      dash_orders_by_source: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Json
+      }
+      dash_top_products: {
+        Args: { p_from?: string; p_limit?: number; p_to?: string }
+        Returns: Json
+      }
+      dash_web_order_performance: { Args: { p_days?: number }; Returns: Json }
       dashboard_14day_trend: { Args: never; Returns: Json }
       dashboard_alerts: { Args: never; Returns: Json }
       dashboard_cash_position: { Args: never; Returns: Json }
