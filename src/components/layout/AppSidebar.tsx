@@ -25,6 +25,7 @@ import {
   Shield,
   Upload,
   Search,
+  ArrowRightLeft,
   CheckCircle,
   ScanLine,
   ShieldAlert,
@@ -60,6 +61,7 @@ const navItems: NavItem[] = [
       { label: "Super Edit", path: "/orders/super-edit", icon: FileText },
       { label: "Pre Order List", path: "/orders/pre-orders", icon: Package },
       { label: "Scan to Update", path: "/orders/scan", icon: ScanLine },
+      { label: "Exchanges", path: "/exchanges", icon: ArrowRightLeft },
     ],
   },
   {

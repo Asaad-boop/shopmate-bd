@@ -9,7 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTime, formatBDT } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Printer, Save, ShieldCheck, Loader2 } from "lucide-react";
+import { ArrowLeft, Printer, Save, ShieldCheck, Loader2, ArrowRightLeft } from "lucide-react";
 import { finalizeLegacyOrder } from "@/hooks/use-legacy-finalize";
 import { useBDCourierSingle, getRiskLevel } from "@/hooks/use-bd-courier";
 import { useCompanySettings } from "@/hooks/use-company-settings";
@@ -23,6 +23,8 @@ import { DeliveryPaymentCard } from "@/components/order-detail/DeliveryPaymentCa
 import { StatusSidebar } from "@/components/order-detail/StatusSidebar";
 import { OrderInfoCard } from "@/components/order-detail/OrderInfoCard";
 import { ActivityLog } from "@/components/order-detail/ActivityLog";
+import { ExchangeHistoryCard } from "@/components/exchanges/ExchangeHistoryCard";
+import { CreateExchangeModal } from "@/components/exchanges/CreateExchangeModal";
 
 /* ─── STATUS CONFIG ─── */
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
@@ -49,6 +51,7 @@ export default function OrderDetail() {
   const { invoiceSettings } = useInvoiceSettings();
 
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+  const [exchangeOpen, setExchangeOpen] = useState(false);
   const [orderItems, setOrderItems] = useState<any[]>([]);
   const [finalizing, setFinalizing] = useState(false);
   const [deliveryForm, setDeliveryForm] = useState({
@@ -296,6 +299,14 @@ export default function OrderDetail() {
                 <Printer className="w-3.5 h-3.5" /> Print Invoice
               </Button>
               <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs h-9 rounded-xl"
+                onClick={() => setExchangeOpen(true)}
+              >
+                <ArrowRightLeft className="w-3.5 h-3.5" /> Exchange
+              </Button>
+              <Button
                 size="sm"
                 className="gap-1.5 text-xs h-9 rounded-xl bg-[#6c63ff] hover:bg-[#5a52d5] text-white"
                 onClick={() => saveMutation.mutate()}
@@ -321,6 +332,7 @@ export default function OrderDetail() {
               deliveryForm={deliveryForm}
               onFormChange={setDeliveryForm}
             />
+            <ExchangeHistoryCard orderId={id!} />
           </div>
 
           {/* ════ RIGHT COLUMN (sticky) ════ */}
@@ -336,6 +348,16 @@ export default function OrderDetail() {
           </div>
         </div>
       </div>
+
+      {/* Exchange Modal */}
+      {exchangeOpen && (
+        <CreateExchangeModal
+          open={exchangeOpen}
+          onOpenChange={setExchangeOpen}
+          order={order}
+          orderItems={orderItems}
+        />
+      )}
     </TooltipProvider>
   );
 }

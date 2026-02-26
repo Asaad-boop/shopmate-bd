@@ -1971,6 +1971,74 @@ export type Database = {
         }
         Relationships: []
       }
+      exchange_items: {
+        Row: {
+          condition: string | null
+          created_at: string
+          direction: string
+          exchange_id: string
+          id: string
+          product_id: string | null
+          product_name: string
+          quantity: number
+          sku: string | null
+          unit_price: number
+        }
+        Insert: {
+          condition?: string | null
+          created_at?: string
+          direction: string
+          exchange_id: string
+          id?: string
+          product_id?: string | null
+          product_name: string
+          quantity?: number
+          sku?: string | null
+          unit_price?: number
+        }
+        Update: {
+          condition?: string | null
+          created_at?: string
+          direction?: string
+          exchange_id?: string
+          id?: string
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          sku?: string | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exchange_items_exchange_id_fkey"
+            columns: ["exchange_id"]
+            isOneToOne: false
+            referencedRelation: "exchange_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exchange_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_profit_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exchange_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exchange_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_on_hand"
+            referencedColumns: ["product_id"]
+          },
+        ]
+      }
       exchange_rates: {
         Row: {
           created_at: string | null
@@ -1997,6 +2065,152 @@ export type Database = {
           source?: string | null
         }
         Relationships: []
+      }
+      exchange_requests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          cancel_reason: string | null
+          cancelled_at: string | null
+          completed_at: string | null
+          courier_cost_total: number
+          created_at: string
+          customer_name: string | null
+          customer_phone: string | null
+          damaged_loss: number
+          exchange_number: string | null
+          exchange_type: string
+          id: string
+          net_exchange_cost: number
+          notes: string | null
+          order_id: string
+          price_difference: number
+          reason: string
+          replacement_sent_at: string | null
+          reverse_received_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          completed_at?: string | null
+          courier_cost_total?: number
+          created_at?: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          damaged_loss?: number
+          exchange_number?: string | null
+          exchange_type?: string
+          id?: string
+          net_exchange_cost?: number
+          notes?: string | null
+          order_id: string
+          price_difference?: number
+          reason: string
+          replacement_sent_at?: string | null
+          reverse_received_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          completed_at?: string | null
+          courier_cost_total?: number
+          created_at?: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          damaged_loss?: number
+          exchange_number?: string | null
+          exchange_type?: string
+          id?: string
+          net_exchange_cost?: number
+          notes?: string | null
+          order_id?: string
+          price_difference?: number
+          reason?: string
+          replacement_sent_at?: string | null
+          reverse_received_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exchange_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_summary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exchange_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exchange_shipments: {
+        Row: {
+          cod_amount: number
+          courier_cost: number
+          courier_name: string | null
+          created_at: string
+          delivered_at: string | null
+          exchange_id: string
+          id: string
+          notes: string | null
+          shipment_type: string
+          shipped_at: string | null
+          status: string
+          tracking_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          cod_amount?: number
+          courier_cost?: number
+          courier_name?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          exchange_id: string
+          id?: string
+          notes?: string | null
+          shipment_type: string
+          shipped_at?: string | null
+          status?: string
+          tracking_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cod_amount?: number
+          courier_cost?: number
+          courier_name?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          exchange_id?: string
+          id?: string
+          notes?: string | null
+          shipment_type?: string
+          shipped_at?: string | null
+          status?: string
+          tracking_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exchange_shipments_exchange_id_fkey"
+            columns: ["exchange_id"]
+            isOneToOne: false
+            referencedRelation: "exchange_requests"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       expense_allocation_lines: {
         Row: {
