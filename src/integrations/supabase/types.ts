@@ -7312,6 +7312,17 @@ export type Database = {
         }
         Returns: Json
       }
+      fin_cashflow_trend: { Args: { p_days?: number }; Returns: Json }
+      fin_dashboard_kpis: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Json
+      }
+      fin_expense_breakdown: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Json
+      }
+      fin_settlement_aging: { Args: never; Returns: Json }
+      fin_supplier_payables_snapshot: { Args: never; Returns: Json }
       finance_account_balances: { Args: never; Returns: Json }
       finance_account_transactions:
         | { Args: { p_account_id: string; p_limit?: number }; Returns: Json }
@@ -7461,6 +7472,12 @@ export type Database = {
         Args: { p_date_from?: string; p_date_to?: string }
         Returns: Json
       }
+      ops_courier_performance: { Args: never; Returns: Json }
+      ops_dashboard_kpis: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Json
+      }
+      ops_recent_activity: { Args: { p_limit?: number }; Returns: Json }
       pnl_account_drilldown: {
         Args: { p_account_code: string; p_date_from: string; p_date_to: string }
         Returns: Json
