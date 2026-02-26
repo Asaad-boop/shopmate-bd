@@ -26,10 +26,12 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { Switch } from "@/components/ui/switch";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Banknote, Building2, Smartphone, Wallet, ArrowUpRight, ArrowDownLeft,
   ArrowLeftRight, Settings2, RefreshCw, ArrowLeft, TrendingUp, TrendingDown,
-  Download, Search, Clock, X,
+  Download, Search, Clock, X, Plus,
 } from "lucide-react";
 
 const heading: React.CSSProperties = { fontFamily: "'Playfair Display', serif" };
@@ -159,6 +161,18 @@ export default function FinanceAccountsPage() {
   const [targetBalance, setTargetBalance] = useState("");
   const [modalAcctId, setModalAcctId] = useState<string | null>(null);
 
+  // Add Account modal state
+  const [addOpen, setAddOpen] = useState(false);
+  const [newAcctType, setNewAcctType] = useState("");
+  const [newAcctName, setNewAcctName] = useState("");
+  const [newOwnerName, setNewOwnerName] = useState("");
+  const [newAcctNumber, setNewAcctNumber] = useState("");
+  const [newAcctNature, setNewAcctNature] = useState("business");
+  const [newOpeningBal, setNewOpeningBal] = useState("0.00");
+  const [newOpeningDate, setNewOpeningDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [newIsActive, setNewIsActive] = useState(true);
+  const [newNotes, setNewNotes] = useState("");
+
   const modalAccount = accounts?.find((a) => a.id === modalAcctId);
 
   const resetForm = () => {
@@ -230,7 +244,33 @@ export default function FinanceAccountsPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const isSubmitting = depositMut.isPending || withdrawMut.isPending || transferMut.isPending || adjustMut.isPending;
+  const createAcctMut = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc("finance_create_account", {
+        p_name: newAcctName.trim(),
+        p_account_type: newAcctType,
+        p_account_number: newAcctNumber.trim(),
+        p_owner_name: newOwnerName.trim() || null,
+        p_account_nature: newAcctNature,
+        p_opening_balance: parseFloat(newOpeningBal) || 0,
+        p_opening_date: newOpeningDate,
+        p_notes: newNotes.trim() || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Account created successfully");
+      setAddOpen(false);
+      setNewAcctType(""); setNewAcctName(""); setNewOwnerName("");
+      setNewAcctNumber(""); setNewAcctNature("business");
+      setNewOpeningBal("0.00"); setNewOpeningDate(format(new Date(), "yyyy-MM-dd"));
+      setNewIsActive(true); setNewNotes("");
+      refresh();
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const isSubmitting = depositMut.isPending || withdrawMut.isPending || transferMut.isPending || adjustMut.isPending || createAcctMut.isPending;
 
   // Total balance
   const totalBalance = (accounts || []).reduce((s, a) => s + a.balance, 0);
@@ -281,6 +321,9 @@ export default function FinanceAccountsPage() {
             </Button>
             <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={() => openModal("transfer")}>
               <ArrowLeftRight className="w-3.5 h-3.5" /> Transfer
+            </Button>
+            <Button size="sm" className="text-xs gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => setAddOpen(true)}>
+              <Plus className="w-3.5 h-3.5" /> Add Account
             </Button>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={refresh}>
               <RefreshCw className="w-3.5 h-3.5" />
@@ -572,6 +615,90 @@ export default function FinanceAccountsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={closeModal}>Cancel</Button>
             <Button variant="destructive" onClick={() => adjustMut.mutate()} disabled={!targetBalance || !note || isSubmitting}>Post Adjustment</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Add Account Modal ──────────────────── */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle style={heading}>Add New Account</DialogTitle>
+            <DialogDescription>Create a new cash, bank, or mobile wallet account</DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh] pr-3">
+            <div className="space-y-4 py-1">
+              <div>
+                <Label className="text-xs">Account Type *</Label>
+                <Select value={newAcctType} onValueChange={setNewAcctType}>
+                  <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                  <SelectContent>
+                    {[
+                      { value: "cash", label: "Cash" },
+                      { value: "bank", label: "Bank" },
+                      { value: "bkash", label: "bKash" },
+                      { value: "nagad", label: "Nagad" },
+                      { value: "other_wallet", label: "Other Wallet" },
+                    ].map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Account Name *</Label>
+                <Input value={newAcctName} onChange={(e) => setNewAcctName(e.target.value)} placeholder="bKash - 01865230553" />
+              </div>
+              <div>
+                <Label className="text-xs">Owner Name</Label>
+                <Input value={newOwnerName} onChange={(e) => setNewOwnerName(e.target.value)} placeholder="Ahmed Saad" />
+              </div>
+              <div>
+                <Label className="text-xs">Account Number / Mobile *</Label>
+                <Input value={newAcctNumber} onChange={(e) => setNewAcctNumber(e.target.value)} placeholder="01865230553" />
+              </div>
+              <div>
+                <Label className="text-xs mb-2 block">Account Nature</Label>
+                <RadioGroup value={newAcctNature} onValueChange={setNewAcctNature} className="flex gap-4">
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="personal" id="nature-personal" />
+                    <Label htmlFor="nature-personal" className="text-xs font-normal cursor-pointer">Personal</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="business" id="nature-business" />
+                    <Label htmlFor="nature-business" className="text-xs font-normal cursor-pointer">Business</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Opening Balance (৳)</Label>
+                  <Input type="number" min="0" step="0.01" value={newOpeningBal} onChange={(e) => setNewOpeningBal(e.target.value)} style={mono} />
+                </div>
+                <div>
+                  <Label className="text-xs">Opening Date</Label>
+                  <Input type="date" value={newOpeningDate} onChange={(e) => setNewOpeningDate(e.target.value)} />
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Status</Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">{newIsActive ? "Active" : "Inactive"}</span>
+                  <Switch checked={newIsActive} onCheckedChange={setNewIsActive} />
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs">Notes</Label>
+                <Textarea value={newNotes} onChange={(e) => setNewNotes(e.target.value)} placeholder="Optional notes" rows={2} />
+              </div>
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => createAcctMut.mutate()}
+              disabled={!newAcctType || !newAcctName.trim() || !newAcctNumber.trim() || parseFloat(newOpeningBal) < 0 || isSubmitting}
+            >
+              {createAcctMut.isPending ? "Creating..." : "Create Account"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -178,32 +178,50 @@ export type Database = {
       }
       accounts: {
         Row: {
+          account_nature: string
           account_number: string | null
           balance: number | null
           created_at: string | null
           id: string
           is_active: boolean
+          ledger_classification: string | null
           name: string
+          notes: string | null
+          opening_balance: number
+          opening_date: string | null
+          owner_name: string | null
           sort_order: number | null
           type: string | null
         }
         Insert: {
+          account_nature?: string
           account_number?: string | null
           balance?: number | null
           created_at?: string | null
           id?: string
           is_active?: boolean
+          ledger_classification?: string | null
           name: string
+          notes?: string | null
+          opening_balance?: number
+          opening_date?: string | null
+          owner_name?: string | null
           sort_order?: number | null
           type?: string | null
         }
         Update: {
+          account_nature?: string
           account_number?: string | null
           balance?: number | null
           created_at?: string | null
           id?: string
           is_active?: boolean
+          ledger_classification?: string | null
           name?: string
+          notes?: string | null
+          opening_balance?: number
+          opening_date?: string | null
+          owner_name?: string | null
           sort_order?: number | null
           type?: string | null
         }
@@ -6988,6 +7006,19 @@ export type Database = {
         Returns: string
       }
       finance_alerts: { Args: never; Returns: Json }
+      finance_create_account: {
+        Args: {
+          p_account_nature?: string
+          p_account_number?: string
+          p_account_type: string
+          p_name: string
+          p_notes?: string
+          p_opening_balance?: number
+          p_opening_date?: string
+          p_owner_name?: string
+        }
+        Returns: string
+      }
       finance_deposit: {
         Args: {
           p_account_id: string
