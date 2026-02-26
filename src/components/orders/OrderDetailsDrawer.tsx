@@ -4,14 +4,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { formatBDT, formatDateTime, formatBDT2 } from "@/lib/format";
+import { formatBDT, formatDateTime, formatBDT2, orderStatusConfig, validTransitions, statusActions } from "@/lib/format";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { orderStatusConfig, validTransitions } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { getStockImpact } from "@/hooks/use-orders";
 import { useState, useEffect } from "react";
-import { Package, Banknote, Truck, BookOpen, TrendingDown, TrendingUp, Minus } from "lucide-react";
+import {
+  Package, Banknote, Truck, BookOpen, TrendingDown, TrendingUp, Minus,
+  Clock, AlertTriangle, CheckCircle, Activity,
+} from "lucide-react";
 
 interface OrderDetailsDrawerProps {
   open: boolean;
@@ -20,7 +23,7 @@ interface OrderDetailsDrawerProps {
 }
 
 export function OrderDetailsDrawer({ open, onOpenChange, orderId }: OrderDetailsDrawerProps) {
-  const [activeTab, setActiveTab] = useState<"items" | "payment" | "courier" | "journal" | "stock">("items");
+  const [activeTab, setActiveTab] = useState<"overview" | "items" | "payment" | "courier" | "timeline" | "journal" | "stock">("overview");
 
   const { data: order, isLoading } = useQuery({
     queryKey: ["order-drawer", orderId],
@@ -49,7 +52,6 @@ export function OrderDetailsDrawer({ open, onOpenChange, orderId }: OrderDetails
     enabled: !!orderId && open,
   });
 
-  // Shipment / courier charges
   const { data: shipment } = useQuery({
     queryKey: ["order-drawer-shipment", orderId],
     queryFn: async () => {
@@ -64,7 +66,6 @@ export function OrderDetailsDrawer({ open, onOpenChange, orderId }: OrderDetails
     enabled: !!orderId && open,
   });
 
-  // Journal entries linked
   const { data: journals } = useQuery({
     queryKey: ["order-drawer-journals", orderId],
     queryFn: async () => {
@@ -79,7 +80,6 @@ export function OrderDetailsDrawer({ open, onOpenChange, orderId }: OrderDetails
     enabled: !!orderId && open,
   });
 
-  // Advance from account_ledger
   const { data: advances } = useQuery({
     queryKey: ["order-drawer-advances", orderId],
     queryFn: async () => {
@@ -94,7 +94,6 @@ export function OrderDetailsDrawer({ open, onOpenChange, orderId }: OrderDetails
     enabled: !!orderId && open,
   });
 
-  // Activity logs
   const { data: activityLogs } = useQuery({
     queryKey: ["order-drawer-activity-logs", orderId],
     queryFn: async () => {
@@ -109,7 +108,6 @@ export function OrderDetailsDrawer({ open, onOpenChange, orderId }: OrderDetails
     enabled: !!orderId && open,
   });
 
-  // Stock impact preview
   const [stockImpact, setStockImpact] = useState<any[]>([]);
   useEffect(() => {
     if (!orderId || !open) return;
@@ -122,10 +120,16 @@ export function OrderDetailsDrawer({ open, onOpenChange, orderId }: OrderDetails
   const total = order?.total_amount || subtotal + deliveryCharge;
   const advanceTotal = advances?.reduce((s, a: any) => s + (a.direction === "in" ? a.amount : -a.amount), 0) || 0;
 
+  // Allowed next actions for overview tab
+  const currentStatus = order?.status || "pending";
+  const allowedActions = statusActions[currentStatus] || [];
+
   const tabs = [
+    { key: "overview" as const, label: "Overview", icon: Activity },
     { key: "items" as const, label: "Items", icon: Package },
     { key: "payment" as const, label: "Payment", icon: Banknote },
     { key: "courier" as const, label: "Courier", icon: Truck },
+    { key: "timeline" as const, label: "Timeline", icon: Clock },
     { key: "journal" as const, label: "Journal", icon: BookOpen },
     { key: "stock" as const, label: "Stock", icon: TrendingDown },
   ];
@@ -185,7 +189,7 @@ export function OrderDetailsDrawer({ open, onOpenChange, orderId }: OrderDetails
             </div>
 
             {/* Tab Strip */}
-            <div className="px-6 flex gap-1 border-b">
+            <div className="px-6 flex gap-1 border-b overflow-x-auto" style={{ scrollbarWidth: "none" }}>
               {tabs.map((t) => {
                 const Icon = t.icon;
                 return (
@@ -193,7 +197,7 @@ export function OrderDetailsDrawer({ open, onOpenChange, orderId }: OrderDetails
                     key={t.key}
                     onClick={() => setActiveTab(t.key)}
                     className={cn(
-                      "flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-t-lg transition-colors",
+                      "flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-t-lg transition-colors whitespace-nowrap shrink-0",
                       activeTab === t.key
                         ? "bg-muted text-foreground border border-b-0 border-border"
                         : "text-muted-foreground hover:text-foreground"
@@ -208,7 +212,66 @@ export function OrderDetailsDrawer({ open, onOpenChange, orderId }: OrderDetails
 
             {/* Tab Content */}
             <div className="p-6 space-y-4">
-              {/* Items Tab */}
+
+              {/* ═══ Overview Tab ═══ */}
+              {activeTab === "overview" && (
+                <div className="space-y-4">
+                  {/* Current Status */}
+                  <div className="rounded-xl border p-4 bg-muted/30">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Activity className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Current Status</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <StatusBadge config={orderStatusConfig} status={currentStatus} />
+                      <span className="text-sm text-muted-foreground">
+                        since {formatDateTime(order.updated_at)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Allowed Actions */}
+                  {allowedActions.length > 0 && (
+                    <div className="rounded-xl border p-4">
+                      <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Available Actions</p>
+                      <div className="flex flex-wrap gap-2">
+                        {allowedActions.map((action: any) => (
+                          <Button
+                            key={action.key}
+                            variant={action.variant === "destructive" ? "destructive" : "outline"}
+                            size="sm"
+                            className="text-xs"
+                          >
+                            {action.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Warnings */}
+                  {customer?.is_blocked && (
+                    <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+                      <span className="text-xs font-medium text-destructive">This customer is blocked</span>
+                    </div>
+                  )}
+
+                  {/* Quick Info */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-lg border p-3">
+                      <p className="text-[10px] text-muted-foreground uppercase mb-1">Courier</p>
+                      <p className="text-sm font-medium">{(shipment as any)?.couriers?.name || "Not assigned"}</p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-[10px] text-muted-foreground uppercase mb-1">Tracking</p>
+                      <p className="text-sm font-mono">{shipment?.tracking_id || order.pathao_tracking_code || "—"}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ═══ Items Tab ═══ */}
               {activeTab === "items" && (
                 <div className="border rounded-lg overflow-hidden">
                   <table className="w-full text-sm">
@@ -261,7 +324,7 @@ export function OrderDetailsDrawer({ open, onOpenChange, orderId }: OrderDetails
                 </div>
               )}
 
-              {/* Payment Tab */}
+              {/* ═══ Payment Tab ═══ */}
               {activeTab === "payment" && (
                 <div className="space-y-4">
                   <div className="border rounded-lg p-4 space-y-3">
@@ -297,7 +360,7 @@ export function OrderDetailsDrawer({ open, onOpenChange, orderId }: OrderDetails
                 </div>
               )}
 
-              {/* Courier Tab */}
+              {/* ═══ Courier Tab ═══ */}
               {activeTab === "courier" && (
                 <div className="space-y-4">
                   {shipment ? (
@@ -332,7 +395,39 @@ export function OrderDetailsDrawer({ open, onOpenChange, orderId }: OrderDetails
                 </div>
               )}
 
-              {/* Journal Tab */}
+              {/* ═══ Timeline Tab ═══ */}
+              {activeTab === "timeline" && (
+                <div className="space-y-1">
+                  <h4 className="font-semibold text-sm mb-3">Activity Timeline</h4>
+                  {activityLogs && activityLogs.length > 0 ? (
+                    <div className="relative pl-4 border-l-2 border-border space-y-4">
+                      {activityLogs.map((log: any, i: number) => (
+                        <div key={log.id || i} className="relative">
+                          <div className="absolute -left-[21px] w-3 h-3 rounded-full bg-muted border-2 border-border" />
+                          <div className="ml-4">
+                            <p className="text-xs font-medium text-foreground">
+                              {log.action || log.event_type || "Status change"}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {log.old_status && log.new_status
+                                ? `${orderStatusConfig[log.old_status]?.label || log.old_status} → ${orderStatusConfig[log.new_status]?.label || log.new_status}`
+                                : log.details || log.note || ""}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                              {formatDateTime(log.created_at)}
+                              {log.performed_by && ` • ${log.performed_by}`}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-6">No activity recorded yet</p>
+                  )}
+                </div>
+              )}
+
+              {/* ═══ Journal Tab ═══ */}
               {activeTab === "journal" && (
                 <div className="space-y-2">
                   <h4 className="font-semibold text-sm">Linked Journal Entries</h4>
@@ -354,7 +449,7 @@ export function OrderDetailsDrawer({ open, onOpenChange, orderId }: OrderDetails
                 </div>
               )}
 
-              {/* Stock Impact Tab */}
+              {/* ═══ Stock Impact Tab ═══ */}
               {activeTab === "stock" && (
                 <div className="space-y-2">
                   <h4 className="font-semibold text-sm">Stock Impact Preview (on Delivery)</h4>
@@ -374,13 +469,17 @@ export function OrderDetailsDrawer({ open, onOpenChange, orderId }: OrderDetails
                           {stockImpact.map((si: any, i: number) => (
                             <tr key={i} className="border-b last:border-0">
                               <td className="p-2 text-xs">{si.productName}</td>
-                              <td className="p-2 text-center">{si.quantity}</td>
-                              <td className="p-2 text-center font-mono">{si.currentStock}</td>
-                              <td className="p-2 text-center font-mono">{si.newStock}</td>
+                              <td className="p-2 text-center text-xs">{si.quantity}</td>
+                              <td className="p-2 text-center text-xs tabular-nums">{si.currentStock}</td>
+                              <td className="p-2 text-center text-xs tabular-nums font-bold">{si.newStock}</td>
                               <td className="p-2 text-center">
-                                {si.action === "decrease" && <TrendingDown className="w-4 h-4 text-red-500 mx-auto" />}
-                                {si.action === "increase" && <TrendingUp className="w-4 h-4 text-green-500 mx-auto" />}
-                                {si.action === "none" && <Minus className="w-4 h-4 text-muted-foreground mx-auto" />}
+                                {si.action === "decrease" ? (
+                                  <TrendingDown className="w-3.5 h-3.5 text-destructive mx-auto" />
+                                ) : si.action === "increase" ? (
+                                  <TrendingUp className="w-3.5 h-3.5 text-emerald-600 mx-auto" />
+                                ) : (
+                                  <Minus className="w-3.5 h-3.5 text-muted-foreground mx-auto" />
+                                )}
                               </td>
                             </tr>
                           ))}
@@ -392,27 +491,6 @@ export function OrderDetailsDrawer({ open, onOpenChange, orderId }: OrderDetails
                   )}
                 </div>
               )}
-
-              {/* Activity Timeline (always visible at bottom) */}
-              <Separator />
-              <div>
-                <h4 className="text-sm font-bold mb-2">Activity Log</h4>
-                {activityLogs && activityLogs.length > 0 ? (
-                  <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
-                    {activityLogs.map((log: any) => (
-                      <div key={log.id} className="border-l-4 border-muted-foreground/20 bg-muted/30 rounded-r-lg p-2.5">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-xs font-medium flex-1">{log.action}</p>
-                          <p className="text-[10px] text-muted-foreground shrink-0">{formatDateTime(log.created_at)}</p>
-                        </div>
-                        {log.details && <p className="text-[10px] text-muted-foreground mt-0.5">{log.details}</p>}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground text-center py-4">No activity yet</p>
-                )}
-              </div>
             </div>
           </>
         )}

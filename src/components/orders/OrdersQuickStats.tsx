@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import {
   Clock, Package, Truck, CheckCircle, RotateCcw, ArrowLeftRight,
-  XCircle, AlertTriangle, Send
+  XCircle, AlertTriangle, Send, Route
 } from "lucide-react";
 
 interface OrdersQuickStatsProps {
@@ -15,6 +15,7 @@ const STAT_ITEMS = [
   { key: "packed", label: "Packed", icon: Package, bg: "bg-indigo-50", text: "text-indigo-700", border: "border-indigo-200", activeBg: "bg-indigo-600", activeText: "text-white" },
   { key: "ready_to_ship", label: "RTS", icon: Send, bg: "bg-cyan-50", text: "text-cyan-700", border: "border-cyan-200", activeBg: "bg-cyan-600", activeText: "text-white" },
   { key: "shipped", label: "Shipped", icon: Truck, bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200", activeBg: "bg-purple-600", activeText: "text-white" },
+  { key: "in_transit", label: "In Transit", icon: Route, bg: "bg-violet-50", text: "text-violet-700", border: "border-violet-200", activeBg: "bg-violet-600", activeText: "text-white" },
   { key: "delivered", label: "Delivered", icon: CheckCircle, bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200", activeBg: "bg-emerald-600", activeText: "text-white" },
   { key: "returned", label: "Returned", icon: RotateCcw, bg: "bg-slate-100", text: "text-slate-700", border: "border-slate-300", activeBg: "bg-slate-700", activeText: "text-white" },
   { key: "exchanged", label: "Exchanged", icon: ArrowLeftRight, bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200", activeBg: "bg-orange-600", activeText: "text-white" },
