@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatBDT, formatNumber } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,6 +26,11 @@ import {
   AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid,
 } from "recharts";
+import { WebOrderPerformancePanel } from "@/components/dashboard/WebOrderPerformancePanel";
+import { OrdersBySourcePanel } from "@/components/dashboard/OrdersBySourcePanel";
+import { OrderFlowTrendPanel } from "@/components/dashboard/OrderFlowTrendPanel";
+import { HourlyOrdersPanel } from "@/components/dashboard/HourlyOrdersPanel";
+import { TopProductsPanel } from "@/components/dashboard/TopProductsPanel";
 
 // ─── Date range helpers ───
 function getDateRange(preset: string): { from: string; to: string; label: string } {
@@ -556,7 +561,7 @@ export default function Dashboard() {
       </section>
 
       {/* ─── Row 7: Marketing Snapshot ─── */}
-      <Card className="border-0 shadow-sm cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate("/marketing")}>
+      <Card className="border-0 shadow-sm rounded-[18px] cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate("/marketing")}>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
             <Megaphone className="w-4 h-4" /> Marketing Snapshot
@@ -585,6 +590,26 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* ─── Row 8: Advanced Analytics ─── */}
+      <section className="space-y-4">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Advanced Analytics</p>
+
+        {/* Web Order Performance + Orders by Source */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <WebOrderPerformancePanel />
+          <OrdersBySourcePanel from={from} to={to} />
+        </div>
+
+        {/* Order Flow Trend (full width) */}
+        <OrderFlowTrendPanel />
+
+        {/* Hourly Orders + Top Products */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <HourlyOrdersPanel />
+          <TopProductsPanel from={from} to={to} />
+        </div>
+      </section>
     </div>
   );
 }
