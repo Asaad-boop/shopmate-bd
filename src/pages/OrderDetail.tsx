@@ -18,13 +18,16 @@ import { cn } from "@/lib/utils";
 import {
   ArrowLeft, Printer, Copy, Phone, MessageCircle, MapPin, Package, Activity,
   Truck, RefreshCw, Loader2, AlertTriangle, CheckCircle2, XCircle, Clock,
-  CreditCard, Shield, ExternalLink, FileText, ChevronRight, User, ShoppingBag
+  CreditCard, Shield, ExternalLink, FileText, ChevronRight, User, ShoppingBag, ArrowRightLeft
 } from "lucide-react";
 import { useBDCourierSingle, getRiskLevel } from "@/hooks/use-bd-courier";
 import { useCompanySettings } from "@/hooks/use-company-settings";
 import { useInvoiceSettings } from "@/hooks/use-invoice-settings";
 import { printInvoice } from "@/components/orders/PrintInvoice";
 import { isTransitionAllowed, getAllowedTransitions } from "@/hooks/use-orders";
+import { useOrderExchanges } from "@/hooks/use-exchanges";
+import { ExchangeInitiateModal } from "@/components/orders/ExchangeInitiateModal";
+import { ExchangeSummaryCard } from "@/components/orders/ExchangeSummaryCard";
 
 /* ─── ERP STATUS CONFIG ─── */
 const ERP_STATUSES: Record<string, { label: string; color: string; icon: any; bg: string }> = {
@@ -125,12 +128,19 @@ function OrderDetailInner() {
   const { data: bdReport } = useBDCourierSingle(phone, !!customer);
   const riskLevel = getRiskLevel(bdReport?.success_rate);
 
+  const [showExchangeModal, setShowExchangeModal] = useState(false);
+
+  const { data: orderExchanges } = useOrderExchanges(id);
+
   const status = order?.status || "pending";
   const statusCfg = ERP_STATUSES[status] || ERP_STATUSES.pending;
   const StatusIcon = statusCfg.icon;
   const isLegacy = (order as any)?.order_source === "LEGACY";
   const isPending = status === "pending";
   const isLocked = ["delivered", "returned", "cancelled", "damage_return", "completed", "exchanged"].includes(status);
+  const isDelivered = status === "delivered";
+  const hasFullExchange = (orderExchanges || []).some(e => e.status === "completed" || e.status === "replacement_sent");
+  const canInitiateExchange = isDelivered && !hasFullExchange;
 
   // Courier charges computed
   const netPayableResult = useMemo(() => {
@@ -453,6 +463,11 @@ function OrderDetailInner() {
               </Card>
             )}
 
+            {/* ── EXCHANGE SUMMARY ── */}
+            {orderExchanges && orderExchanges.length > 0 && (
+              <ExchangeSummaryCard exchanges={orderExchanges} orderId={id!} />
+            )}
+
             {/* ── TIMELINE ── */}
             <Card>
               <CardHeader className="pb-2 px-4 pt-4">
@@ -538,6 +553,20 @@ function OrderDetailInner() {
                     This order is {statusCfg.label.toLowerCase()}. Admin reversal required for changes.
                   </p>
                 )}
+
+                {/* Exchange Button */}
+                {canInitiateExchange && (
+                  <div className="pt-1 border-t border-border/30">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-xs h-9 rounded-xl gap-1.5 border-purple-300 text-purple-700 hover:bg-purple-50"
+                      onClick={() => setShowExchangeModal(true)}
+                    >
+                      <ArrowRightLeft className="w-3.5 h-3.5" /> Initiate Exchange
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -603,6 +632,15 @@ function OrderDetailInner() {
           </div>
         </div>
       </div>
+      {/* Exchange Modal */}
+      {order && items && (
+        <ExchangeInitiateModal
+          open={showExchangeModal}
+          onOpenChange={setShowExchangeModal}
+          order={order}
+          orderItems={items}
+        />
+      )}
     </TooltipProvider>
   );
 }
