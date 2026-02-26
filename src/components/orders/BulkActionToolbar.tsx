@@ -13,7 +13,7 @@ interface BulkActionToolbarProps {
   onDeselect: () => void;
   onStatusChange: (status: string) => void;
   onPrint: (type: "invoice" | "picking" | "packing" | "barcode") => void;
-  onCourier: (courier: string) => void;
+  onCourier: (courier?: string) => void;
   changing?: boolean;
 }
 
