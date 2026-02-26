@@ -63,12 +63,11 @@ export default function Dashboard() {
   const currentConfig = MODE_CONFIG.find(c => c.key === mode)!;
 
   return (
-    <div className="space-y-6 max-w-[1400px] mx-auto animate-stagger-in">
-      {/* ─── Sticky Header ─── */}
-      <div className="flex flex-col gap-3 sticky top-0 z-10 bg-background/80 backdrop-blur-md -mx-6 px-6 py-3 -mt-6">
+    <div className="space-y-6 animate-stagger-in">
+      {/* ─── Dashboard Controls ─── */}
+      <div className="flex flex-col gap-3">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold">Dashboard</h1>
             <p className="text-sm text-muted-foreground">{periodLabel} • {currentConfig.subtitle}</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
