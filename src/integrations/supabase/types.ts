@@ -4526,7 +4526,9 @@ export type Database = {
           payment_status: string | null
           posting_mode: string | null
           preorder_flag: boolean
+          return_case_id: string | null
           return_condition: string | null
+          return_pending: boolean
           settlement_batch_id: string | null
           settlement_journal_id: string | null
           settlement_posted: boolean | null
@@ -4613,7 +4615,9 @@ export type Database = {
           payment_status?: string | null
           posting_mode?: string | null
           preorder_flag?: boolean
+          return_case_id?: string | null
           return_condition?: string | null
+          return_pending?: boolean
           settlement_batch_id?: string | null
           settlement_journal_id?: string | null
           settlement_posted?: boolean | null
@@ -4700,7 +4704,9 @@ export type Database = {
           payment_status?: string | null
           posting_mode?: string | null
           preorder_flag?: boolean
+          return_case_id?: string | null
           return_condition?: string | null
+          return_pending?: boolean
           settlement_batch_id?: string | null
           settlement_journal_id?: string | null
           settlement_posted?: boolean | null
@@ -4741,6 +4747,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_return_case_id_fkey"
+            columns: ["return_case_id"]
+            isOneToOne: false
+            referencedRelation: "return_cases"
             referencedColumns: ["id"]
           },
           {
@@ -5732,6 +5745,82 @@ export type Database = {
             columns: ["statement_line_id"]
             isOneToOne: false
             referencedRelation: "courier_statement_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      return_cases: {
+        Row: {
+          condition: string | null
+          created_at: string
+          evidence_urls: string[] | null
+          exchange_case_id: string | null
+          expected_items: Json
+          id: string
+          notes: string | null
+          parent_order_id: string
+          received_at: string | null
+          received_by: string | null
+          received_items: Json | null
+          return_type: string | null
+          status: string
+          updated_at: string
+          warehouse_location: string | null
+        }
+        Insert: {
+          condition?: string | null
+          created_at?: string
+          evidence_urls?: string[] | null
+          exchange_case_id?: string | null
+          expected_items?: Json
+          id?: string
+          notes?: string | null
+          parent_order_id: string
+          received_at?: string | null
+          received_by?: string | null
+          received_items?: Json | null
+          return_type?: string | null
+          status?: string
+          updated_at?: string
+          warehouse_location?: string | null
+        }
+        Update: {
+          condition?: string | null
+          created_at?: string
+          evidence_urls?: string[] | null
+          exchange_case_id?: string | null
+          expected_items?: Json
+          id?: string
+          notes?: string | null
+          parent_order_id?: string
+          received_at?: string | null
+          received_by?: string | null
+          received_items?: Json | null
+          return_type?: string | null
+          status?: string
+          updated_at?: string
+          warehouse_location?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "return_cases_exchange_case_id_fkey"
+            columns: ["exchange_case_id"]
+            isOneToOne: false
+            referencedRelation: "exchange_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "return_cases_parent_order_id_fkey"
+            columns: ["parent_order_id"]
+            isOneToOne: false
+            referencedRelation: "order_summary_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "return_cases_parent_order_id_fkey"
+            columns: ["parent_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]

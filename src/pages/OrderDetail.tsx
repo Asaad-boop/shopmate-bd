@@ -26,8 +26,10 @@ import { useInvoiceSettings } from "@/hooks/use-invoice-settings";
 import { printInvoice } from "@/components/orders/PrintInvoice";
 import { isTransitionAllowed, getAllowedTransitions } from "@/hooks/use-orders";
 import { useOrderExchanges } from "@/hooks/use-exchanges";
+import { useOrderReturnCases } from "@/hooks/use-return-cases";
 import { ExchangeInitiateModal } from "@/components/orders/ExchangeInitiateModal";
 import { ExchangeSummaryCard } from "@/components/orders/ExchangeSummaryCard";
+import { ReturnPendingCard } from "@/components/orders/ReturnPendingCard";
 
 /* ─── ERP STATUS CONFIG ─── */
 const ERP_STATUSES: Record<string, { label: string; color: string; icon: any; bg: string }> = {
@@ -131,7 +133,7 @@ function OrderDetailInner() {
   const [showExchangeModal, setShowExchangeModal] = useState(false);
 
   const { data: orderExchanges } = useOrderExchanges(id);
-
+  const { data: returnCases } = useOrderReturnCases(id);
   const status = order?.status || "pending";
   const statusCfg = ERP_STATUSES[status] || ERP_STATUSES.pending;
   const StatusIcon = statusCfg.icon;
@@ -253,6 +255,11 @@ function OrderDetailInner() {
                   <Badge className={cn("text-xs gap-1", statusCfg.bg, statusCfg.color)}>
                     <StatusIcon className="w-3 h-3" /> {statusCfg.label}
                   </Badge>
+                  {order.return_pending && (
+                    <Badge className="text-[9px] px-1.5 py-0 bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-950/40">
+                      ⏳ Return Pending
+                    </Badge>
+                  )}
                   {isLegacy && (
                     <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-amber-300 bg-amber-50 text-amber-700">LEGACY</Badge>
                   )}
@@ -468,6 +475,11 @@ function OrderDetailInner() {
             {/* ── EXCHANGE SUMMARY ── */}
             {orderExchanges && orderExchanges.length > 0 && (
               <ExchangeSummaryCard exchanges={orderExchanges} orderId={id!} />
+            )}
+
+            {/* ── RETURN PENDING ── */}
+            {returnCases && returnCases.length > 0 && (
+              <ReturnPendingCard returnCases={returnCases} />
             )}
 
             {/* ── TIMELINE ── */}
