@@ -25,11 +25,11 @@ export function OrderBulkBar({ selectedCount, onClear, onAction }: Props) {
       {/* Floating bar with smooth enter/exit */}
       <div
         className={cn(
-          "fixed bottom-5 left-1/2 z-50 pointer-events-none",
+          "fixed bottom-5 left-1/2 -translate-x-1/2 z-50",
           "transition-all duration-200 ease-in-out",
           selectedCount > 0
-            ? "opacity-100 translate-y-0 translate-x-[-50%] pointer-events-auto"
-            : "opacity-0 translate-y-4 translate-x-[-50%]"
+            ? "opacity-100 translate-y-0 pointer-events-auto"
+            : "opacity-0 translate-y-4 pointer-events-none"
         )}
         aria-hidden={selectedCount === 0}
       >
