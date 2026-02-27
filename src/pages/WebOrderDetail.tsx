@@ -37,8 +37,17 @@ import {
   PhoneOff, Pause, Wallet, XCircle, CircleCheck, Zap, Info, Globe, Truck, Calendar,
   ShoppingBag, TrendingUp, User,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
+import { useTheme } from "next-themes";
 import { useAddressParser } from "@/hooks/use-address-parser";
+import { WebOrderTopGrid } from "@/components/web-order/WebOrderTopGrid";
+import { WebOrderLocationStrip } from "@/components/web-order/WebOrderLocationStrip";
+import { OrderedProductsCard } from "@/components/web-order/OrderedProductsCard";
+import { ProductPickerCard } from "@/components/web-order/ProductPickerCard";
+import { WebOrderSidebar } from "@/components/web-order/WebOrderSidebar";
+import { WebOrderTotalsStrip } from "@/components/web-order/WebOrderTotalsStrip";
+import { WebOrderThemeToggle } from "@/components/web-order/WebOrderThemeToggle";
 import { useBDCourierSingle, getRiskLevel, getSuccessColor } from "@/hooks/use-bd-courier";
 import { PathaoTrackingCard } from "@/components/pathao/PathaoTrackingCard";
 import { AddressFixDrawer } from "@/components/orders/AddressFixDrawer";
@@ -143,6 +152,7 @@ export default function WebOrderDetail() {
   const { settings: company } = useCompanySettings();
   const { invoiceSettings } = useInvoiceSettings();
 
+  const { theme, setTheme } = useTheme();
   const [newNote, setNewNote] = useState("");
   const [callResult, setCallResult] = useState("");
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -288,6 +298,11 @@ export default function WebOrderDetail() {
 
   const { data: bdReport } = useBDCourierSingle(customerPhone, !!customer);
   const successRate = bdReport?.success_rate ?? 0;
+
+  // Set dark theme as default for this page
+  useEffect(() => {
+    if (theme !== "dark") setTheme("dark");
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Populate local state
   useEffect(() => { if (items) setOrderItems(items); }, [items]);
@@ -731,9 +746,10 @@ export default function WebOrderDetail() {
   };
 
   const noteMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (noteText?: string) => {
+      const content = noteText || newNote;
       const { error } = await supabase.from("web_order_notes").insert({
-        order_id: id, note_type: "note", content: newNote, created_by: "Staff",
+        order_id: id, note_type: "note", content, created_by: "Staff",
       });
       if (error) throw error;
     },
@@ -871,11 +887,19 @@ export default function WebOrderDetail() {
     return "bg-amber-100 text-amber-700";
   };
 
+  // Product price update helper
+  const updatePrice = (itemId: string, price: number) => {
+    setOrderItems(orderItems.map(i => {
+      if (i.id !== itemId) return i;
+      return { ...i, unit_price: price, total_price: (price * i.quantity) - (i.discount || 0) };
+    }));
+  };
+
   /* ── Loading ── */
   if (isLoading) {
     return (
-      <div className="h-screen flex items-center justify-center" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-        <Loader2 className="w-8 h-8 animate-spin text-[#6c63ff]" />
+      <div className="h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -883,16 +907,14 @@ export default function WebOrderDetail() {
 
   const currentStatus = order.web_order_status || "processing";
   const statusCfg = STATUS_LABELS[currentStatus] || { label: currentStatus.toUpperCase(), color: "bg-muted text-muted-foreground" };
-  const callLogs = notes?.filter((n) => n.note_type === "call_log") || [];
-  const srColor = successRate >= 80 ? "text-emerald-600" : successRate >= 50 ? "text-amber-600" : "text-red-600";
   const totalItemCount = orderItems.reduce((s, i) => s + i.quantity, 0);
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="flex flex-col h-screen overflow-hidden" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+      <div className="flex flex-col h-screen overflow-hidden">
 
-        {/* ═══ STICKY HEADER (48px) ═══ */}
-        <div className="h-12 shrink-0 bg-background/80 backdrop-blur-xl border-b border-border/50 flex items-center justify-between px-4 z-30">
+        {/* ═══ STICKY HEADER (44px) ═══ */}
+        <div className="h-11 shrink-0 bg-card/80 backdrop-blur-xl border-b border-border flex items-center justify-between px-4 z-30">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={() => navigate("/web-orders")} className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1">
               <ArrowLeft className="w-3.5 h-3.5" /> Web Orders
@@ -901,695 +923,209 @@ export default function WebOrderDetail() {
               <h1 className="text-sm font-bold">#{order.order_number}</h1>
               <Badge className={cn("text-[10px] px-2 py-0.5 font-semibold", statusCfg.color)}>{statusCfg.label}</Badge>
             </div>
-            <span className="text-xs text-muted-foreground">{formatDateTime(order.created_at)}</span>
+            <span className="text-[10px] text-muted-foreground">{formatDateTime(order.created_at)}</span>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="h-7 text-xs gap-1 rounded-lg" onClick={handlePrintInvoice}>
+          <div className="flex gap-2 items-center">
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={handlePrintInvoice}>
               <Printer className="w-3 h-3" /> Print
             </Button>
-            <Button size="sm" className="h-7 text-xs gap-1 rounded-lg bg-[#6c63ff] hover:bg-[#5a52d5] text-white"
+            <Button size="sm" className="h-7 text-xs gap-1 bg-primary hover:bg-primary-dark text-primary-foreground"
               onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
               <Save className="w-3 h-3" /> Save
             </Button>
+            <WebOrderThemeToggle />
           </div>
         </div>
 
-        {/* ═══ 3-COLUMN MAIN ═══ */}
+        {/* ═══ MAIN CONTENT (3-column) ═══ */}
         <div className="flex-1 min-h-0 flex">
 
-          {/* ════ COL 1 ════ */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 border-r border-border/30">
+          {/* LEFT + MIDDLE (70%) */}
+          <div className="flex-[7] overflow-y-auto p-3 space-y-3 border-r border-border/50">
 
-            {/* CUSTOMER INFORMATION */}
-            <Card>
-              <CardHeader className="py-3 px-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <User className="w-3.5 h-3.5 text-[#6c63ff]" /> CUSTOMER INFORMATION
-                  </CardTitle>
-                  {isReturning ? (
-                    <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] gap-1">✓ Returning</Badge>
-                  ) : (
-                    <Badge className="bg-blue-50 text-blue-700 border border-blue-200 text-[10px]">New Customer</Badge>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="px-4 pb-4 space-y-3">
-                {/* Phone row */}
-                <div className="flex items-center gap-3">
-                  <span className="text-lg font-bold font-mono tracking-wide">{customerPhone ? `+${customerPhone}` : "—"}</span>
-                  <div className="flex gap-1 ml-auto">
-                    <button onClick={() => window.open(`tel:${customerPhone}`, "_self")}
-                      className="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center hover:bg-sky-100 transition-colors">
-                      <Phone className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={() => window.open(`https://wa.me/88${customerPhone.replace(/^0/, "")}`, "_blank")}
-                      className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-100 transition-colors">
-                      <MessageCircle className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={copyPhone}
-                      className="w-7 h-7 rounded-lg bg-muted text-muted-foreground flex items-center justify-center hover:bg-muted/80 transition-colors">
-                      <Copy className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-                {/* Name + address */}
-                <div>
-                  <p className="font-semibold text-sm">{customer?.full_name || "Unknown"}</p>
-                  {(order.delivery_address || customer?.address) && (
-                    <p className="text-xs text-muted-foreground flex items-start gap-1 mt-0.5">
-                      <MapPin className="w-3 h-3 mt-0.5 shrink-0 text-red-400" />
-                      {order.delivery_address || customer?.address}
-                    </p>
-                  )}
-                </div>
-                {/* Badges */}
-                {isReturning && (
-                  <div className="flex gap-2 flex-wrap">
-                    <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200 gap-1">✓ Returning</Badge>
-                    <Badge variant="outline" className="text-[10px] bg-[#6c63ff]/5 text-[#6c63ff] border-[#6c63ff]/20 gap-1">
-                      <ShoppingBag className="w-3 h-3" /> {totalOrders} Orders
-                    </Badge>
-                    <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200 gap-1">
-                      <TrendingUp className="w-3 h-3" /> {formatBDT(totalSpent)} spent
-                    </Badge>
-                  </div>
-                )}
+            {/* B) TOP INFO GRID */}
+            <div className="rounded-lg border border-border bg-card p-3">
+              <WebOrderTopGrid
+                deliveryForm={deliveryForm}
+                onFormChange={setDeliveryForm}
+                customerPhone={customerPhone}
+                grandTotal={grandTotal}
+                channel={order.channel || ""}
+                paymentMethod={order.payment_method || "COD"}
+              />
+            </div>
 
-                {/* Previous Orders */}
-                {prevOrders && prevOrders.length > 0 && (
-                  <div className="border-t border-border pt-3 space-y-1.5">
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">PREVIOUS ORDERS</p>
-                    {prevOrders.filter(o => o.id !== order.id).slice(0, 4).map((o) => {
-                      const oItems = (o as any).order_items || [];
-                      const firstName = oItems[0]?.products?.name || "Product";
-                      const totalQty = oItems.reduce((s: number, i: any) => s + (i.quantity || 0), 0);
-                      return (
-                        <div key={o.id} onClick={() => navigate(`/web-orders/${o.id}`)}
-                          className="flex items-center justify-between text-xs p-2 rounded-lg border border-border/50 hover:bg-muted/50 cursor-pointer transition-colors">
-                          <div className="flex-1 min-w-0">
-                            <span className="font-bold text-[#6c63ff]">#{o.order_number}</span>
-                            <span className="text-muted-foreground ml-2 text-[11px]">
-                              {firstName} × {totalQty} · {formatBDT(o.total_amount)} · {o.channel}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0 ml-2">
-                            <Badge className={cn("text-[9px] px-1.5 py-0", statusColor(o.status || ""))}>{o.status}</Badge>
-                            <span className="text-[10px] text-muted-foreground">{formatDate(o.created_at)}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            {/* C) CITY / ZONE / AREA STRIP */}
+            <WebOrderLocationStrip
+              pathaoCityId={pathaoCityId}
+              pathaoZoneId={pathaoZoneId}
+              pathaoAreaId={pathaoAreaId}
+              onCityChange={(v) => {
+                const newId = Number(v);
+                setPathaoCityId(newId);
+                setManuallyChanged(p => ({ ...p, city: true }));
+                setMappingMode("manual");
+                const cityName = pathaoCities?.find(c => c.city_id === newId)?.city_name || "";
+                if (selectedCityName && cityName !== selectedCityName) saveCorrection("city", cityName);
+              }}
+              onZoneChange={(v) => {
+                const newId = Number(v);
+                setPathaoZoneId(newId);
+                setManuallyChanged(p => ({ ...p, zone: true }));
+                setMappingMode("manual");
+                const zoneName = pathaoZones?.find(z => z.zone_id === newId)?.zone_name || "";
+                if (selectedZoneName && zoneName !== selectedZoneName) saveCorrection("zone", zoneName);
+              }}
+              onAreaChange={(v) => {
+                const newId = Number(v);
+                setPathaoAreaId(newId);
+                setManuallyChanged(p => ({ ...p, area: true }));
+                setMappingMode("manual");
+                const areaName = pathaoAreas?.find(a => a.area_id === newId)?.area_name || "";
+                if (selectedAreaName && areaName !== selectedAreaName) saveCorrection("area", areaName);
+              }}
+              filteredCities={filteredCities}
+              filteredZones={filteredZones}
+              pathaoAreas={pathaoAreas || []}
+              citySearch={citySearch}
+              zoneSearch={zoneSearch}
+              onCitySearch={setCitySearch}
+              onZoneSearch={setZoneSearch}
+              citiesLoading={citiesLoading}
+              zonesLoading={zonesLoading}
+              isReparsing={isReparsing}
+              onReparse={handleReparse}
+              confidence={addressConfidence}
+            />
 
-            {/* ORDER ITEMS */}
-            <Card>
-              <CardHeader className="py-3 px-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Package className="w-3.5 h-3.5 text-[#6c63ff]" /> 🛍️ ORDER ITEMS
-                  </CardTitle>
-                  <span className="text-xs text-muted-foreground">{orderItems.length} selected</span>
-                </div>
-              </CardHeader>
-              <CardContent className="px-4 pb-4 space-y-3">
-                {/* Search */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="relative">
-                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input placeholder="Search by name..." value={nameSearch} onChange={(e) => setNameSearch(e.target.value)}
-                      className="pl-8 h-8 text-xs" />
-                  </div>
-                  <div className="relative">
-                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input placeholder="Search by SKU..." value={skuSearch} onChange={(e) => setSkuSearch(e.target.value)}
-                      className="pl-8 h-8 text-xs" />
-                  </div>
-                </div>
-                {/* Filter pills */}
-                <div className="flex gap-1.5 flex-wrap">
-                  {FILTER_PILLS.map((pill) => (
-                    <button key={pill} onClick={() => setActivePill(pill)}
-                      className={cn("px-2.5 py-1 rounded-full text-[10px] font-medium transition-all border",
-                        activePill === pill ? "bg-[#6c63ff] text-white border-[#6c63ff]" : "bg-background text-muted-foreground border-border hover:border-[#6c63ff]/30")}>
-                      {pill}
-                    </button>
-                  ))}
-                </div>
-                {/* Product grid */}
-                {(nameSearch || skuSearch) && products && products.length > 0 && (
-                  <div className="grid grid-cols-4 gap-2">
-                    {products.map((p) => {
-                      const isSelected = selectedProductIds.has(p.id);
-                      return (
-                        <div key={p.id} onClick={() => toggleProduct(p)}
-                          className={cn("relative rounded-xl border p-2 cursor-pointer transition-all hover:shadow-md",
-                            isSelected ? "border-[#6c63ff] bg-[#6c63ff]/5 ring-1 ring-[#6c63ff]/20" : "border-border hover:border-[#6c63ff]/30")}>
-                          {isSelected && (
-                            <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[#6c63ff] flex items-center justify-center">
-                              <CheckCircle2 className="w-3 h-3 text-white" />
-                            </div>
-                          )}
-                          <div className="w-full aspect-square rounded-lg overflow-hidden bg-muted mb-1.5">
-                            {p.image_url ? (
-                              <img src={p.image_url} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-2xl">{p.name?.[0]?.toUpperCase()}</div>
-                            )}
-                          </div>
-                          <p className="text-[11px] font-medium truncate">{p.name}</p>
-                          <p className="text-[9px] text-muted-foreground">{p.sku}</p>
-                          <p className="text-[11px] font-bold text-[#6c63ff] mt-0.5">{formatBDT(p.selling_price)}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-                {/* Selected items table */}
-                {orderItems.length > 0 && (
-                  <div className="border border-border rounded-lg overflow-hidden">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="bg-muted/50 text-muted-foreground text-[10px]">
-                          <th className="text-left p-2 font-medium">Product</th>
-                          <th className="text-center p-2 font-medium">Price</th>
-                          <th className="text-center p-2 font-medium">Qty</th>
-                          <th className="text-center p-2 font-medium">Disc</th>
-                          <th className="text-right p-2 font-medium">Total</th>
-                          <th className="text-center p-2 font-medium w-14"></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {orderItems.map((item) => {
-                          const p = item.products as any;
-                          const pName = p?.name || item.product_name_fallback || "Product";
-                          return (
-                            <tr key={item.id} className="border-t border-border/50 hover:bg-muted/30">
-                              <td className="p-2">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-7 h-7 rounded-md overflow-hidden shrink-0 border border-border">
-                                    {p?.image_url ? <img src={p.image_url} alt="" className="w-full h-full object-cover" /> :
-                                      <div className="w-full h-full bg-[#6c63ff]/10 flex items-center justify-center text-[9px] font-bold text-[#6c63ff]">{pName[0]}</div>}
-                                  </div>
-                                  <div><p className="font-medium text-[11px] truncate max-w-[120px]">{pName}</p><p className="text-[9px] text-muted-foreground">{p?.sku || "—"}</p></div>
-                                </div>
-                              </td>
-                              <td className="p-2 text-center">{formatBDT(item.unit_price)}</td>
-                              <td className="p-2">
-                                <div className="flex items-center justify-center gap-0.5">
-                                  <button onClick={() => updateQty(item.id, -1)} className="w-5 h-5 rounded bg-muted flex items-center justify-center hover:bg-muted-foreground/10"><Minus className="w-2.5 h-2.5" /></button>
-                                  <span className="w-6 text-center text-[11px] font-medium">{item.quantity}</span>
-                                  <button onClick={() => updateQty(item.id, 1)} className="w-5 h-5 rounded bg-muted flex items-center justify-center hover:bg-muted-foreground/10"><Plus className="w-2.5 h-2.5" /></button>
-                                </div>
-                              </td>
-                              <td className="p-2">
-                                <Input type="number" value={item.discount || 0} onChange={(e) => updateDiscount(item.id, Number(e.target.value) || 0)}
-                                  className="h-6 w-12 text-center text-[10px] mx-auto" />
-                              </td>
-                              <td className="p-2 text-right font-semibold">{formatBDT(item.total_price)}</td>
-                              <td className="p-2">
-                                <div className="flex items-center justify-center gap-0.5">
-                                  <button onClick={() => openEditModal(item)} className="w-5 h-5 rounded hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-[#6c63ff]"><Pencil className="w-2.5 h-2.5" /></button>
-                                  <button onClick={() => setOrderItems(orderItems.filter(i => i.id !== item.id))} className="w-5 h-5 rounded hover:bg-red-50 flex items-center justify-center text-muted-foreground hover:text-red-600"><X className="w-2.5 h-2.5" /></button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+            {/* D) MAIN WORK AREA — Two cards side by side */}
+            <div className="grid grid-cols-2 gap-3" style={{ minHeight: "320px" }}>
+              {/* LEFT: Ordered Products */}
+              <OrderedProductsCard
+                items={orderItems}
+                onUpdateQty={updateQty}
+                onUpdateDiscount={updateDiscount}
+                onUpdatePrice={updatePrice}
+                onRemove={(id) => setOrderItems(orderItems.filter(i => i.id !== id))}
+                onEdit={openEditModal}
+              />
 
-          {/* ════ COL 2 ════ */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 border-r border-border/30">
+              {/* MIDDLE: Click To Add Products */}
+              <ProductPickerCard
+                products={products}
+                nameSearch={nameSearch}
+                skuSearch={skuSearch}
+                onNameSearch={setNameSearch}
+                onSkuSearch={setSkuSearch}
+                selectedProductIds={selectedProductIds}
+                onToggleProduct={toggleProduct}
+              />
+            </div>
 
-            {/* DELIVERY & PAYMENT */}
-            <Card>
-              <CardHeader className="py-3 px-4">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <CreditCard className="w-3.5 h-3.5 text-[#6c63ff]" /> 🚚 DELIVERY & PAYMENT
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 pb-4 space-y-4">
-                {/* Chips */}
-                <div className="flex gap-2 flex-wrap">
-                  <Badge variant="outline" className="text-[10px] capitalize gap-1">🛒 {order.channel || "Manual"}</Badge>
-                  <Badge variant="outline" className="text-[10px] gap-1">🚚 Pathao</Badge>
-                  <Badge className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 gap-1">💰 {order.payment_method || "COD"}</Badge>
-                </div>
-                {/* Pathao Location Mapping */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <Label className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
-                      <MapPin className="w-3 h-3" /> Pathao Location
-                      {pathaoCityId && pathaoZoneId && (
-                        <Badge className="ml-1 text-[8px] bg-emerald-50 text-emerald-600 border-emerald-200 px-1.5 py-0">✓ Mapped</Badge>
-                      )}
-                    </Label>
-                    <Button variant="ghost" size="sm" onClick={handleReparse} disabled={isReparsing}
-                      className="h-5 px-2 text-[9px] gap-1 text-muted-foreground hover:text-foreground">
-                      {isReparsing ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <RefreshCw className="w-2.5 h-2.5" />}
-                      Re-parse
-                    </Button>
-                  </div>
-
-                  {/* Dropdowns with confidence-based border */}
-                  <div className={cn(
-                    "grid grid-cols-3 gap-2 rounded-lg p-2 border transition-all",
-                    !parseResult && "border-border",
-                    parseResult && parseResult.confidence >= 0.85 && "border-emerald-300 bg-emerald-50/20",
-                    parseResult && parseResult.confidence >= 0.70 && parseResult.confidence < 0.85 && "border-amber-300 bg-amber-50/20",
-                    parseResult && parseResult.confidence < 0.70 && "border-red-300 bg-red-50/20",
-                  )}>
-                    {/* City (District) */}
-                    <div>
-                      <Label className="text-[10px] text-muted-foreground">City *</Label>
-                      <Select value={pathaoCityId ? String(pathaoCityId) : ""} onValueChange={(v) => {
-                        const newId = Number(v);
-                        setPathaoCityId(newId);
-                        setManuallyChanged(p => ({ ...p, city: true }));
-                        setMappingMode("manual");
-                        const cityName = pathaoCities?.find(c => c.city_id === newId)?.city_name || "";
-                        if (selectedCityName && cityName !== selectedCityName) saveCorrection("city", cityName);
-                      }}>
-                        <SelectTrigger className={cn("h-8 text-xs", pathaoCityId && "border-emerald-300 bg-emerald-50/30")}>
-                          <SelectValue placeholder={citiesLoading ? "Loading..." : "Select City"} />
-                        </SelectTrigger>
-                        <SelectContent className="bg-background z-50 max-h-60">
-                          <div className="px-2 py-1.5 sticky top-0 bg-background border-b border-border">
-                            <div className="relative">
-                              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-                              <input className="w-full pl-6 pr-2 py-1 text-[11px] rounded border border-input bg-background outline-none"
-                                placeholder="Search city..." value={citySearch} onChange={(e) => setCitySearch(e.target.value)} onClick={(e) => e.stopPropagation()} />
-                            </div>
-                          </div>
-                          {filteredCities.map((c) => (
-                            <SelectItem key={c.city_id} value={String(c.city_id)} className="text-xs">{c.city_name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {/* Zone (Thana) */}
-                    <div>
-                      <Label className="text-[10px] text-muted-foreground">Zone *</Label>
-                      <Select value={pathaoZoneId ? String(pathaoZoneId) : ""} onValueChange={(v) => {
-                        const newId = Number(v);
-                        setPathaoZoneId(newId);
-                        setManuallyChanged(p => ({ ...p, zone: true }));
-                        setMappingMode("manual");
-                        const zoneName = pathaoZones?.find(z => z.zone_id === newId)?.zone_name || "";
-                        if (selectedZoneName && zoneName !== selectedZoneName) saveCorrection("zone", zoneName);
-                      }} disabled={!pathaoCityId}>
-                        <SelectTrigger className={cn("h-8 text-xs", pathaoZoneId && "border-emerald-300 bg-emerald-50/30")}>
-                          <SelectValue placeholder={zonesLoading ? "Loading..." : "Select Zone"} />
-                        </SelectTrigger>
-                        <SelectContent className="bg-background z-50 max-h-60">
-                          <div className="px-2 py-1.5 sticky top-0 bg-background border-b border-border">
-                            <div className="relative">
-                              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-                              <input className="w-full pl-6 pr-2 py-1 text-[11px] rounded border border-input bg-background outline-none"
-                                placeholder="Search zone..." value={zoneSearch} onChange={(e) => setZoneSearch(e.target.value)} onClick={(e) => e.stopPropagation()} />
-                            </div>
-                          </div>
-                          {filteredZones.map((z) => (
-                            <SelectItem key={z.zone_id} value={String(z.zone_id)} className="text-xs">{z.zone_name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {/* Area */}
-                    <div>
-                      <Label className="text-[10px] text-muted-foreground">Area</Label>
-                      <Select value={pathaoAreaId ? String(pathaoAreaId) : ""} onValueChange={(v) => {
-                        const newId = Number(v);
-                        setPathaoAreaId(newId);
-                        setManuallyChanged(p => ({ ...p, area: true }));
-                        setMappingMode("manual");
-                        const areaName = pathaoAreas?.find(a => a.area_id === newId)?.area_name || "";
-                        if (selectedAreaName && areaName !== selectedAreaName) saveCorrection("area", areaName);
-                      }} disabled={!pathaoZoneId}>
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="Area" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-background z-50 max-h-60">
-                          {pathaoAreas?.map((a) => (
-                            <SelectItem key={a.area_id} value={String(a.area_id)} className="text-xs">{a.area_name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {/* Inline helper panel (NO POPUP) */}
-                  <div className="mt-2">
-                    <AddressMapperPanel
-                      parseResult={parseResult}
-                      mappingMode={mappingMode}
-                      onApplySuggestion={applySuggestion}
-                      onReAutoMap={handleReparse}
-                    />
-                  </div>
-                </div>
-                {/* Customer fields */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label className="text-[10px] text-muted-foreground uppercase">Full Name</Label>
-                    <Input value={deliveryForm.fullName} onChange={(e) => setDeliveryForm(f => ({ ...f, fullName: e.target.value }))} className="h-8 text-xs" />
-                  </div>
-                  <div>
-                    <Label className="text-[10px] text-muted-foreground uppercase">Phone</Label>
-                    <Input value={deliveryForm.phone} onChange={(e) => setDeliveryForm(f => ({ ...f, phone: e.target.value }))} className="h-8 text-xs" />
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-[10px] text-muted-foreground uppercase">Address</Label>
-                  <Input value={deliveryForm.address} onChange={(e) => setDeliveryForm(f => ({ ...f, address: e.target.value }))} className="h-8 text-xs" />
-                </div>
-                {/* Advance Payment */}
-                <div className="flex items-center gap-3 py-1">
-                  <Switch checked={deliveryForm.advanceEnabled} onCheckedChange={(c) => setDeliveryForm(f => ({ ...f, advanceEnabled: c }))} />
-                  <div>
-                    <p className="text-xs font-semibold flex items-center gap-1">💰 Advance Payment</p>
-                    <p className="text-[10px] text-muted-foreground">Customer paid in advance</p>
-                  </div>
-                </div>
-                {deliveryForm.advanceEnabled && (
-                  <div className="space-y-2 bg-muted/50 rounded-lg p-3 border border-border/50 animate-fade-in">
-                    <div className="flex gap-1.5 flex-wrap">
-                      {PAYMENT_METHODS.map((m) => (
-                        <button key={m} onClick={() => setDeliveryForm(f => ({ ...f, advanceVia: m }))}
-                          className={cn("px-2.5 py-1 rounded-full text-[10px] font-medium border transition-all",
-                            deliveryForm.advanceVia === m ? "bg-[#6c63ff] text-white border-[#6c63ff]" : "bg-background text-foreground border-border")}>
-                          {m}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label className="text-[10px]">Amount (৳)</Label>
-                        <Input type="number" value={deliveryForm.advanceAmount}
-                          onChange={(e) => setDeliveryForm(f => ({ ...f, advanceAmount: Number(e.target.value) || 0 }))} className="h-8 text-xs" />
-                      </div>
-                      <div>
-                        <Label className="text-[10px]">Transaction ID</Label>
-                        <Input value={deliveryForm.advanceTxnId} onChange={(e) => setDeliveryForm(f => ({ ...f, advanceTxnId: e.target.value }))} className="h-8 text-xs" placeholder="Optional" />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* CALL LOG */}
-            <Card>
-              <CardHeader className="py-3 px-4">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Phone className="w-3.5 h-3.5 text-[#6c63ff]" /> 📞 CALL LOG
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 pb-4 space-y-3">
-                <div className="grid grid-cols-4 gap-2">
-                  {CALL_OPTIONS.map((opt) => (
-                    <button key={opt.key} onClick={() => { setCallResult(opt.key); callLogMutation.mutate(); }}
-                      className={cn("flex flex-col items-center gap-1.5 p-3 rounded-xl border text-xs font-semibold transition-all",
-                        callResult === opt.key ? opt.active : opt.bg)}>
-                      <span className="text-xl">{opt.icon}</span>
-                      <span>{opt.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* NOTE */}
-            <Card>
-              <CardHeader className="py-3 px-4">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <FileText className="w-3.5 h-3.5 text-[#6c63ff]" /> ✏️ NOTE
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 pb-4 space-y-2">
-                <Textarea value={newNote} onChange={(e) => setNewNote(e.target.value)}
-                  placeholder="Add a note about this order..." rows={2} className="text-xs resize-none" />
-                <div className="flex flex-wrap gap-1">
-                  {QUICK_NOTES.map((chip) => (
-                    <button key={chip} onClick={() => setNewNote((prev) => prev ? `${prev}, ${chip}` : chip)}
-                      className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted hover:bg-muted/80 text-muted-foreground border border-border transition-all">
-                      {chip}
-                    </button>
-                  ))}
-                </div>
-                {newNote.trim() && (
-                  <Button onClick={() => noteMutation.mutate()} disabled={noteMutation.isPending} size="sm"
-                    className="text-xs gap-1 bg-[#6c63ff] hover:bg-[#5a52d5] h-7">
-                    <Send className="w-3 h-3" /> Save Note
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* ORDER SUMMARY */}
-            <div className="rounded-xl bg-gradient-to-br from-[#6c63ff]/10 via-[#6c63ff]/5 to-transparent p-4 space-y-2 border border-[#6c63ff]/10">
-              <p className="text-xs font-semibold text-[#6c63ff] uppercase tracking-wide flex items-center gap-1">🧾 ORDER SUMMARY</p>
-              <div className="flex justify-between text-xs"><span className="text-muted-foreground">Subtotal</span><span>{formatBDT(subtotal)}</span></div>
-              <div className="flex justify-between text-xs"><span className="text-muted-foreground">Discount</span><span className="text-red-500">-{formatBDT(totalDiscount)}</span></div>
-              <div className="flex justify-between text-xs"><span className="text-muted-foreground">Delivery Charge</span><span>{formatBDT(deliveryCharge)}</span></div>
-              <div className="flex justify-between text-xs"><span className="text-muted-foreground">Advance Paid</span><span className="text-emerald-600">{formatBDT(advancePaid)}</span></div>
-              <div className="border-t border-[#6c63ff]/10 pt-2 flex justify-between items-center">
-                <span className="text-sm font-bold text-[#6c63ff]">Grand Total</span>
-                <span className="text-lg font-bold text-[#6c63ff]">{formatBDT(grandTotal)}</span>
-              </div>
+            {/* F) BOTTOM TOTALS STRIP */}
+            <div className="rounded-lg border border-border bg-card p-3">
+              <WebOrderTotalsStrip
+                subtotal={subtotal}
+                totalDiscount={totalDiscount}
+                deliveryCharge={deliveryCharge}
+                advancePaid={advancePaid}
+                grandTotal={grandTotal}
+                discount={order.discount || 0}
+                advance={deliveryForm.advanceAmount}
+                onDiscountChange={() => {}}
+                onAdvanceChange={(v) => setDeliveryForm(f => ({ ...f, advanceAmount: v, advanceEnabled: v > 0 }))}
+                onDeliveryChargeChange={() => {}}
+                paymentMethod={order.payment_method || "COD"}
+              />
             </div>
           </div>
 
-          {/* ════ COL 3 (260px) ════ */}
-          <div className="w-[260px] shrink-0 overflow-y-auto p-4 space-y-4">
-
-            {/* ORDER STATUS */}
-            <Card>
-              <CardHeader className="py-3 px-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Zap className="w-3.5 h-3.5 text-[#6c63ff]" /> ORDER STATUS
-                  </CardTitle>
-                  <span className="text-[10px] text-[#6c63ff] font-medium capitalize">{currentStatus}</span>
-                </div>
-              </CardHeader>
-              <CardContent className="px-4 pb-4 space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  {STATUS_BUTTONS.map((s) => {
-                    const isActive = currentStatus === s.key;
-                    const t = themeMap[s.theme];
-                    return (
-                      <button key={s.key} onClick={() => handleStatusAction(s.key)}
-                        disabled={isActive || statusMutation.isPending}
-                        className={cn("relative flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 text-[10px] font-medium transition-all",
-                          isActive ? `${t.bg} ${t.border} ring-2 ${t.ring}` : "border-border bg-background hover:border-muted-foreground/20 hover:bg-muted/30",
-                          (isActive || statusMutation.isPending) && "opacity-60 cursor-not-allowed")}>
-                        {isActive && (
-                          <div className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-[#6c63ff] flex items-center justify-center">
-                            <CheckCircle2 className="w-2.5 h-2.5 text-white" />
-                          </div>
-                        )}
-                        <s.icon className="w-4 h-4" />
-                        <span className="text-center leading-tight">{s.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                {/* Cancel */}
-                <button onClick={() => handleStatusAction("cancel")}
-                  disabled={currentStatus === "cancel" || statusMutation.isPending}
-                  className={cn("w-full flex items-center justify-center gap-1.5 p-2.5 rounded-xl border-2 text-xs font-medium transition-all",
-                    currentStatus === "cancel" ? "bg-red-50 border-red-300 text-red-700 opacity-50" : "border-border hover:border-red-200 hover:bg-red-50/50 text-red-600")}>
-                  <XCircle className="w-3.5 h-3.5" /> Cancel Order
-                </button>
-                {/* Save */}
-                <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}
-                  className="w-full h-9 rounded-xl bg-gradient-to-r from-[#6c63ff] to-[#5a52d5] hover:from-[#5a52d5] hover:to-[#4a42c5] text-white font-semibold text-xs shadow-lg shadow-[#6c63ff]/20">
-                  <Save className="w-3.5 h-3.5 mr-1" /> Save Order
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* ORDER INFO */}
-            <Card>
-              <CardHeader className="py-3 px-4">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Info className="w-3.5 h-3.5 text-[#6c63ff]" /> ORDER INFO
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 pb-4 space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <p className="text-[10px] text-muted-foreground uppercase">Source</p>
-                    <Badge variant="outline" className="text-[10px] capitalize mt-0.5">🛒 {order.channel || "Manual"}</Badge>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground uppercase">Courier</p>
-                    <Badge variant="outline" className="text-[10px] mt-0.5">🚚 {order.pathao_consignment_id ? "Pathao" : "—"}</Badge>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground uppercase">Created</p>
-                    <p className="text-xs font-medium mt-0.5">{formatDate(order.created_at)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground uppercase">Success Rate</p>
-                    <p className={cn("text-xs font-bold mt-0.5", srColor)}>{successRate}% ✓</p>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase mb-1">Order History</p>
-                  <div className="flex items-center gap-2">
-                    <Progress value={successRate} className="h-1.5 flex-1" />
-                    <span className={cn("text-[10px] font-bold", srColor)}>{bdReport?.successful_orders || 0}/{bdReport?.total_orders || 0}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* ACTIVITY LOG */}
-            <Card>
-              <CardHeader className="py-3 px-4">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Activity className="w-3.5 h-3.5 text-[#6c63ff]" /> ACTIVITY LOG
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 pb-4">
-                {notes && notes.length > 0 ? (
-                  <div className="space-y-0">
-                    {notes.slice(0, 10).map((note, i) => {
-                      const isFirst = i === 0;
-                      const isLast = i === Math.min(notes.length, 10) - 1;
-                      const dotColor = isFirst ? "bg-[#6c63ff]" : noteTypeDot(note.note_type);
-                      return (
-                        <div key={note.id} className="flex gap-2.5 relative">
-                          <div className="flex flex-col items-center">
-                            <div className={cn("w-2 h-2 rounded-full shrink-0 mt-1.5 ring-2 ring-background", dotColor)} />
-                            {!isLast && <div className="w-px flex-1 bg-border/50 mt-0.5" />}
-                          </div>
-                          <div className="pb-3 flex-1 min-w-0">
-                            <p className="text-[11px] font-medium leading-relaxed">{note.content}</p>
-                            <div className="flex items-center gap-1.5 mt-0.5 text-[9px] text-muted-foreground">
-                              <span>{note.created_by || "System"}</span>
-                              <span>·</span>
-                              <span>{formatTime(note.created_at)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-4">
-                    <Clock className="w-5 h-5 mx-auto text-muted-foreground/30 mb-1" />
-                    <p className="text-[10px] text-muted-foreground">No activity yet</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Pathao tracking */}
-            {order.pathao_consignment_id && (
-              <PathaoTrackingCard consignmentId={order.pathao_consignment_id} trackingCode={order.pathao_tracking_code || undefined} />
-            )}
-
-            {/* Address Fix button */}
-            {currentStatus === "confirm" && order.courier_status === "ADDRESS_FIX_REQUIRED" && (
-              <Card className="border-orange-200 bg-orange-50/50">
-                <CardContent className="p-3">
-                  <Button onClick={() => setAddressFixOpen(true)} className="w-full bg-orange-600 hover:bg-orange-700 text-white gap-1 text-xs h-8">
-                    <MapPin className="w-3 h-3" /> Fix Address
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
+          {/* E) RIGHT SIDEBAR (30%, sticky) */}
+          <div className="flex-[3] overflow-y-auto p-3">
+            <WebOrderSidebar
+              order={order}
+              orderItems={orderItems}
+              grandTotal={grandTotal}
+              customerPhone={customerPhone}
+              currentStatus={currentStatus}
+              onStatusChange={(status) => handleStatusAction(status)}
+              onSave={() => saveMutation.mutate()}
+              onBack={() => navigate("/web-orders")}
+              onAddNote={(note) => { noteMutation.mutate(note); }}
+              saving={saveMutation.isPending}
+              statusOptions={[]}
+            />
           </div>
         </div>
 
         {/* ═══ FLOATING BOTTOM CONFIRM BAR ═══ */}
         <div className="shrink-0 px-4 pb-3 pt-2 z-30">
-          <div className="h-[58px] bg-[#12122a]/95 backdrop-blur-2xl rounded-2xl border border-[#6c63ff]/15 flex items-center px-6 shadow-[0_8px_40px_rgba(0,0,0,0.45),0_0_20px_rgba(108,99,255,0.12)] animate-fade-in"
-            style={{ animationDelay: "0.15s", animationFillMode: "both" }}>
-          {/* Left: Order info */}
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="w-2.5 h-2.5 rounded-full bg-[#6c63ff] shrink-0 ring-4 ring-[#6c63ff]/20 animate-[pulse_3s_ease-in-out_infinite]" />
-            <div className="min-w-0">
-              <p className="text-[13px] font-semibold text-white/95 truncate tracking-tight">Order #{order.order_number} — {customer?.full_name || "Customer"}</p>
-              <div className="flex items-center gap-1.5 mt-1">
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/20">
-                  📋 {statusCfg.label}
-                </span>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-medium bg-white/[0.06] text-white/60 border border-white/[0.06]">
-                  🛒 {order.channel}
-                </span>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-medium bg-white/[0.06] text-white/60 border border-white/[0.06]">
-                  📦 {totalItemCount} Item{totalItemCount !== 1 ? "s" : ""}
-                </span>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-medium bg-red-500/15 text-red-300 border border-red-500/20">
-                  🚚 Pathao
-                </span>
+          <div className="h-14 bg-card/95 backdrop-blur-2xl rounded-xl border border-border flex items-center px-5 shadow-lg animate-fade-in">
+            {/* Left: Order info */}
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="w-2 h-2 rounded-full bg-primary shrink-0 ring-4 ring-primary/20 animate-pulse-subtle" />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold truncate">Order #{order.order_number} — {customer?.full_name || "Customer"}</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0">{statusCfg.label}</Badge>
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0">{order.channel}</Badge>
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0">📦 {totalItemCount} Item{totalItemCount !== 1 ? "s" : ""}</Badge>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Divider */}
-          <div className="w-px h-9 bg-gradient-to-b from-transparent via-white/10 to-transparent mx-5" />
+            {/* Divider */}
+            <div className="w-px h-8 bg-border mx-4" />
 
-          {/* Center: Grand Total */}
-          <div className="text-right mr-5">
-            <p className="text-[9px] font-semibold text-white/40 uppercase tracking-[0.15em]">Grand Total</p>
-            <p className="text-[26px] font-black text-[#6c63ff] leading-none mt-0.5 drop-shadow-[0_0_12px_rgba(108,99,255,0.3)]">৳{grandTotal.toLocaleString()}</p>
-          </div>
+            {/* Grand Total */}
+            <div className="text-right mr-4">
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Grand Total</p>
+              <p className="text-xl font-black text-primary tabular-nums">৳{grandTotal.toLocaleString()}</p>
+            </div>
 
-          {/* Center: Confirm button */}
-          <AlertDialogRoot open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-            <Button onClick={() => setShowConfirmDialog(true)} disabled={confirmSending || currentStatus === "confirm"}
-              className="h-11 px-8 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 text-white font-bold text-sm gap-2 shadow-[0_4px_20px_rgba(16,185,129,0.4)] hover:shadow-[0_6px_28px_rgba(16,185,129,0.5)] transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.97] disabled:opacity-40 disabled:hover:translate-y-0">
-              {confirmSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-              Confirm Order
-            </Button>
-            <ADContent className="rounded-2xl border-0 bg-[#1a1a2e] text-white shadow-[0_25px_60px_rgba(0,0,0,0.5)] p-0 overflow-hidden max-w-sm data-[state=open]:animate-scale-in data-[state=closed]:animate-scale-out">
-              {/* Gradient header stripe */}
-              <div className="h-1.5 bg-gradient-to-r from-[#6c63ff] via-emerald-400 to-[#6c63ff]" />
-              <div className="p-6 text-center">
-                <div className="w-16 h-16 rounded-2xl bg-emerald-500/15 flex items-center justify-center mx-auto mb-4 ring-4 ring-emerald-500/10">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+            {/* Confirm button */}
+            <AlertDialogRoot open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+              <Button
+                onClick={() => setShowConfirmDialog(true)}
+                disabled={confirmSending || currentStatus === "confirm"}
+                className="h-10 px-6 rounded-lg bg-success hover:bg-success/90 text-success-foreground font-bold text-sm gap-2 shadow-md transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.97] disabled:opacity-40"
+              >
+                {confirmSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                Confirm Order
+              </Button>
+              <ADContent className="rounded-xl border border-border bg-card shadow-2xl p-0 overflow-hidden max-w-sm">
+                <div className="h-1 bg-gradient-to-r from-primary via-success to-primary" />
+                <div className="p-6 text-center">
+                  <div className="w-14 h-14 rounded-xl bg-success/15 flex items-center justify-center mx-auto mb-4 ring-4 ring-success/10">
+                    <CheckCircle2 className="w-7 h-7 text-success" />
+                  </div>
+                  <ADHeader className="space-y-2 p-0">
+                    <ADTitle className="text-lg font-bold">Confirm this order?</ADTitle>
+                    <ADDesc className="text-muted-foreground text-sm">
+                      Order <span className="font-semibold text-primary">#{order.order_number}</span> will be confirmed and moved to the Orders list. Stock will be deducted.
+                    </ADDesc>
+                  </ADHeader>
                 </div>
-                <ADHeader className="space-y-2 p-0">
-                  <ADTitle className="text-lg font-bold text-white">Confirm this order?</ADTitle>
-                  <ADDesc className="text-white/50 text-sm leading-relaxed">
-                    Order <span className="font-semibold text-[#6c63ff]">#{order.order_number}</span> will be confirmed and moved to the Orders list. Stock will be deducted automatically.
-                  </ADDesc>
-                </ADHeader>
-              </div>
-              <ADFooter className="px-6 pb-6 pt-0 flex gap-3">
-                <ADCancel className="flex-1 h-11 rounded-xl bg-white/[0.06] border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all duration-200">
-                  Cancel
-                </ADCancel>
-                <ADAction onClick={handleConfirmWithMapping} disabled={confirmSending}
-                  className="flex-1 h-11 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 text-white font-bold shadow-lg shadow-emerald-500/25 transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.97]">
-                  {confirmSending ? <><Loader2 className="w-4 h-4 animate-spin mr-1.5" /> Confirming...</> : "✅ Yes, Confirm"}
-                </ADAction>
-              </ADFooter>
-            </ADContent>
-          </AlertDialogRoot>
+                <ADFooter className="px-6 pb-6 pt-0 flex gap-3">
+                  <ADCancel className="flex-1 h-10 rounded-lg">Cancel</ADCancel>
+                  <ADAction
+                    onClick={handleConfirmWithMapping}
+                    disabled={confirmSending}
+                    className="flex-1 h-10 rounded-lg bg-success hover:bg-success/90 text-success-foreground font-bold shadow-md"
+                  >
+                    {confirmSending ? <><Loader2 className="w-4 h-4 animate-spin mr-1.5" /> Confirming...</> : "✅ Yes, Confirm"}
+                  </ADAction>
+                </ADFooter>
+              </ADContent>
+            </AlertDialogRoot>
 
-          {/* Right spacer */}
-          <div className="flex-1" />
+            <div className="flex-1" />
           </div>
         </div>
 
         {/* ═══ REASON MODAL ═══ */}
         <Dialog open={reasonModal.open} onOpenChange={(open) => setReasonModal((prev) => ({ ...prev, open }))}>
-          <DialogContent className="max-w-md rounded-2xl">
+          <DialogContent className="max-w-md rounded-xl">
             <DialogHeader>
               <DialogTitle>{reasonModal.type === "cancel" ? "❌ Cancel Order" : "⏸️ Put On Hold"}</DialogTitle>
             </DialogHeader>
@@ -1598,7 +1134,7 @@ export default function WebOrderDetail() {
                 <label className="text-xs text-muted-foreground font-medium mb-1.5 block">Reason <span className="text-destructive">*</span></label>
                 <Select value={reasonValue} onValueChange={setReasonValue}>
                   <SelectTrigger className="h-10"><SelectValue placeholder="Select a reason..." /></SelectTrigger>
-                  <SelectContent className="bg-background z-50">
+                  <SelectContent className="bg-popover z-50">
                     {(reasonModal.type === "cancel" ? CANCEL_REASONS : HOLD_REASONS).map((r) => (
                       <SelectItem key={r} value={r}>{r}</SelectItem>
                     ))}
@@ -1629,7 +1165,7 @@ export default function WebOrderDetail() {
 
         {/* Edit Item Modal */}
         <Dialog open={editModal.open} onOpenChange={(o) => setEditModal({ open: o, item: editModal.item })}>
-          <DialogContent className="rounded-2xl max-w-md">
+          <DialogContent className="rounded-xl max-w-md">
             <DialogHeader><DialogTitle>Edit Item</DialogTitle></DialogHeader>
             <div className="space-y-3">
               <div><Label className="text-xs">Product Name</Label><Input value={editForm.name} onChange={(e) => setEditForm(f => ({ ...f, name: e.target.value }))} /></div>
@@ -1644,7 +1180,7 @@ export default function WebOrderDetail() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditModal({ open: false, item: null })}>Cancel</Button>
-              <Button onClick={saveEdit} className="bg-[#6c63ff] hover:bg-[#5a52d5]">Save</Button>
+              <Button onClick={saveEdit} className="bg-primary hover:bg-primary-dark text-primary-foreground">Save</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
