@@ -60,6 +60,7 @@ export function OrderListPage() {
         onDensityChange={setDensity}
         onRefresh={handleRefresh}
         onNewOrder={() => navigate("/orders/new")}
+        selectedCount={selectedIds.size}
       />
 
       <OrderStatusTabs
