@@ -1,14 +1,8 @@
-import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Search, X, ChevronDown, Printer, FileText, UserCheck, Truck, RefreshCw, Download,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Search, X } from "lucide-react";
+import { OrderActionsModal } from "./OrderActionsModal";
 
 export interface OrderListFilterState {
   search: string;
@@ -30,7 +24,9 @@ interface Props {
   filters: OrderListFilterState;
   onChange: (f: OrderListFilterState) => void;
   selectedCount: number;
+  totalCount: number;
   onBulkAction: (action: string) => void;
+  onSelectAll: () => void;
 }
 
 const DATE_OPTIONS = [
@@ -65,7 +61,7 @@ const RISK = [
   { value: "high", label: "High" },
 ];
 
-export function OrderListFilters({ filters, onChange, selectedCount, onBulkAction }: Props) {
+export function OrderListFilters({ filters, onChange, selectedCount, totalCount, onBulkAction, onSelectAll }: Props) {
   const update = (partial: Partial<OrderListFilterState>) => onChange({ ...filters, ...partial });
 
   const activeCount = [
@@ -159,47 +155,13 @@ export function OrderListFilters({ filters, onChange, selectedCount, onBulkActio
 
         <div className="flex-1" />
 
-        {/* Bulk Actions */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className={cn("h-8 text-xs gap-1", selectedCount === 0 && "opacity-50")}
-              disabled={selectedCount === 0}
-            >
-              Actions
-              {selectedCount > 0 && (
-                <span className="ml-1 bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-md">
-                  {selectedCount}
-                </span>
-              )}
-              <ChevronDown className="w-3 h-3" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onClick={() => onBulkAction("status")}>
-              <RefreshCw className="w-3.5 h-3.5 mr-2" /> Bulk Update Status
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onBulkAction("staff")}>
-              <UserCheck className="w-3.5 h-3.5 mr-2" /> Assign Staff
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onBulkAction("courier")}>
-              <Truck className="w-3.5 h-3.5 mr-2" /> Set Courier
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onBulkAction("print_invoice")}>
-              <Printer className="w-3.5 h-3.5 mr-2" /> Print Invoice
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onBulkAction("print_label")}>
-              <FileText className="w-3.5 h-3.5 mr-2" /> Print Label
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onBulkAction("export")}>
-              <Download className="w-3.5 h-3.5 mr-2" /> Export CSV
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* Actions Modal */}
+        <OrderActionsModal
+          selectedCount={selectedCount}
+          totalCount={totalCount}
+          onAction={onBulkAction}
+          onSelectAll={onSelectAll}
+        />
       </div>
     </div>
   );

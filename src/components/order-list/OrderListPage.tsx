@@ -9,7 +9,6 @@ import { OrderBulkBar } from "./OrderBulkBar";
 import { generateMockOrders, type MockOrder, type OrderStatus } from "./order-list-data";
 import { toast } from "sonner";
 
-// Generate mock data once
 const ALL_ORDERS = generateMockOrders(120);
 
 export function OrderListPage() {
@@ -22,16 +21,9 @@ export function OrderListPage() {
   const [pageSize, setPageSize] = useState(50);
   const [loading] = useState(false);
 
-  // Filter orders
   const filtered = useMemo(() => {
     let result = ALL_ORDERS;
-
-    // Status tab
-    if (activeTab !== "all") {
-      result = result.filter(o => o.status === activeTab);
-    }
-
-    // Search
+    if (activeTab !== "all") result = result.filter(o => o.status === activeTab);
     if (filters.search) {
       const s = filters.search.toLowerCase();
       result = result.filter(o =>
@@ -43,28 +35,23 @@ export function OrderListPage() {
         o.trackingId.toLowerCase().includes(s)
       );
     }
-
-    // Courier
-    if (filters.courier !== "all") {
-      result = result.filter(o => o.courier.toLowerCase() === filters.courier);
-    }
-
-    // Risk
-    if (filters.risk !== "all") {
-      result = result.filter(o => o.risk === filters.risk);
-    }
-
+    if (filters.courier !== "all") result = result.filter(o => o.courier.toLowerCase() === filters.courier);
+    if (filters.risk !== "all") result = result.filter(o => o.risk === filters.risk);
     return result;
   }, [activeTab, filters]);
 
-  const handleRefresh = useCallback(() => {
-    toast.success("Refreshed");
-  }, []);
+  const handleRefresh = useCallback(() => { toast.success("Refreshed"); }, []);
 
   const handleBulkAction = useCallback((action: string) => {
     toast.info(`Bulk action: ${action} on ${selectedIds.size} orders`);
     setSelectedIds(new Set());
   }, [selectedIds.size]);
+
+  const handleSelectAll = useCallback(() => {
+    const all = new Set(filtered.map(o => o.id));
+    setSelectedIds(all);
+    toast.info(`Selected all ${all.size} orders`);
+  }, [filtered]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] bg-background">
@@ -85,7 +72,9 @@ export function OrderListPage() {
         filters={filters}
         onChange={setFilters}
         selectedCount={selectedIds.size}
+        totalCount={filtered.length}
         onBulkAction={handleBulkAction}
+        onSelectAll={handleSelectAll}
       />
 
       <OrderListTable
