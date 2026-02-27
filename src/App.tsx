@@ -3,10 +3,12 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { ThemeProvider } from "next-themes";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Dashboard from "./pages/Index";
 import SearchPage from "./pages/Search";
 import OrdersPage from "./pages/Orders";
+import { OrderListPage } from "./components/order-list/OrderListPage";
 import NewOrder from "./pages/NewOrder";
 import ApprovedOrders from "./pages/ApprovedOrders";
 import AllOrders from "./pages/AllOrders";
@@ -70,6 +72,7 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const App = () => (
+  <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
@@ -84,6 +87,7 @@ const App = () => (
             {/* Orders */}
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/orders/approved" element={<ApprovedOrders />} />
+            <Route path="/orders/list" element={<OrderListPage />} />
             <Route path="/orders/new" element={<NewOrder />} />
             <Route path="/orders/all" element={<AllOrders />} />
             <Route path="/orders/old" element={<OldOrdersPage />} />
@@ -177,6 +181,7 @@ const App = () => (
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
+  </ThemeProvider>
 );
 
 export default App;
