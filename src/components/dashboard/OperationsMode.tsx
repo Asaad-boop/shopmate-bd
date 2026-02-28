@@ -43,7 +43,7 @@ export const OperationsMode = memo(function OperationsMode({ from, to }: Props) 
       </section>
 
       {/* Quick Action Dock */}
-      <Card className="border-0 shadow-sm">
+      <Card className="border-border/30 shadow-[0_4px_16px_rgba(0,0,0,0.04)] rounded-2xl">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Quick Actions</CardTitle>
         </CardHeader>
@@ -68,7 +68,7 @@ export const OperationsMode = memo(function OperationsMode({ from, to }: Props) 
           { label: "Delivered not settled", count: alerts?.delivered_unsettled ?? 0, severity: "high" as const, to: "/finance/settlements", icon: "💰", amount: alerts?.delivered_unsettled_amt },
         ].map((q) => (
           <button key={q.label} onClick={() => navigate(q.to)}
-            className="bg-card rounded-2xl p-5 text-left hover:shadow-lg transition-all group">
+            className="bg-card rounded-2xl p-5 text-left hover:shadow-md border border-border/30 transition-all group">
             {alertL ? <Skeleton className="h-16" /> : (
               <>
                 <div className="flex items-center justify-between mb-2">
@@ -91,7 +91,7 @@ export const OperationsMode = memo(function OperationsMode({ from, to }: Props) 
       {/* Courier Performance + Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Courier Performance Mini */}
-        <Card className="border-0 shadow-sm cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate("/reports/courier-performance")}>
+        <Card className="border-border/30 shadow-[0_4px_16px_rgba(0,0,0,0.04)] rounded-2xl cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/reports/courier-performance")}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Courier Performance (30d)</CardTitle>
           </CardHeader>
@@ -124,7 +124,7 @@ export const OperationsMode = memo(function OperationsMode({ from, to }: Props) 
         </Card>
 
         {/* Latest Activity */}
-        <Card className="border-0 shadow-sm">
+        <Card className="border-border/30 shadow-[0_4px_16px_rgba(0,0,0,0.04)] rounded-2xl">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Latest Activity</CardTitle>
           </CardHeader>
