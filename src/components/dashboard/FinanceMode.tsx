@@ -63,7 +63,7 @@ export const FinanceMode = memo(function FinanceMode({ from, to }: Props) {
       {/* Account Balances + Settlement Workbench */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Account Balances */}
-        <Card className="border-0 shadow-sm cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate("/finance/accounts")}>
+        <Card className="border-border/30 shadow-[0_4px_16px_rgba(0,0,0,0.04)] rounded-2xl cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/finance/accounts")}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Account Balances</CardTitle>
           </CardHeader>
@@ -97,7 +97,7 @@ export const FinanceMode = memo(function FinanceMode({ from, to }: Props) {
         </Card>
 
         {/* Settlement Workbench */}
-        <Card className="border-0 shadow-sm">
+        <Card className="border-border/30 shadow-[0_4px_16px_rgba(0,0,0,0.04)] rounded-2xl">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Settlement Workbench</CardTitle>
             {aging && aging.total_unsettled_count > 0 && (
@@ -137,7 +137,7 @@ export const FinanceMode = memo(function FinanceMode({ from, to }: Props) {
       {/* Payables + Expense Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Supplier Payables */}
-        <Card className="border-0 shadow-sm cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate("/purchasing")}>
+        <Card className="border-border/30 shadow-[0_4px_16px_rgba(0,0,0,0.04)] rounded-2xl cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/purchasing")}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Top Supplier Payables</CardTitle>
           </CardHeader>
@@ -163,7 +163,7 @@ export const FinanceMode = memo(function FinanceMode({ from, to }: Props) {
         </Card>
 
         {/* Expense Breakdown Donut */}
-        <Card className="border-0 shadow-sm">
+        <Card className="border-border/30 shadow-[0_4px_16px_rgba(0,0,0,0.04)] rounded-2xl">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Expense Breakdown</CardTitle>
           </CardHeader>
@@ -203,7 +203,7 @@ export const FinanceMode = memo(function FinanceMode({ from, to }: Props) {
       </div>
 
       {/* Cashflow Trend */}
-      <Card className="border-0 shadow-sm">
+      <Card className="border-border/30 shadow-[0_4px_16px_rgba(0,0,0,0.04)] rounded-2xl">
         <CardHeader className="pb-1">
           <CardTitle className="text-sm font-semibold text-muted-foreground uppercase">14-Day Cashflow</CardTitle>
         </CardHeader>

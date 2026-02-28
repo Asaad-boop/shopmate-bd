@@ -28,11 +28,11 @@ export const HeroKpi = memo(function HeroKpi({
   return (
     <button
       onClick={onClick}
-      className="bg-card rounded-2xl p-5 text-left w-full
-        transition-all duration-[220ms] ease-[cubic-bezier(0.4,0,0.2,1)]
-        hover:shadow-lg hover:-translate-y-[3px]
+      className="bg-card rounded-2xl p-5 text-left w-full border border-border/30
+        transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]
+        hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] hover:-translate-y-[2px]
         active:scale-[0.98]
-        group border border-transparent hover:border-primary/10"
+        group"
     >
       <div className="flex items-start justify-between mb-3">
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors duration-200 ${accent || "bg-primary/10 text-primary"}`}>
@@ -72,7 +72,7 @@ export const AlertItem = memo(function AlertItem({
     <button
       onClick={() => nav(to)}
       className="w-full flex items-center justify-between px-3.5 py-3 rounded-xl
-        hover:bg-accent/60 transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]
+        hover:bg-accent/40 transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]
         text-left group"
     >
       <div className="flex items-center gap-3 min-w-0">
@@ -103,10 +103,10 @@ export const PipelineStage = memo(function PipelineStage({
   return (
     <button
       onClick={onClick}
-      className={`flex-1 min-w-[120px] rounded-xl p-4 text-center
-        transition-all duration-[220ms] ease-[cubic-bezier(0.4,0,0.2,1)]
+      className={`flex-1 min-w-[120px] rounded-2xl p-4 text-center border border-border/30
+        transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]
         hover:shadow-md hover:-translate-y-[2px] active:scale-[0.98]
-        ${active ? "bg-primary/10 ring-1 ring-primary/20" : "bg-card hover:bg-accent/50"}`}
+        ${active ? "bg-primary/10 ring-1 ring-primary/20" : "bg-card hover:bg-accent/40"}`}
     >
       <span className="text-lg">{emoji}</span>
       <p className="text-xl font-bold font-mono mt-1 tabular-nums">{formatNumber(count)}</p>
@@ -126,9 +126,9 @@ export const QuickActionBtn = memo(function QuickActionBtn({
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center gap-2 p-3 rounded-xl bg-card
-        transition-all duration-[220ms] ease-[cubic-bezier(0.4,0,0.2,1)]
-        hover:bg-accent/50 hover:shadow-md hover:-translate-y-[2px]
+      className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-card border border-border/30
+        transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]
+        hover:bg-accent/40 hover:shadow-md hover:-translate-y-[2px]
         active:scale-[0.98] min-w-[88px]"
     >
       <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
