@@ -14,7 +14,7 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'],
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -91,16 +91,12 @@ export default {
           to: { height: "0" },
         },
         "stagger-in": {
-          "0%": { opacity: "0", transform: "translateY(8px)" },
+          "0%": { opacity: "0", transform: "translateY(4px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
         "crossfade-in": {
-          "0%": { opacity: "0", transform: "translateY(6px)" },
-          "100%": { opacity: "1", transform: "translateY(0)" },
-        },
-        "crossfade-out": {
-          "0%": { opacity: "1", transform: "translateY(0)" },
-          "100%": { opacity: "0", transform: "translateY(6px)" },
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
         },
         "spin-once": {
           "0%": { transform: "rotate(0deg)" },
@@ -110,10 +106,9 @@ export default {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "stagger-in": "stagger-in 260ms cubic-bezier(0.4, 0, 0.2, 1) both",
-        "crossfade-in": "crossfade-in 220ms cubic-bezier(0.4, 0, 0.2, 1) both",
-        "crossfade-out": "crossfade-out 180ms cubic-bezier(0.4, 0, 0.2, 1) both",
-        "spin-once": "spin-once 600ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "stagger-in": "stagger-in 150ms ease-out both",
+        "crossfade-in": "crossfade-in 150ms ease-out both",
+        "spin-once": "spin-once 500ms ease-out",
       },
     },
   },

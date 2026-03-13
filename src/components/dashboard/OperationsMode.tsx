@@ -24,7 +24,7 @@ export const OperationsMode = memo(function OperationsMode({ from, to }: Props) 
   const { data: activity, isLoading: actL } = useOpsRecentActivity();
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4">
       {/* KPI Strip */}
       <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <HeroKpi label="Pending Orders" value={formatNumber(kpis?.pending_orders)} icon={Clock}
@@ -42,10 +42,10 @@ export const OperationsMode = memo(function OperationsMode({ from, to }: Props) 
           accent={(kpis?.courier_sync_errors ?? 0) > 0 ? "bg-destructive/10 text-destructive" : "bg-success/10 text-success"} />
       </section>
 
-      {/* Quick Action Dock */}
-      <Card className="border-border/30 shadow-[0_4px_16px_rgba(0,0,0,0.04)] rounded-2xl">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Quick Actions</CardTitle>
+      {/* Quick Actions */}
+      <Card className="border-border rounded-lg">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Quick Actions</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
@@ -60,28 +60,27 @@ export const OperationsMode = memo(function OperationsMode({ from, to }: Props) 
         </CardContent>
       </Card>
 
-      {/* Ops Queue Widgets */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Ops Queue */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {[
           { label: "Pending > 24h", count: alerts?.pending_24h ?? 0, severity: "high" as const, to: "/orders?status=pending", icon: "🕐" },
           { label: "In Transit > 5 days", count: alerts?.intransit_5d ?? 0, severity: "critical" as const, to: "/orders?status=in_transit", icon: "🚚" },
           { label: "Delivered not settled", count: alerts?.delivered_unsettled ?? 0, severity: "high" as const, to: "/finance/settlements", icon: "💰", amount: alerts?.delivered_unsettled_amt },
         ].map((q) => (
           <button key={q.label} onClick={() => navigate(q.to)}
-            className="bg-card rounded-2xl p-5 text-left hover:shadow-md border border-border/30 transition-all group">
-            {alertL ? <Skeleton className="h-16" /> : (
+            className="bg-card rounded-lg p-4 text-left border border-border hover:border-primary/30 transition-colors duration-150">
+            {alertL ? <Skeleton className="h-14" /> : (
               <>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-lg">{q.icon}</span>
-                  <Badge className={`text-xs ${q.severity === "critical" ? "bg-destructive text-destructive-foreground" : "bg-warning text-warning-foreground"}`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-base">{q.icon}</span>
+                  <Badge className={`text-[10px] h-5 ${q.severity === "critical" ? "bg-destructive text-destructive-foreground" : "bg-warning text-warning-foreground"}`}>
                     {q.count}
                   </Badge>
                 </div>
                 <p className="text-sm font-medium">{q.label}</p>
                 {q.amount != null && q.amount > 0 && (
-                  <p className="text-xs text-muted-foreground font-mono mt-0.5">{formatBDT(q.amount)}</p>
+                  <p className="text-[11px] text-muted-foreground tabular-nums mt-0.5">{formatBDT(q.amount)}</p>
                 )}
-                <ArrowRight className="w-3.5 h-3.5 text-muted-foreground mt-2 opacity-0 group-hover:opacity-100 transition-opacity" />
               </>
             )}
           </button>
@@ -89,29 +88,28 @@ export const OperationsMode = memo(function OperationsMode({ from, to }: Props) 
       </div>
 
       {/* Courier Performance + Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Courier Performance Mini */}
-        <Card className="border-border/30 shadow-[0_4px_16px_rgba(0,0,0,0.04)] rounded-2xl cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/reports/courier-performance")}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <Card className="border-border rounded-lg cursor-pointer hover:border-primary/30 transition-colors duration-150" onClick={() => navigate("/reports/courier-performance")}>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Courier Performance (30d)</CardTitle>
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Courier Performance (30d)</CardTitle>
           </CardHeader>
           <CardContent>
-            {cpL ? <Skeleton className="h-[160px]" /> : (
-              <div className="space-y-2.5">
+            {cpL ? <Skeleton className="h-[140px]" /> : (
+              <div className="space-y-2">
                 {(courierPerf || []).length === 0 && (
                   <p className="text-sm text-muted-foreground py-4 text-center">No courier data yet</p>
                 )}
                 {(courierPerf || []).map((c) => (
-                  <div key={c.courier_name} className="flex items-center justify-between p-2.5 rounded-xl bg-accent/30">
+                  <div key={c.courier_name} className="flex items-center justify-between p-2 rounded-md bg-accent/50">
                     <div>
                       <p className="text-sm font-medium">{c.courier_name}</p>
                       <p className="text-[10px] text-muted-foreground">{c.delivered}/{c.total} delivered • Avg {c.avg_days}d</p>
                     </div>
                     <div className="text-right">
-                      <p className={`text-sm font-bold font-mono ${c.success_rate >= 70 ? "text-success" : "text-destructive"}`}>
+                      <p className={`text-sm font-semibold tabular-nums ${c.success_rate >= 70 ? "text-success" : "text-destructive"}`}>
                         {c.success_rate}%
                       </p>
-                      <p className="text-[10px] text-muted-foreground font-mono">{formatBDT(c.avg_cost)} avg</p>
+                      <p className="text-[10px] text-muted-foreground tabular-nums">{formatBDT(c.avg_cost)} avg</p>
                     </div>
                   </div>
                 ))}
@@ -123,22 +121,21 @@ export const OperationsMode = memo(function OperationsMode({ from, to }: Props) 
           </CardContent>
         </Card>
 
-        {/* Latest Activity */}
-        <Card className="border-border/30 shadow-[0_4px_16px_rgba(0,0,0,0.04)] rounded-2xl">
+        <Card className="border-border rounded-lg">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Latest Activity</CardTitle>
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Latest Activity</CardTitle>
           </CardHeader>
           <CardContent>
-            {actL ? <Skeleton className="h-[160px]" /> : (
-              <div className="space-y-1 max-h-[240px] overflow-y-auto">
+            {actL ? <Skeleton className="h-[140px]" /> : (
+              <div className="space-y-0.5 max-h-[200px] overflow-y-auto">
                 {(activity || []).length === 0 && (
                   <div className="flex flex-col items-center py-6 text-muted-foreground">
-                    <Activity className="w-6 h-6 mb-1 opacity-40" />
+                    <Activity className="w-5 h-5 mb-1 opacity-40" />
                     <p className="text-xs">No recent activity</p>
                   </div>
                 )}
                 {(activity || []).map((a) => (
-                  <div key={a.id} className="flex items-start gap-2.5 py-2 border-b border-border/50 last:border-0">
+                  <div key={a.id} className="flex items-start gap-2 py-2 border-b border-border last:border-0">
                     <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
                     <div className="min-w-0">
                       <p className="text-xs"><span className="font-medium">{a.user_name || "System"}</span> {a.action} <span className="text-muted-foreground">{a.entity_type}</span></p>
@@ -152,7 +149,6 @@ export const OperationsMode = memo(function OperationsMode({ from, to }: Props) 
         </Card>
       </div>
 
-      {/* Hourly Orders */}
       <HourlyOrdersPanel />
     </div>
   );
