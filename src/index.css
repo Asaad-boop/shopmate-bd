@@ -2,104 +2,98 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @layer base {
   :root {
-    --background: 30 60% 96%;
-    --foreground: 20 25% 15%;
+    --background: 220 14% 96%;
+    --foreground: 220 20% 14%;
 
     --card: 0 0% 100%;
-    --card-foreground: 20 25% 15%;
+    --card-foreground: 220 20% 14%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 20 25% 15%;
+    --popover-foreground: 220 20% 14%;
 
-    --primary: 24 85% 58%;
+    --primary: 220 85% 60%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 28 80% 94%;
-    --primary-dark: 20 85% 48%;
+    --primary-light: 220 60% 95%;
+    --primary-dark: 220 85% 50%;
 
-    --secondary: 30 40% 94%;
-    --secondary-foreground: 20 25% 15%;
+    --secondary: 220 14% 94%;
+    --secondary-foreground: 220 20% 14%;
 
-    --muted: 30 25% 93%;
-    --muted-foreground: 20 10% 50%;
+    --muted: 220 14% 93%;
+    --muted-foreground: 220 10% 46%;
 
-    --accent: 28 70% 93%;
-    --accent-foreground: 24 85% 48%;
+    --accent: 220 14% 93%;
+    --accent-foreground: 220 20% 14%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 30 30% 88%;
-    --input: 30 30% 88%;
-    --ring: 24 85% 58%;
+    --border: 220 14% 90%;
+    --input: 220 14% 90%;
+    --ring: 220 85% 60%;
 
-    --radius: 0.75rem;
+    --radius: 0.625rem;
 
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 20 25% 15%;
-    --sidebar-primary: 24 85% 58%;
+    --sidebar-foreground: 220 20% 14%;
+    --sidebar-primary: 220 85% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 28 80% 94%;
-    --sidebar-accent-foreground: 24 85% 48%;
-    --sidebar-border: 30 30% 90%;
-    --sidebar-ring: 24 85% 58%;
-    --sidebar-muted: 20 10% 55%;
+    --sidebar-accent: 220 60% 95%;
+    --sidebar-accent-foreground: 220 85% 50%;
+    --sidebar-border: 220 14% 92%;
+    --sidebar-ring: 220 85% 60%;
+    --sidebar-muted: 220 10% 50%;
 
-    --success: 152 69% 40%;
+    --success: 160 60% 40%;
     --success-foreground: 0 0% 100%;
-    --warning: 43 96% 56%;
+    --warning: 38 92% 50%;
     --warning-foreground: 30 80% 20%;
-    --info: 217 91% 60%;
+    --info: 200 80% 50%;
     --info-foreground: 0 0% 100%;
 
-    --chart-1: 24 85% 58%;
-    --chart-2: 152 69% 40%;
-    --chart-3: 43 96% 56%;
+    --chart-1: 220 85% 60%;
+    --chart-2: 160 60% 40%;
+    --chart-3: 38 92% 50%;
     --chart-4: 0 72% 51%;
-    --chart-5: 217 91% 60%;
-    --chart-6: 280 60% 55%;
+    --chart-5: 200 80% 50%;
+    --chart-6: 280 50% 55%;
   }
 
   .dark {
-    --background: 20 15% 10%;
-    --foreground: 30 30% 92%;
-    --card: 20 12% 16%;
-    --card-foreground: 30 30% 92%;
-    --popover: 20 12% 16%;
-    --popover-foreground: 30 30% 92%;
-    --primary: 24 85% 58%;
+    --background: 220 15% 8%;
+    --foreground: 220 14% 90%;
+    --card: 220 15% 12%;
+    --card-foreground: 220 14% 90%;
+    --popover: 220 15% 12%;
+    --popover-foreground: 220 14% 90%;
+    --primary: 220 85% 60%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 24 40% 16%;
-    --primary-dark: 20 85% 48%;
-    --secondary: 20 12% 20%;
-    --secondary-foreground: 30 30% 92%;
-    --muted: 20 12% 20%;
-    --muted-foreground: 20 15% 60%;
-    --accent: 20 15% 20%;
-    --accent-foreground: 30 30% 92%;
+    --primary-light: 220 40% 16%;
+    --primary-dark: 220 85% 50%;
+    --secondary: 220 15% 16%;
+    --secondary-foreground: 220 14% 90%;
+    --muted: 220 15% 18%;
+    --muted-foreground: 220 10% 55%;
+    --accent: 220 15% 16%;
+    --accent-foreground: 220 14% 90%;
     --destructive: 0 63% 35%;
-    --destructive-foreground: 30 30% 92%;
-    --border: 20 12% 22%;
-    --input: 20 12% 22%;
-    --ring: 24 85% 58%;
-    --sidebar-background: 20 15% 8%;
-    --sidebar-foreground: 30 20% 85%;
-    --sidebar-primary: 24 85% 58%;
+    --destructive-foreground: 220 14% 90%;
+    --border: 220 15% 18%;
+    --input: 220 15% 18%;
+    --ring: 220 85% 60%;
+    --sidebar-background: 220 15% 7%;
+    --sidebar-foreground: 220 14% 85%;
+    --sidebar-primary: 220 85% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 24 30% 14%;
-    --sidebar-accent-foreground: 24 60% 70%;
-    --sidebar-border: 20 12% 18%;
-    --sidebar-ring: 24 85% 58%;
-    --sidebar-muted: 20 15% 50%;
+    --sidebar-accent: 220 30% 14%;
+    --sidebar-accent-foreground: 220 60% 70%;
+    --sidebar-border: 220 15% 15%;
+    --sidebar-ring: 220 85% 60%;
+    --sidebar-muted: 220 10% 50%;
   }
 }
 
@@ -109,26 +103,20 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
 @layer utilities {
-  .animate-fade-in {
-    animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .animate-slide-up {
-    animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
   .tabular-nums {
     font-variant-numeric: tabular-nums;
   }
 }
 
-/* ─── Animations ─── */
+/* ─── Minimal Animations ─── */
 
 @keyframes fadeIn {
   from { opacity: 0; }
@@ -136,191 +124,64 @@
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes slide-up {
-  from { opacity: 0; transform: translateX(-50%) translateY(100%); }
-  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+.animate-fade-in {
+  animation: fadeIn 150ms ease-out;
 }
 
-/* ─── Premium Modal Animations ─── */
+.animate-slide-up {
+  animation: slideUp 150ms ease-out;
+}
+
+/* ─── Modal ─── */
 
 @keyframes modal-overlay-in {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
-@keyframes modal-overlay-out {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-
 @keyframes modal-content-in {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-}
-
-@keyframes modal-content-out {
-  from {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.95);
-  }
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.98); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 
 @keyframes sheet-in-right {
-  from {
-    opacity: 0;
-    transform: translateX(100%);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
 }
 
 @keyframes sheet-out-right {
-  from {
-    opacity: 1;
-    transform: translateX(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateX(100%);
-  }
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
 }
 
 @keyframes dropdown-in {
-  from {
-    opacity: 0;
-    transform: translateY(-4px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes row-slide-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes toast-progress {
-  from { width: 100%; }
-  to { width: 0%; }
-}
-
-@keyframes flip-in {
-  0% { transform: rotateX(90deg); opacity: 0; }
-  100% { transform: rotateX(0deg); opacity: 1; }
-}
-
-@keyframes pulse-subtle {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
-}
-
-/* ─── Global Button Press Effect ─── */
+/* ─── Global Interactions ─── */
 
 button, [role="button"] {
-  transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
 }
-
-button:active:not(:disabled), [role="button"]:active:not(:disabled) {
-  transform: scale(0.97);
-}
-
-/* ─── Table Row Hover ─── */
 
 tbody tr {
-  transition: background-color 0.2s ease;
+  transition: background-color 150ms ease;
 }
-
-/* ─── Dropdown Animation Utility ─── */
 
 [data-state="open"][data-side] {
-  animation: dropdown-in 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: dropdown-in 120ms ease-out;
 }
 
-/* ─── Row slide-in utility ─── */
-
-.animate-row-in {
-  animation: row-slide-in 0.3s ease-out both;
-}
-
-/* ─── Badge flip animation ─── */
-
-.animate-flip-in {
-  animation: flip-in 0.3s ease-out;
-}
-
-/* ─── Pulse subtle for progress badges ─── */
-
-.animate-pulse-subtle {
-  animation: pulse-subtle 1.5s ease-in-out infinite;
-}
-
-/* ─── Toast Progress Bar ─── */
-
-.toast-progress {
-  animation: toast-progress 4s linear forwards;
-}
-
-/* ─── Shimmer for bottom bar ─── */
-
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-/* ─── Print Checklist Styles ─── */
+/* ─── Print ─── */
 
 @media print {
-  body * {
-    visibility: hidden !important;
-  }
-  .print-sheet, .print-sheet * {
-    visibility: visible !important;
-  }
-  .print-sheet {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-  }
-  .no-print {
-    display: none !important;
-  }
-  .print-header {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-  .print-input {
-    border: 1px solid #ccc !important;
-    padding: 2px 4px !important;
-  }
-  .print-modal-content {
-    max-height: none !important;
-    overflow: visible !important;
-    box-shadow: none !important;
-    border: none !important;
-  }
+  body * { visibility: hidden !important; }
+  .print-sheet, .print-sheet * { visibility: visible !important; }
+  .print-sheet { position: absolute; left: 0; top: 0; width: 100%; }
+  .no-print { display: none !important; }
 }

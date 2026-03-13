@@ -14,35 +14,35 @@ interface KpiCardProps {
 export function KpiCard({ title, value, subtitle, icon, trend, className, loading }: KpiCardProps) {
   if (loading) {
     return (
-      <div className={cn("bg-card rounded-xl border border-border p-5", className)}>
+      <div className={cn("bg-card rounded-lg border border-border p-4", className)}>
         <div className="flex items-start justify-between">
           <div className="space-y-2">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-3.5 w-24" />
+            <Skeleton className="h-7 w-32" />
             <Skeleton className="h-3 w-20" />
           </div>
-          <Skeleton className="h-10 w-10 rounded-lg" />
+          <Skeleton className="h-8 w-8 rounded-md" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className={cn("bg-card rounded-xl border border-border p-5 animate-fade-in", className)}>
+    <div className={cn("bg-card rounded-lg border border-border p-4", className)}>
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="text-2xl font-bold mt-1">{value}</p>
+          <p className="text-xs font-medium text-muted-foreground">{title}</p>
+          <p className="text-xl font-semibold mt-1 tabular-nums">{value}</p>
           {subtitle && (
-            <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>
           )}
           {trend && (
-            <p className={cn("text-xs font-medium mt-1", trend.positive ? "text-success" : "text-destructive")}>
+            <p className={cn("text-[11px] font-medium mt-0.5", trend.positive ? "text-success" : "text-destructive")}>
               {trend.positive ? "↑" : "↓"} {trend.value}
             </p>
           )}
         </div>
-        <div className="p-2.5 rounded-lg bg-primary/10 text-primary">
+        <div className="p-2 rounded-md bg-primary/8 text-primary">
           {icon}
         </div>
       </div>

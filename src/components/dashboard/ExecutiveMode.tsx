@@ -4,14 +4,13 @@ import { formatBDT, formatNumber } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   useExecKpis, useExecPipeline, useExecAlerts, useExecCharts, useExecFinance,
 } from "@/hooks/use-exec-dashboard";
 import { AlertItem, PipelineStage, delta } from "./DashboardShared";
 import {
   ShoppingCart, DollarSign, TrendingUp, Wallet, AlertTriangle,
-  ArrowRight, Activity, ArrowUpRight, ArrowDownRight, Users, Receipt,
+  Activity,
 } from "lucide-react";
 import {
   AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip,
@@ -19,37 +18,27 @@ import {
 } from "recharts";
 import { OrdersBySourcePanel } from "./OrdersBySourcePanel";
 import { TopProductsPanel } from "./TopProductsPanel";
-import { AnimatedCounter } from "@/components/ui/animated-counter";
 import { cn } from "@/lib/utils";
 
 interface Props { from: string; to: string; }
 
-/* ─── KPI Card (Reference Style) ─── */
-const KpiStrip = memo(function KpiStrip({
-  label, value, icon: Icon, accentColor, onClick, loading,
+const KpiCard = memo(function KpiCard({
+  label, value, icon: Icon, color, onClick, loading,
 }: {
-  label: string;
-  value: string;
-  icon: React.ElementType;
-  accentColor?: string;
-  onClick?: () => void;
-  loading?: boolean;
+  label: string; value: string; icon: React.ElementType;
+  color?: string; onClick?: () => void; loading?: boolean;
 }) {
-  if (loading) return <Skeleton className="h-[88px] rounded-2xl" />;
+  if (loading) return <Skeleton className="h-[76px] rounded-lg" />;
   return (
     <button onClick={onClick}
-      className="bg-card rounded-2xl p-4 text-left w-full border border-border/40
-        transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]
-        hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] hover:-translate-y-[2px]
-        active:scale-[0.985] group"
+      className="bg-card rounded-lg p-3.5 text-left w-full border border-border
+        hover:border-primary/30 transition-colors duration-150 group"
     >
-      <div className="flex items-center gap-3">
-        <AnimatedCounter value={value} className="text-[28px] font-extrabold font-mono tracking-tight text-foreground leading-none" />
+      <div className="flex items-center justify-between mb-1.5">
+        <Icon className={cn("w-4 h-4", color || "text-primary")} />
       </div>
-      <div className="flex items-center gap-1.5 mt-2">
-        <Icon className={cn("w-3.5 h-3.5", accentColor || "text-primary")} />
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
-      </div>
+      <p className="text-lg font-semibold tabular-nums tracking-tight text-foreground">{value}</p>
+      <p className="text-[11px] font-medium text-muted-foreground mt-0.5">{label}</p>
     </button>
   );
 });
@@ -81,71 +70,67 @@ export const ExecutiveMode = memo(function ExecutiveMode({ from, to }: Props) {
     : 0;
 
   return (
-    <div className="space-y-5 animate-fade-in">
-      {/* ─── KPI Strip (Reference style: big number + icon label) ─── */}
+    <div className="space-y-4">
+      {/* KPI Cards */}
       <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KpiStrip label="Total Orders" value={formatNumber(kpis?.total_orders)} icon={ShoppingCart}
+        <KpiCard label="Total Orders" value={formatNumber(kpis?.total_orders)} icon={ShoppingCart}
           onClick={() => navigate("/orders")} loading={kpiL} />
-        <KpiStrip label="Delivered Revenue" value={formatBDT(kpis?.delivered_revenue)} icon={DollarSign}
-          onClick={() => navigate("/reports/pnl")} loading={kpiL} accentColor="text-success" />
-        <KpiStrip label="Gross Profit" value={formatBDT(kpis?.gross_profit)} icon={TrendingUp}
-          onClick={() => navigate("/reports/pnl")} loading={kpiL} accentColor="text-success" />
-        <KpiStrip label="Net Profit" value={formatBDT((kpis?.gross_profit ?? 0) * 0.7)} icon={TrendingUp}
-          onClick={() => navigate("/reports/pnl")} loading={kpiL} accentColor="text-success" />
-        <KpiStrip label="Liquid Cash" value={formatBDT(finance?.total_liquid)} icon={Wallet}
-          onClick={() => navigate("/finance/accounts")} loading={finL} accentColor="text-info" />
-        <KpiStrip label="Exceptions" value={String(alerts?.exceptions_open ?? 0)} icon={AlertTriangle}
+        <KpiCard label="Delivered Revenue" value={formatBDT(kpis?.delivered_revenue)} icon={DollarSign}
+          onClick={() => navigate("/reports/pnl")} loading={kpiL} color="text-success" />
+        <KpiCard label="Gross Profit" value={formatBDT(kpis?.gross_profit)} icon={TrendingUp}
+          onClick={() => navigate("/reports/pnl")} loading={kpiL} color="text-success" />
+        <KpiCard label="Net Profit" value={formatBDT((kpis?.gross_profit ?? 0) * 0.7)} icon={TrendingUp}
+          onClick={() => navigate("/reports/pnl")} loading={kpiL} color="text-success" />
+        <KpiCard label="Liquid Cash" value={formatBDT(finance?.total_liquid)} icon={Wallet}
+          onClick={() => navigate("/finance/accounts")} loading={finL} color="text-info" />
+        <KpiCard label="Exceptions" value={String(alerts?.exceptions_open ?? 0)} icon={AlertTriangle}
           onClick={() => navigate("/exceptions")} loading={alertL}
-          accentColor={totalAlerts > 0 ? "text-warning" : "text-success"} />
+          color={totalAlerts > 0 ? "text-warning" : "text-success"} />
       </section>
 
-      {/* ─── Main Grid: Charts + Alerts ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Revenue Trend (takes 2 cols) */}
-        <Card className="lg:col-span-2 border-border/30 shadow-[0_4px_16px_rgba(0,0,0,0.04)] rounded-2xl">
+      {/* Charts + Alerts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        <Card className="lg:col-span-2 border-border rounded-lg">
           <CardHeader className="pb-1">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Revenue Trend</CardTitle>
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Revenue Trend</CardTitle>
           </CardHeader>
           <CardContent>
-            {chartL ? <Skeleton className="h-[220px] rounded-xl" /> : (
-              <ResponsiveContainer width="100%" height={220}>
+            {chartL ? <Skeleton className="h-[200px] rounded-lg" /> : (
+              <ResponsiveContainer width="100%" height={200}>
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="gRevE" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.12} />
                       <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="label" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `৳${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v: number) => formatBDT(v)} contentStyle={{ borderRadius: 16, fontSize: 12, background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }} />
-                  <Area type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={2.5} fill="url(#gRevE)" />
+                  <Tooltip formatter={(v: number) => formatBDT(v)} contentStyle={{ borderRadius: 8, fontSize: 12, background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }} />
+                  <Area type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={1.5} fill="url(#gRevE)" />
                 </AreaChart>
               </ResponsiveContainer>
             )}
           </CardContent>
         </Card>
 
-        {/* Smart Alerts */}
-        <Card className="border-border/30 shadow-[0_4px_16px_rgba(0,0,0,0.04)] rounded-2xl">
+        <Card className="border-border rounded-lg">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Smart Alerts
-            </CardTitle>
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Alerts</CardTitle>
             {totalAlerts > 0 && (
-              <Badge variant="destructive" className="text-xs font-bold px-2.5 py-0.5 rounded-full">
+              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 rounded-full h-5">
                 {totalAlerts}
               </Badge>
             )}
           </CardHeader>
-          <CardContent className="space-y-0.5 max-h-[220px] overflow-y-auto">
+          <CardContent className="space-y-0.5 max-h-[200px] overflow-y-auto">
             {alertL ? (
-              <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-11 rounded-xl" />)}</div>
+              <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 rounded-lg" />)}</div>
             ) : totalAlerts === 0 ? (
               <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
-                <Activity className="w-7 h-7 mb-2 opacity-30" />
-                <p className="text-sm font-medium">All systems healthy</p>
+                <Activity className="w-5 h-5 mb-1.5 opacity-30" />
+                <p className="text-xs">All systems healthy</p>
               </div>
             ) : (
               <>
@@ -161,13 +146,13 @@ export const ExecutiveMode = memo(function ExecutiveMode({ from, to }: Props) {
         </Card>
       </div>
 
-      {/* ─── Pipeline ─── */}
+      {/* Pipeline */}
       <section>
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Order Pipeline</p>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Order Pipeline</p>
         {pipeL ? (
-          <div className="grid grid-cols-5 gap-3">{[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-[100px] rounded-2xl" />)}</div>
+          <div className="grid grid-cols-5 gap-3">{[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-[80px] rounded-lg" />)}</div>
         ) : (
-          <div className="flex gap-3 overflow-x-auto pb-1">
+          <div className="flex gap-2 overflow-x-auto pb-1">
             {[
               { status: "pending", label: "Pending", emoji: "🕐" },
               { status: "in_transit", label: "In Transit", emoji: "🚚" },
@@ -183,36 +168,36 @@ export const ExecutiveMode = memo(function ExecutiveMode({ from, to }: Props) {
         )}
       </section>
 
-      {/* ─── Charts Row: Profit + Return Rate ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="border-border/30 shadow-[0_4px_16px_rgba(0,0,0,0.04)] rounded-2xl">
-          <CardHeader className="pb-1"><CardTitle className="text-xs font-semibold text-muted-foreground uppercase">Net Profit</CardTitle></CardHeader>
+      {/* Bottom Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <Card className="border-border rounded-lg">
+          <CardHeader className="pb-1"><CardTitle className="text-xs font-medium text-muted-foreground uppercase">Net Profit</CardTitle></CardHeader>
           <CardContent>
-            {chartL ? <Skeleton className="h-[180px] rounded-xl" /> : (
-              <ResponsiveContainer width="100%" height={180}>
+            {chartL ? <Skeleton className="h-[160px] rounded-lg" /> : (
+              <ResponsiveContainer width="100%" height={160}>
                 <AreaChart data={chartData}>
-                  <defs><linearGradient id="gProfE" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.15} /><stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0} /></linearGradient></defs>
+                  <defs><linearGradient id="gProfE" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.1} /><stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0} /></linearGradient></defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="label" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `৳${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v: number) => formatBDT(v)} contentStyle={{ borderRadius: 14, fontSize: 12, background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }} />
-                  <Area type="monotone" dataKey="profit" stroke="hsl(var(--success))" strokeWidth={2} fill="url(#gProfE)" />
+                  <Tooltip formatter={(v: number) => formatBDT(v)} contentStyle={{ borderRadius: 8, fontSize: 12, background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }} />
+                  <Area type="monotone" dataKey="profit" stroke="hsl(var(--success))" strokeWidth={1.5} fill="url(#gProfE)" />
                 </AreaChart>
               </ResponsiveContainer>
             )}
           </CardContent>
         </Card>
-        <Card className="border-border/30 shadow-[0_4px_16px_rgba(0,0,0,0.04)] rounded-2xl">
-          <CardHeader className="pb-1"><CardTitle className="text-xs font-semibold text-muted-foreground uppercase">Return Rate %</CardTitle></CardHeader>
+        <Card className="border-border rounded-lg">
+          <CardHeader className="pb-1"><CardTitle className="text-xs font-medium text-muted-foreground uppercase">Return Rate %</CardTitle></CardHeader>
           <CardContent>
-            {chartL ? <Skeleton className="h-[180px] rounded-xl" /> : (
-              <ResponsiveContainer width="100%" height={180}>
+            {chartL ? <Skeleton className="h-[160px] rounded-lg" /> : (
+              <ResponsiveContainer width="100%" height={160}>
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="label" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${v}%`} />
-                  <Tooltip formatter={(v: number) => `${v}%`} contentStyle={{ borderRadius: 14, fontSize: 12, background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }} />
-                  <Line type="monotone" dataKey="return_rate" stroke="hsl(var(--destructive))" strokeWidth={2} dot={false} />
+                  <Tooltip formatter={(v: number) => `${v}%`} contentStyle={{ borderRadius: 8, fontSize: 12, background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }} />
+                  <Line type="monotone" dataKey="return_rate" stroke="hsl(var(--destructive))" strokeWidth={1.5} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             )}
@@ -220,8 +205,7 @@ export const ExecutiveMode = memo(function ExecutiveMode({ from, to }: Props) {
         </Card>
       </div>
 
-      {/* ─── Bottom Panels ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <TopProductsPanel from={from} to={to} />
         <OrdersBySourcePanel from={from} to={to} />
       </div>
