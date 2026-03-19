@@ -63,6 +63,7 @@ const iconMap: Record<string, any> = {
    Main Orders Cockpit
    ═══════════════════════════════════════════════════════ */
 function OrdersCockpit() {
+  usePageTitle("Orders");
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();

@@ -107,6 +107,7 @@ const NAV_TILES = [
 
 /* ── main page ────────────────────────────────────── */
 export default function FinancePage() {
+  usePageTitle("Finance");
   const nav = useNavigate();
   const qc = useQueryClient();
   const cash = useFinanceCashPosition();

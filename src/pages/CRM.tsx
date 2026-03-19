@@ -69,6 +69,7 @@ function getAvatarColor(name: string) {
 }
 
 export default function CRMPage() {
+  usePageTitle("CRM");
   const [activeTab, setActiveTab] = useState("customers");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");

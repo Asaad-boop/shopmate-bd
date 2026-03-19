@@ -1,4 +1,5 @@
 import { useLocation } from "react-router-dom";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { EmployeesTab } from "@/components/hrm/EmployeesTab";
 import { DepartmentsTab } from "@/components/hrm/DepartmentsTab";
 import { HrDashboardTab } from "@/components/hrm/HrDashboardTab";
