@@ -4,7 +4,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
+import { AuthProvider } from "@/hooks/use-auth";
+import { AuthGuard } from "@/components/layout/AuthGuard";
 import { AppLayout } from "@/components/layout/AppLayout";
+import LoginPage from "./pages/Login";
 import Dashboard from "./pages/Index";
 import SearchPage from "./pages/Search";
 import OrdersPage from "./pages/Orders";
@@ -78,106 +81,114 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route element={<AppLayout />}>
-            {/* Dashboard & Search */}
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/search" element={<SearchPage />} />
+        <AuthProvider>
+          <Routes>
+            {/* Public */}
+            <Route path="/login" element={<LoginPage />} />
 
-            {/* Orders */}
-            <Route path="/orders" element={<OrdersPage />} />
-            <Route path="/orders/approved" element={<ApprovedOrders />} />
-            <Route path="/orders/list" element={<OrderListPage />} />
-            <Route path="/orders/new" element={<NewOrder />} />
-            <Route path="/orders/all" element={<AllOrders />} />
-            <Route path="/orders/old" element={<OldOrdersPage />} />
-            <Route path="/orders/super-edit" element={<SuperEdit />} />
-            <Route path="/orders/pre-orders" element={<PreOrderList />} />
-            <Route path="/orders/preorders" element={<PreOrderList />} />
-            <Route path="/orders/scan" element={<ScanToUpdate />} />
-            <Route path="/orders/import-legacy" element={<ImportLegacyOrders />} />
-            <Route path="/orders/legacy-batches" element={<LegacyBatches />} />
-            <Route path="/orders/:id" element={<OrderDetail />} />
-            <Route path="/exchanges" element={<ExchangesPage />} />
+            {/* Protected */}
+            <Route element={<AuthGuard />}>
+              <Route element={<AppLayout />}>
+                {/* Dashboard & Search */}
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/search" element={<SearchPage />} />
 
-            {/* Web Orders */}
-            <Route path="/web-orders" element={<WebOrdersPage />} />
-            <Route path="/web-orders/fake-reports" element={<FakeOrderReports />} />
-            <Route path="/web-orders/:id" element={<WebOrderDetail />} />
+                {/* Orders */}
+                <Route path="/orders" element={<OrdersPage />} />
+                <Route path="/orders/approved" element={<ApprovedOrders />} />
+                <Route path="/orders/list" element={<OrderListPage />} />
+                <Route path="/orders/new" element={<NewOrder />} />
+                <Route path="/orders/all" element={<AllOrders />} />
+                <Route path="/orders/old" element={<OldOrdersPage />} />
+                <Route path="/orders/super-edit" element={<SuperEdit />} />
+                <Route path="/orders/pre-orders" element={<PreOrderList />} />
+                <Route path="/orders/preorders" element={<PreOrderList />} />
+                <Route path="/orders/scan" element={<ScanToUpdate />} />
+                <Route path="/orders/import-legacy" element={<ImportLegacyOrders />} />
+                <Route path="/orders/legacy-batches" element={<LegacyBatches />} />
+                <Route path="/orders/:id" element={<OrderDetail />} />
+                <Route path="/exchanges" element={<ExchangesPage />} />
 
-            {/* Inventory & Products */}
-            <Route path="/products" element={<ProductsPage />} />
-            <Route path="/products/new" element={<NewProduct />} />
-            <Route path="/inventory" element={<InventoryPage />} />
-            <Route path="/inventory/categories" element={<CategoryBrand />} />
-            <Route path="/inventory/warranty" element={<WarrantyPage />} />
+                {/* Web Orders */}
+                <Route path="/web-orders" element={<WebOrdersPage />} />
+                <Route path="/web-orders/fake-reports" element={<FakeOrderReports />} />
+                <Route path="/web-orders/:id" element={<WebOrderDetail />} />
 
-            {/* Meta Ads */}
-            <Route path="/meta-ads/report" element={<MetaAdsReport />} />
-            <Route path="/meta-ads/campaign-products" element={<MetaAdsCampaignProducts />} />
+                {/* Inventory & Products */}
+                <Route path="/products" element={<ProductsPage />} />
+                <Route path="/products/new" element={<NewProduct />} />
+                <Route path="/inventory" element={<InventoryPage />} />
+                <Route path="/inventory/categories" element={<CategoryBrand />} />
+                <Route path="/inventory/warranty" element={<WarrantyPage />} />
 
-            {/* Account & Finance */}
-            <Route path="/finance" element={<FinancePage />} />
-            <Route path="/finance/accounts" element={<FinanceAccountsPage />} />
-            <Route path="/finance/posting-queue" element={<PostingQueue />} />
-            <Route path="/finance/posting" element={<PostingQueue />} />
-            <Route path="/finance/settlements" element={<FinanceSettlementsPage />} />
-            <Route path="/finance/payables" element={<FinancePayablesPage />} />
-            <Route path="/finance/ledger" element={<FinanceLedgerPage />} />
-            <Route path="/accounting" element={<AccountingPage />} />
-            <Route path="/courier-cod" element={<CourierCODPage />} />
-            <Route path="/expenses" element={<ExpensesPage />} />
+                {/* Meta Ads */}
+                <Route path="/meta-ads/report" element={<MetaAdsReport />} />
+                <Route path="/meta-ads/campaign-products" element={<MetaAdsCampaignProducts />} />
 
-            {/* Imports & Goods Purchase */}
-            <Route path="/procurement" element={<ProcurementDashboard />} />
-            <Route path="/purchasing" element={<PurchasingPage />} />
-            <Route path="/purchase-orders" element={<PurchaseOrdersPage />} />
-            <Route path="/purchase-orders/new" element={<PurchaseOrderDetailPage />} />
-            <Route path="/purchase-orders/:id" element={<PurchaseOrderDetailPage />} />
-            <Route path="/suppliers" element={<SuppliersPage />} />
-            <Route path="/agents" element={<AgentsPage />} />
-            <Route path="/import-dashboard" element={<ImportDashboard />} />
-            <Route path="/imports" element={<ImportManagement />} />
+                {/* Account & Finance */}
+                <Route path="/finance" element={<FinancePage />} />
+                <Route path="/finance/accounts" element={<FinanceAccountsPage />} />
+                <Route path="/finance/posting-queue" element={<PostingQueue />} />
+                <Route path="/finance/posting" element={<PostingQueue />} />
+                <Route path="/finance/settlements" element={<FinanceSettlementsPage />} />
+                <Route path="/finance/payables" element={<FinancePayablesPage />} />
+                <Route path="/finance/ledger" element={<FinanceLedgerPage />} />
+                <Route path="/accounting" element={<AccountingPage />} />
+                <Route path="/courier-cod" element={<CourierCODPage />} />
+                <Route path="/expenses" element={<ExpensesPage />} />
 
-            {/* HRM, CRM */}
-            <Route path="/crm" element={<CRMPage />} />
-            <Route path="/hrm" element={<HRMPage />} />
-            <Route path="/hrm/employees" element={<HRMPage />} />
-            <Route path="/hrm/attendance" element={<HRMPage />} />
-            <Route path="/hrm/payroll" element={<HRMPage />} />
-            <Route path="/hrm/performance" element={<HRMPage />} />
-            <Route path="/hrm/leave" element={<HRMPage />} />
-            <Route path="/hrm/tasks" element={<HRMPage />} />
+                {/* Imports & Goods Purchase */}
+                <Route path="/procurement" element={<ProcurementDashboard />} />
+                <Route path="/purchasing" element={<PurchasingPage />} />
+                <Route path="/purchase-orders" element={<PurchaseOrdersPage />} />
+                <Route path="/purchase-orders/new" element={<PurchaseOrderDetailPage />} />
+                <Route path="/purchase-orders/:id" element={<PurchaseOrderDetailPage />} />
+                <Route path="/suppliers" element={<SuppliersPage />} />
+                <Route path="/agents" element={<AgentsPage />} />
+                <Route path="/import-dashboard" element={<ImportDashboard />} />
+                <Route path="/imports" element={<ImportManagement />} />
 
-            {/* Reports */}
-            <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/reports/executive" element={<ReportsExecutivePage />} />
-            <Route path="/reports/pnl" element={<ReportsPnL />} />
-            <Route path="/reports/cashflow" element={<ReportsCashflow />} />
-            <Route path="/reports/sku-profit" element={<ReportsSKUProfit />} />
-            <Route path="/reports/inventory-valuation" element={<ReportsInventoryValuation />} />
-            <Route path="/reports/courier-performance" element={<ReportsCourierPerformance />} />
-            <Route path="/reports/balance" element={<ReportsBalance />} />
-            <Route path="/reports/expense-analytics" element={<ReportsExpenseAnalytics />} />
+                {/* HRM, CRM */}
+                <Route path="/crm" element={<CRMPage />} />
+                <Route path="/hrm" element={<HRMPage />} />
+                <Route path="/hrm/employees" element={<HRMPage />} />
+                <Route path="/hrm/attendance" element={<HRMPage />} />
+                <Route path="/hrm/payroll" element={<HRMPage />} />
+                <Route path="/hrm/performance" element={<HRMPage />} />
+                <Route path="/hrm/leave" element={<HRMPage />} />
+                <Route path="/hrm/tasks" element={<HRMPage />} />
 
-            {/* Access */}
-            <Route path="/security/roles" element={<RolesPermissionsPage />} />
-            <Route path="/security/audit-logs" element={<AuditLogsPage />} />
-            <Route path="/exceptions" element={<ExceptionsPage />} />
+                {/* Reports */}
+                <Route path="/reports" element={<ReportsPage />} />
+                <Route path="/reports/executive" element={<ReportsExecutivePage />} />
+                <Route path="/reports/pnl" element={<ReportsPnL />} />
+                <Route path="/reports/cashflow" element={<ReportsCashflow />} />
+                <Route path="/reports/sku-profit" element={<ReportsSKUProfit />} />
+                <Route path="/reports/inventory-valuation" element={<ReportsInventoryValuation />} />
+                <Route path="/reports/courier-performance" element={<ReportsCourierPerformance />} />
+                <Route path="/reports/balance" element={<ReportsBalance />} />
+                <Route path="/reports/expense-analytics" element={<ReportsExpenseAnalytics />} />
 
-            {/* System */}
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/system-health" element={<SystemHealth />} />
-            <Route path="/marketing" element={<MarketingPage />} />
-            <Route path="/marketing/influencers" element={<MarketingInfluencersPage />} />
-            <Route path="/marketing/ugc-creators" element={<MarketingUGCPage />} />
-            <Route path="/marketing/external" element={<MarketingExternalPage />} />
+                {/* Access */}
+                <Route path="/security/roles" element={<RolesPermissionsPage />} />
+                <Route path="/security/audit-logs" element={<AuditLogsPage />} />
+                <Route path="/exceptions" element={<ExceptionsPage />} />
 
-            {/* Redirects for old routes */}
-            <Route path="/customers" element={<Navigate to="/crm" replace />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+                {/* System */}
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/system-health" element={<SystemHealth />} />
+                <Route path="/marketing" element={<MarketingPage />} />
+                <Route path="/marketing/influencers" element={<MarketingInfluencersPage />} />
+                <Route path="/marketing/ugc-creators" element={<MarketingUGCPage />} />
+                <Route path="/marketing/external" element={<MarketingExternalPage />} />
+
+                {/* Redirects */}
+                <Route path="/customers" element={<Navigate to="/crm" replace />} />
+              </Route>
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
