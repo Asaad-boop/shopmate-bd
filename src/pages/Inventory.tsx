@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useInventoryProducts, useCategories } from "@/hooks/use-inventory";
 import { useStockOnHand, type StockOnHand } from "@/hooks/use-inventory-ledger";
 import { useQueryClient } from "@tanstack/react-query";
