@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
+import { usePageTitle } from "@/hooks/use-page-title";
 import {
   useFinanceCashPosition,
   useFinanceWorkingCapital,
