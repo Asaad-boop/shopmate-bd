@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -62,6 +63,7 @@ const iconMap: Record<string, any> = {
    Main Orders Cockpit
    ═══════════════════════════════════════════════════════ */
 function OrdersCockpit() {
+  usePageTitle("Orders");
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();

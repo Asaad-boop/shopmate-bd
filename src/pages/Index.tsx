@@ -3,7 +3,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, BarChart3, Truck, Wallet, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatDate } from "@/lib/format";
+import { usePageTitle } from "@/hooks/use-page-title";
+import { useAuth } from "@/hooks/use-auth";
 
 const ExecutiveMode = lazy(() => import("@/components/dashboard/ExecutiveMode").then(m => ({ default: m.ExecutiveMode })));
 const OperationsMode = lazy(() => import("@/components/dashboard/OperationsMode").then(m => ({ default: m.OperationsMode })));
@@ -43,13 +44,28 @@ function getStoredMode(): DashboardMode {
   return "executive";
 }
 
+function getGreeting(name: string): string {
+  const h = new Date().getHours();
+  let greeting = "Good morning";
+  if (h >= 22 || h < 5) greeting = "Working late?";
+  else if (h >= 17) greeting = "Good evening";
+  else if (h >= 12) greeting = "Good afternoon";
+  return `${greeting}, ${name} 👋`;
+}
+
 export default function Dashboard() {
+  usePageTitle("Dashboard");
+  const { user } = useAuth();
+
   const [mode, setMode] = useState<DashboardMode>(getStoredMode);
   const [datePreset, setDatePreset] = useState("month");
   const [refreshing, setRefreshing] = useState(false);
   const [contentKey, setContentKey] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const { from, to } = useMemo(() => getDateRange(datePreset), [datePreset]);
+
+  const displayName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "there";
+  const greeting = useMemo(() => getGreeting(displayName), [displayName]);
 
   const handleModeChange = useCallback((m: DashboardMode) => {
     setMode(m);
@@ -63,7 +79,6 @@ export default function Dashboard() {
     setTimeout(() => setRefreshing(false), 600);
   }, []);
 
-  // Auto-refresh every 5 minutes
   useEffect(() => {
     const interval = setInterval(() => {
       setContentKey(k => k + 1);
@@ -78,34 +93,27 @@ export default function Dashboard() {
     return `${diff}m ago`;
   }, [lastUpdated]);
 
-  // Re-render time diff every 30s
   const [, setTick] = useState(0);
   useEffect(() => {
     const t = setInterval(() => setTick(k => k + 1), 30_000);
     return () => clearInterval(t);
   }, []);
 
-  const activeConfig = MODE_CONFIG.find(c => c.key === mode)!;
-
   return (
-    <div className="space-y-5">
-      {/* Header Bar */}
+    <div className="space-y-5 animate-fade-in">
+      {/* Greeting + Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-4">
-          <div>
-            <h1 className="text-xl font-bold text-foreground">Dashboard</h1>
-            <p className="text-xs text-muted-foreground">HobbyShop Control Center</p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">{greeting}</h1>
+          <p className="text-sm text-muted-foreground">Here's what's happening with your business</p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Last Updated */}
           <span className="text-[10px] text-muted-foreground flex items-center gap-1">
             <Clock className="w-3 h-3" />
             {timeDiff}
           </span>
 
-          {/* Date Tabs */}
           <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5">
             {DATE_PRESETS.map((d) => (
               <button

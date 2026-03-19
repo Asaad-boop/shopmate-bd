@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,6 +17,7 @@ import AddProductModal from "@/components/products/AddProductModal";
 
 export default function ProductsPage() {
   const navigate = useNavigate();
+  usePageTitle("Products");
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"list" | "grid">("list");
   const [stockFilter, setStockFilter] = useState("all");

@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -68,6 +69,7 @@ function getAvatarColor(name: string) {
 }
 
 export default function CRMPage() {
+  usePageTitle("CRM");
   const [activeTab, setActiveTab] = useState("customers");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");

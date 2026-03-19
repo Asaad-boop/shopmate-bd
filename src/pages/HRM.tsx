@@ -1,4 +1,5 @@
 import { useLocation } from "react-router-dom";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { EmployeesTab } from "@/components/hrm/EmployeesTab";
 import { DepartmentsTab } from "@/components/hrm/DepartmentsTab";
 import { HrDashboardTab } from "@/components/hrm/HrDashboardTab";
@@ -22,6 +23,7 @@ const routeToTab: Record<string, string> = {
 };
 
 export default function HRMPage() {
+  usePageTitle("HRM");
   const location = useLocation();
   const activeTab = routeToTab[location.pathname] || "dashboard";
 

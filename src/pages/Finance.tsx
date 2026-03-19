@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
+import { usePageTitle } from "@/hooks/use-page-title";
 import {
   useFinanceCashPosition,
   useFinanceWorkingCapital,
@@ -106,6 +107,7 @@ const NAV_TILES = [
 
 /* ── main page ────────────────────────────────────── */
 export default function FinancePage() {
+  usePageTitle("Finance");
   const nav = useNavigate();
   const qc = useQueryClient();
   const cash = useFinanceCashPosition();
