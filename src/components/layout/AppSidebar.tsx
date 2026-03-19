@@ -93,6 +93,9 @@ const NAV_SECTIONS: { title: string; items: NavItem[]; defaultCollapsed?: boolea
         label: "Marketing", icon: Megaphone, group: "Marketing",
         children: [
           { label: "Dashboard", path: "/marketing", icon: BarChart3 },
+          { label: "Influencers", path: "/marketing/influencers", icon: Users },
+          { label: "UGC Creators", path: "/marketing/ugc-creators", icon: Activity },
+          { label: "External Spend", path: "/marketing/external", icon: Globe },
           { label: "Meta Ads Report", path: "/meta-ads/report", icon: Megaphone },
           { label: "Campaign Products", path: "/meta-ads/campaign-products", icon: List },
         ],
