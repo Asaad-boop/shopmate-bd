@@ -391,6 +391,12 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+      {/* Version footer */}
+      <div className="mt-8 text-center pb-4">
+        <p className="text-xs text-muted-foreground/50">
+          ShopMate BD v1.0.0 — Built with ❤️ for Bangladesh e-commerce
+        </p>
+      </div>
     </div>
   );
 }

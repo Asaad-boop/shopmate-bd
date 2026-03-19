@@ -20,6 +20,7 @@ import AddProductModal from "@/components/products/AddProductModal";
 import OpeningStockModal from "@/components/inventory/OpeningStockModal";
 
 export default function InventoryPage() {
+  usePageTitle("Inventory");
   const { data: products, isLoading: productsLoading } = useInventoryProducts();
   const { data: categories } = useCategories();
   const { data: stockMap, isLoading: stockLoading } = useStockOnHand();
