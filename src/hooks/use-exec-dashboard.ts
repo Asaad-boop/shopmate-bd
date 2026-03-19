@@ -82,6 +82,8 @@ export function useExecKpis(from?: string, to?: string) {
       return data as unknown as ExecKpis;
     },
     staleTime: 60_000,
+    refetchInterval: 300_000,
+    retry: 1,
   });
 }
 
