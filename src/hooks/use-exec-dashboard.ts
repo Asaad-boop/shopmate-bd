@@ -145,6 +145,8 @@ export function useExecCharts(days = 14) {
       return (data as unknown as ChartDay[]) || [];
     },
     staleTime: 120_000,
+    refetchInterval: 300_000,
+    retry: 1,
   });
 }
 
