@@ -9,7 +9,7 @@ import { ChevronRight } from "lucide-react";
 const PAGE_TITLES: Record<string, string> = {
   "/": "Dashboard",
   "/search": "Search",
-  "/orders": "Order List",
+  "/orders": "Order Dashboard",
   "/orders/approved": "Approved Orders",
   "/orders/new": "New Order",
   "/orders/all": "All Orders",
@@ -27,7 +27,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/inventory/warranty": "Warranty",
   "/meta-ads/report": "Meta Ads Report",
   "/meta-ads/campaign-products": "Campaign Products",
-  "/finance": "Accounts",
+  "/finance": "Finance",
   "/finance/posting-queue": "Posting Queue",
   "/finance/accounts": "Finance Accounts",
   "/finance/settlements": "Settlements",
@@ -51,6 +51,9 @@ const PAGE_TITLES: Record<string, string> = {
   "/exceptions": "Exceptions",
   "/system-health": "System Health",
   "/marketing": "Marketing",
+  "/marketing/influencers": "Influencers",
+  "/marketing/ugc-creators": "UGC Creators",
+  "/marketing/external": "External Spend",
   "/procurement": "Procurement",
 };
 
@@ -95,9 +98,9 @@ export function AppLayout() {
   const pageTitle = PAGE_TITLES[location.pathname] || "Dashboard";
   const breadcrumb = BREADCRUMBS[location.pathname];
 
-  // Handle dynamic routes like /orders/:id
   const isDynamic = location.pathname.match(/^\/orders\/[a-f0-9-]+$/);
   const isWebDynamic = location.pathname.match(/^\/web-orders\/[a-f0-9-]+$/);
+  const isPODynamic = location.pathname.match(/^\/purchase-orders\/[a-f0-9-]+$/);
 
   return (
     <div className="flex min-h-screen w-full bg-background">
@@ -114,19 +117,19 @@ export function AppLayout() {
         >
           {/* Left: Breadcrumb + Page title */}
           <div className="flex items-center gap-1.5 min-w-0 text-sm">
-            {(breadcrumb || isDynamic || isWebDynamic) && (
+            {(breadcrumb || isDynamic || isWebDynamic || isPODynamic) && (
               <>
                 <Link
-                  to={breadcrumb?.parentPath || (isDynamic ? "/orders" : "/web-orders")}
+                  to={breadcrumb?.parentPath || (isDynamic ? "/orders" : isWebDynamic ? "/web-orders" : "/purchase-orders")}
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  {breadcrumb?.parent || (isDynamic ? "Orders" : "Web Orders")}
+                  {breadcrumb?.parent || (isDynamic ? "Orders" : isWebDynamic ? "Web Orders" : "Purchase Orders")}
                 </Link>
                 <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
               </>
             )}
             <h2 className="font-semibold text-foreground truncate">
-              {isDynamic ? "Order Detail" : isWebDynamic ? "Web Order Detail" : pageTitle}
+              {isDynamic ? "Order Detail" : isWebDynamic ? "Web Order Detail" : isPODynamic ? "PO Detail" : pageTitle}
             </h2>
           </div>
 
