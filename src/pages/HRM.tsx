@@ -23,6 +23,7 @@ const routeToTab: Record<string, string> = {
 };
 
 export default function HRMPage() {
+  usePageTitle("HRM");
   const location = useLocation();
   const activeTab = routeToTab[location.pathname] || "dashboard";
 
