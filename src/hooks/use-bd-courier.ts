@@ -22,16 +22,24 @@ export function useBDCourierBulk(phones: string[], enabled = true) {
       const uniquePhones = [...new Set(phones.filter(Boolean))];
       if (!uniquePhones.length) return {};
 
-      const { data, error } = await supabase.functions.invoke("bd-courier-check", {
-        body: { phones: uniquePhones },
-      });
-
-      if (error) {
-        console.error("BD Courier bulk check error:", error);
-        return {};
+      // Process in batches of 5 to avoid edge function compute limits
+      const results: Record<string, BDCourierResult> = {};
+      const batchSize = 5;
+      for (let i = 0; i < uniquePhones.length; i += batchSize) {
+        const batch = uniquePhones.slice(i, i + batchSize);
+        try {
+          const { data, error } = await supabase.functions.invoke("bd-courier-check", {
+            body: { phones: batch },
+          });
+          if (!error && data?.results) {
+            Object.assign(results, data.results);
+          }
+        } catch (e) {
+          console.error("BD Courier batch error:", e);
+        }
       }
 
-      return data?.results || {};
+      return results;
     },
     enabled: enabled && phones.length > 0,
     staleTime: 5 * 60 * 1000, // 5 min stale

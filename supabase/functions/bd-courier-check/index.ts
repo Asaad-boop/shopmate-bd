@@ -16,7 +16,10 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { phones, force } = await req.json();
+    const { phones: rawPhones, force } = await req.json();
+
+    // Limit to 5 phones per invocation to avoid compute limits
+    const phones = (rawPhones || []).slice(0, 5);
 
     if (!phones || !Array.isArray(phones) || phones.length === 0) {
       return new Response(JSON.stringify({ error: "phones array required" }), {
