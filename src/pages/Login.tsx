@@ -5,14 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Package, Loader2, AlertCircle } from "lucide-react";
+import { Package, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 
 export default function LoginPage() {
-  const { user, loading, signIn } = useAuth();
+  const { user, loading, signIn, signUp } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
 
   if (loading) {
     return (
@@ -27,29 +29,44 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
     setSubmitting(true);
-    const { error } = await signIn(email, password);
-    if (error) setError(error.message);
+
+    if (isSignUp) {
+      const { error } = await signUp(email, password);
+      if (error) {
+        setError(error.message);
+      } else {
+        setSuccess("Account created! Check your email to confirm, or sign in directly.");
+        setIsSignUp(false);
+      }
+    } else {
+      const { error } = await signIn(email, password);
+      if (error) setError(error.message);
+    }
     setSubmitting(false);
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-[400px] space-y-6">
-        {/* Logo */}
         <div className="flex flex-col items-center gap-3">
           <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center">
             <Package className="w-7 h-7 text-primary-foreground" />
           </div>
           <div className="text-center">
             <h1 className="text-2xl font-bold text-foreground">ShopMate BD</h1>
-            <p className="text-sm text-muted-foreground mt-1">Sign in to your ERP dashboard</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {isSignUp ? "Create your account" : "Sign in to your ERP dashboard"}
+            </p>
           </div>
         </div>
 
         <Card className="border-border">
           <CardHeader className="pb-4">
-            <h2 className="text-lg font-semibold text-center">Welcome back</h2>
+            <h2 className="text-lg font-semibold text-center">
+              {isSignUp ? "Create Account" : "Welcome back"}
+            </h2>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -57,6 +74,12 @@ export default function LoginPage() {
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{error}</span>
+                </div>
+              )}
+              {success && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 text-green-600 text-sm">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{success}</span>
                 </div>
               )}
               <div className="space-y-2">
@@ -80,13 +103,40 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  minLength={6}
                 />
               </div>
               <Button type="submit" className="w-full" disabled={submitting}>
                 {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                Sign In
+                {isSignUp ? "Sign Up" : "Sign In"}
               </Button>
             </form>
+
+            <div className="mt-4 text-center text-sm text-muted-foreground">
+              {isSignUp ? (
+                <>
+                  Already have an account?{" "}
+                  <button
+                    type="button"
+                    className="text-primary hover:underline font-medium"
+                    onClick={() => { setIsSignUp(false); setError(""); setSuccess(""); }}
+                  >
+                    Sign In
+                  </button>
+                </>
+              ) : (
+                <>
+                  Don't have an account?{" "}
+                  <button
+                    type="button"
+                    className="text-primary hover:underline font-medium"
+                    onClick={() => { setIsSignUp(true); setError(""); setSuccess(""); }}
+                  >
+                    Sign Up
+                  </button>
+                </>
+              )}
+            </div>
           </CardContent>
         </Card>
 
