@@ -183,5 +183,20 @@ tbody tr {
   body * { visibility: hidden !important; }
   .print-sheet, .print-sheet * { visibility: visible !important; }
   .print-sheet { position: absolute; left: 0; top: 0; width: 100%; }
-  .no-print { display: none !important; }
+  .no-print,
+  aside,
+  header,
+  nav,
+  [data-global-search],
+  .sticky { display: none !important; }
+  main { padding: 0 !important; margin: 0 !important; }
+}
+
+/* ─── Hover lift for KPI cards ─── */
+.hover-lift {
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -5px rgba(0,0,0,0.08);
 }
