@@ -1,8 +1,9 @@
-import { useState, useMemo, useCallback, useRef, lazy, Suspense } from "react";
+import { useState, useMemo, useCallback, useEffect, lazy, Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, FileDown, BarChart3, Truck, Wallet } from "lucide-react";
+import { RefreshCw, BarChart3, Truck, Wallet, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatDate } from "@/lib/format";
 
 const ExecutiveMode = lazy(() => import("@/components/dashboard/ExecutiveMode").then(m => ({ default: m.ExecutiveMode })));
 const OperationsMode = lazy(() => import("@/components/dashboard/OperationsMode").then(m => ({ default: m.OperationsMode })));
@@ -10,10 +11,10 @@ const FinanceMode = lazy(() => import("@/components/dashboard/FinanceMode").then
 
 type DashboardMode = "executive" | "operations" | "finance";
 
-const MODE_CONFIG: { key: DashboardMode; label: string; icon: React.ElementType }[] = [
-  { key: "executive", label: "Executive", icon: BarChart3 },
-  { key: "operations", label: "Operations", icon: Truck },
-  { key: "finance", label: "Finance", icon: Wallet },
+const MODE_CONFIG: { key: DashboardMode; label: string; icon: React.ElementType; emoji: string; activeClass: string }[] = [
+  { key: "executive", label: "Executive", icon: BarChart3, emoji: "👔", activeClass: "bg-primary text-primary-foreground shadow-md" },
+  { key: "operations", label: "Operations", icon: Truck, emoji: "⚙️", activeClass: "bg-[hsl(200,80%,50%)] text-white shadow-md" },
+  { key: "finance", label: "Finance", icon: Wallet, emoji: "💰", activeClass: "bg-[hsl(160,60%,40%)] text-white shadow-md" },
 ];
 
 const DATE_PRESETS = [
@@ -36,7 +37,7 @@ function getDateRange(preset: string): { from: string; to: string; label: string
 
 function getStoredMode(): DashboardMode {
   try {
-    const v = localStorage.getItem("dashboard_mode");
+    const v = localStorage.getItem("shopmate_dashboard_mode");
     if (v === "executive" || v === "operations" || v === "finance") return v;
   } catch {}
   return "executive";
@@ -44,53 +45,66 @@ function getStoredMode(): DashboardMode {
 
 export default function Dashboard() {
   const [mode, setMode] = useState<DashboardMode>(getStoredMode);
-  const [datePreset, setDatePreset] = useState("today");
+  const [datePreset, setDatePreset] = useState("month");
   const [refreshing, setRefreshing] = useState(false);
   const [contentKey, setContentKey] = useState(0);
-  const refreshIconRef = useRef<SVGSVGElement>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const { from, to } = useMemo(() => getDateRange(datePreset), [datePreset]);
 
   const handleModeChange = useCallback((m: DashboardMode) => {
     setMode(m);
-    setContentKey(k => k + 1);
-    try { localStorage.setItem("dashboard_mode", m); } catch {}
+    try { localStorage.setItem("shopmate_dashboard_mode", m); } catch {}
   }, []);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
     setContentKey(k => k + 1);
+    setLastUpdated(new Date());
     setTimeout(() => setRefreshing(false), 600);
   }, []);
 
+  // Auto-refresh every 5 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setContentKey(k => k + 1);
+      setLastUpdated(new Date());
+    }, 300_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const timeDiff = useMemo(() => {
+    const diff = Math.floor((Date.now() - lastUpdated.getTime()) / 60000);
+    if (diff < 1) return "Just now";
+    return `${diff}m ago`;
+  }, [lastUpdated]);
+
+  // Re-render time diff every 30s
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick(k => k + 1), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const activeConfig = MODE_CONFIG.find(c => c.key === mode)!;
+
   return (
     <div className="space-y-5">
-      {/* ─── Header Bar ─── */}
+      {/* Header Bar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          {/* Mode Tabs */}
-          <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5">
-            {MODE_CONFIG.map((c) => {
-              const active = mode === c.key;
-              return (
-                <button
-                  key={c.key}
-                  onClick={() => handleModeChange(c.key)}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150",
-                    active
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <c.icon className="w-3.5 h-3.5" />
-                  {c.label}
-                </button>
-              );
-            })}
+        <div className="flex items-center gap-4">
+          <div>
+            <h1 className="text-xl font-bold text-foreground">Dashboard</h1>
+            <p className="text-xs text-muted-foreground">HobbyShop Control Center</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Last Updated */}
+          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            {timeDiff}
+          </span>
+
           {/* Date Tabs */}
           <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5">
             {DATE_PRESETS.map((d) => (
@@ -98,7 +112,7 @@ export default function Dashboard() {
                 key={d.key}
                 onClick={() => setDatePreset(d.key)}
                 className={cn(
-                  "px-3 py-1.5 rounded-md text-xs font-medium transition-colors duration-150",
+                  "px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200",
                   datePreset === d.key
                     ? "bg-card text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -111,22 +125,44 @@ export default function Dashboard() {
 
           <Button variant="outline" size="sm" className="h-8 gap-1.5"
             onClick={handleRefresh} disabled={refreshing}>
-            <RefreshCw ref={refreshIconRef} className={cn("w-3.5 h-3.5", refreshing && "animate-spin")} />
-          </Button>
-          <Button variant="outline" size="sm" className="h-8 gap-1.5">
-            <FileDown className="w-3.5 h-3.5" />
+            <RefreshCw className={cn("w-3.5 h-3.5", refreshing && "animate-spin")} />
           </Button>
         </div>
       </div>
 
-      {/* ─── Mode Content ─── */}
+      {/* Mode Switcher */}
+      <div className="flex items-center gap-1 bg-muted/50 rounded-xl p-1 w-fit">
+        {MODE_CONFIG.map((c) => {
+          const active = mode === c.key;
+          return (
+            <button
+              key={c.key}
+              onClick={() => handleModeChange(c.key)}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200",
+                active
+                  ? c.activeClass
+                  : "text-muted-foreground hover:text-foreground hover:bg-card"
+              )}
+            >
+              <span className="text-sm">{c.emoji}</span>
+              {c.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Mode Content */}
       <div key={contentKey} className="min-h-[400px]">
         <Suspense fallback={
           <div className="space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-              {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} className="h-[80px] rounded-lg" />)}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-[110px] rounded-xl" />)}
             </div>
-            <Skeleton className="h-[240px] rounded-lg" />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <Skeleton className="lg:col-span-2 h-[300px] rounded-xl" />
+              <Skeleton className="h-[300px] rounded-xl" />
+            </div>
           </div>
         }>
           {mode === "executive" && <ExecutiveMode from={from} to={to} />}
