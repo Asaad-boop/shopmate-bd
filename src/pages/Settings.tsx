@@ -57,6 +57,7 @@ function ConnectionBadge({ status }: { status: "unknown" | "connected" | "error"
 }
 
 export default function SettingsPage() {
+  usePageTitle("Settings");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeSection, setActiveSection] = useState<SectionId>("company");
