@@ -23,7 +23,8 @@ export function GlobalSearchTrigger() {
   return (
     <button
       onClick={openSearch}
-      className="flex items-center gap-2 w-full h-10 px-3.5 rounded-[14px] bg-muted text-muted-foreground text-sm transition-all duration-200 hover:bg-accent border border-border focus:outline-none focus:ring-2 focus:ring-primary/35 cursor-pointer"
+      data-global-search
+      className="flex items-center gap-2 w-full h-9 px-3 rounded-lg bg-muted text-muted-foreground text-sm transition-all duration-200 hover:bg-accent border border-border focus:outline-none focus:ring-2 focus:ring-primary/35 cursor-pointer"
     >
       <Search className="w-4 h-4 shrink-0" />
       <span className="flex-1 text-left truncate">Search orders, products…</span>

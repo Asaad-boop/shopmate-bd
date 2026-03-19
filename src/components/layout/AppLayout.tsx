@@ -1,7 +1,10 @@
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, Link } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { GlobalSearchTrigger } from "./GlobalSearchTrigger";
+import { UserMenu } from "./UserMenu";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { ChevronRight } from "lucide-react";
 
 const PAGE_TITLES: Record<string, string> = {
   "/": "Dashboard",
@@ -48,11 +51,53 @@ const PAGE_TITLES: Record<string, string> = {
   "/exceptions": "Exceptions",
   "/system-health": "System Health",
   "/marketing": "Marketing",
+  "/procurement": "Procurement",
+};
+
+const BREADCRUMBS: Record<string, { parent: string; parentPath: string }> = {
+  "/orders/approved": { parent: "Orders", parentPath: "/orders" },
+  "/orders/new": { parent: "Orders", parentPath: "/orders" },
+  "/orders/all": { parent: "Orders", parentPath: "/orders" },
+  "/orders/old": { parent: "Orders", parentPath: "/orders" },
+  "/orders/super-edit": { parent: "Orders", parentPath: "/orders" },
+  "/orders/pre-orders": { parent: "Orders", parentPath: "/orders" },
+  "/orders/scan": { parent: "Orders", parentPath: "/orders" },
+  "/web-orders/fake-reports": { parent: "Web Orders", parentPath: "/web-orders" },
+  "/products/new": { parent: "Products", parentPath: "/products" },
+  "/inventory/categories": { parent: "Inventory", parentPath: "/inventory" },
+  "/inventory/warranty": { parent: "Inventory", parentPath: "/inventory" },
+  "/finance/posting-queue": { parent: "Finance", parentPath: "/finance" },
+  "/finance/accounts": { parent: "Finance", parentPath: "/finance" },
+  "/finance/settlements": { parent: "Finance", parentPath: "/finance" },
+  "/finance/payables": { parent: "Finance", parentPath: "/finance" },
+  "/finance/ledger": { parent: "Finance", parentPath: "/finance" },
+  "/meta-ads/report": { parent: "Marketing", parentPath: "/marketing" },
+  "/meta-ads/campaign-products": { parent: "Marketing", parentPath: "/marketing" },
+  "/reports/executive": { parent: "Reports", parentPath: "/reports" },
+  "/reports/pnl": { parent: "Reports", parentPath: "/reports" },
+  "/reports/cashflow": { parent: "Reports", parentPath: "/reports" },
+  "/reports/sku-profit": { parent: "Reports", parentPath: "/reports" },
+  "/reports/inventory-valuation": { parent: "Reports", parentPath: "/reports" },
+  "/reports/courier-performance": { parent: "Reports", parentPath: "/reports" },
+  "/reports/balance": { parent: "Reports", parentPath: "/reports" },
+  "/reports/expense-analytics": { parent: "Reports", parentPath: "/reports" },
+  "/security/roles": { parent: "System", parentPath: "/settings" },
+  "/security/audit-logs": { parent: "System", parentPath: "/settings" },
+  "/marketing/influencers": { parent: "Marketing", parentPath: "/marketing" },
+  "/marketing/ugc-creators": { parent: "Marketing", parentPath: "/marketing" },
+  "/marketing/external": { parent: "Marketing", parentPath: "/marketing" },
 };
 
 export function AppLayout() {
   const location = useLocation();
+  useKeyboardShortcuts();
+
   const pageTitle = PAGE_TITLES[location.pathname] || "Dashboard";
+  const breadcrumb = BREADCRUMBS[location.pathname];
+
+  // Handle dynamic routes like /orders/:id
+  const isDynamic = location.pathname.match(/^\/orders\/[a-f0-9-]+$/);
+  const isWebDynamic = location.pathname.match(/^\/web-orders\/[a-f0-9-]+$/);
 
   return (
     <div className="flex min-h-screen w-full bg-background">
@@ -60,36 +105,47 @@ export function AppLayout() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* ─── Glass Topbar ─── */}
         <header
-          className="sticky top-0 z-30 flex items-center justify-between h-16 px-8 border-b border-border"
+          className="sticky top-0 z-30 flex items-center justify-between h-14 px-6 border-b border-border"
           style={{
             background: "rgba(255,255,255,0.70)",
             backdropFilter: "blur(12px)",
             WebkitBackdropFilter: "blur(12px)",
           }}
         >
-          {/* Left: Page title */}
-          <div className="flex items-center gap-4 min-w-0">
-            <h2 className="text-lg font-semibold text-foreground truncate">{pageTitle}</h2>
+          {/* Left: Breadcrumb + Page title */}
+          <div className="flex items-center gap-1.5 min-w-0 text-sm">
+            {(breadcrumb || isDynamic || isWebDynamic) && (
+              <>
+                <Link
+                  to={breadcrumb?.parentPath || (isDynamic ? "/orders" : "/web-orders")}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {breadcrumb?.parent || (isDynamic ? "Orders" : "Web Orders")}
+                </Link>
+                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
+              </>
+            )}
+            <h2 className="font-semibold text-foreground truncate">
+              {isDynamic ? "Order Detail" : isWebDynamic ? "Web Order Detail" : pageTitle}
+            </h2>
           </div>
 
           {/* Right: Search + actions */}
           <div className="flex items-center gap-3">
-            <div className="w-[280px] hidden md:block">
+            <div className="w-[260px] hidden md:block">
               <GlobalSearchTrigger />
             </div>
             <NotificationDropdown />
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-semibold">
-              A
-            </div>
+            <UserMenu />
           </div>
         </header>
 
         {/* ─── Main content ─── */}
         <main
-          className="flex-1 p-8 overflow-auto"
+          className="flex-1 p-6 overflow-auto"
           style={{
             background:
-              "linear-gradient(135deg, rgba(20,184,166,0.06) 0%, rgba(15,118,110,0.02) 50%, transparent 100%)",
+              "linear-gradient(135deg, rgba(20,184,166,0.04) 0%, rgba(15,118,110,0.01) 50%, transparent 100%)",
           }}
         >
           <div className="max-w-[1400px] mx-auto">

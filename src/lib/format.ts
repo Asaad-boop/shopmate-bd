@@ -1,9 +1,33 @@
+/**
+ * Format BDT with Bangladesh-style grouping: ৳1,23,456
+ * Bangladesh uses Indian grouping: last 3 digits, then groups of 2
+ */
+function formatBDTGrouping(num: number): string {
+  const isNeg = num < 0;
+  const abs = Math.abs(num);
+  const str = Math.round(abs).toString();
+
+  if (str.length <= 3) return (isNeg ? "-" : "") + str;
+
+  const last3 = str.slice(-3);
+  let rest = str.slice(0, -3);
+  const groups: string[] = [];
+  while (rest.length > 2) {
+    groups.unshift(rest.slice(-2));
+    rest = rest.slice(0, -2);
+  }
+  if (rest.length > 0) groups.unshift(rest);
+
+  return (isNeg ? "-" : "") + groups.join(",") + "," + last3;
+}
+
 export function formatBDT(amount: number | null | undefined, decimals: boolean = false): string {
   if (amount == null) return decimals ? '৳0.00' : '৳0';
   if (decimals) {
-    return `৳${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const parts = amount.toFixed(2).split(".");
+    return `৳${formatBDTGrouping(parseFloat(parts[0]))}.${parts[1]}`;
   }
-  return `৳${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  return `৳${formatBDTGrouping(amount)}`;
 }
 
 /** Format BDT with 2 decimal places — use for courier charges */
@@ -13,7 +37,7 @@ export function formatBDT2(amount: number | null | undefined): string {
 
 export function formatNumber(num: number | null | undefined): string {
   if (num == null) return '0';
-  return num.toLocaleString();
+  return num.toLocaleString('en-IN');
 }
 
 export function formatDate(date: string | null | undefined): string {
@@ -74,7 +98,7 @@ export const validTransitions: Record<string, string[]> = {
   pending_return:      ['returned', 'damage_return'],
 };
 
-/** Action buttons config per status — maps status to available UI actions */
+/** Action buttons config per status */
 export const statusActions: Record<string, { key: string; label: string; icon: string; variant?: string }[]> = {
   pending:           [
     { key: 'packed', label: 'Mark Packed', icon: 'Package' },
