@@ -88,7 +88,11 @@ export function NotificationDropdown() {
         </div>
         <ScrollArea className="h-[320px]">
           {(!notifications || notifications.length === 0) ? (
-            <p className="text-center text-muted-foreground py-8 text-sm">No notifications</p>
+            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+              <Bell className="w-8 h-8 mb-2 opacity-30" />
+              <p className="text-sm font-medium">No new notifications</p>
+              <p className="text-xs">You're all caught up!</p>
+            </div>
           ) : (
             <div className="divide-y divide-border">
               {notifications.map((n) => (
