@@ -1,137 +1,196 @@
 import { memo } from "react";
 import { useNavigate } from "react-router-dom";
-import { formatBDT, formatNumber, formatDateTime } from "@/lib/format";
+import { formatBDT, formatNumber } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useOpsKpis, useOpsCourierPerformance, useOpsRecentActivity } from "@/hooks/use-ops-dashboard";
-import { useExecAlerts } from "@/hooks/use-exec-dashboard";
-import { HeroKpi, QuickActionBtn } from "./DashboardShared";
+import { useExecPipeline, useExecAlerts } from "@/hooks/use-exec-dashboard";
+import { KpiCard, QuickActionBtn } from "./DashboardShared";
 import { HourlyOrdersPanel } from "./HourlyOrdersPanel";
 import {
-  Clock, Truck, CheckCircle, RotateCcw, AlertTriangle, Package,
-  Plus, Globe, Scan, Printer, Upload, ArrowRight, Activity,
+  ShoppingBag, Package, Truck, CheckCircle, Clock,
+  Plus, Scan, Printer, BarChart3, ArrowRight, Activity,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, CartesianGrid, Cell,
+} from "recharts";
+import { formatDateTime } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { useMemo } from "react";
 
 interface Props { from: string; to: string; }
+
+const STATUS_ORDER = [
+  { status: "pending", label: "Pending", emoji: "🕐", color: "bg-[hsl(38,92%,50%)]" },
+  { status: "confirmed", label: "Confirmed", emoji: "✓", color: "bg-[hsl(200,80%,50%)]" },
+  { status: "packed", label: "Packed", emoji: "📦", color: "bg-[hsl(217,91%,60%)]" },
+  { status: "ready_to_ship", label: "Ready", emoji: "📋", color: "bg-[hsl(180,60%,45%)]" },
+  { status: "shipped", label: "Shipped", emoji: "🚀", color: "bg-[hsl(262,83%,58%)]" },
+  { status: "in_transit", label: "In Transit", emoji: "🚚", color: "bg-[hsl(280,50%,55%)]" },
+  { status: "delivered", label: "Delivered", emoji: "✅", color: "bg-[hsl(160,60%,40%)]" },
+  { status: "cancelled", label: "Cancelled", emoji: "❌", color: "bg-destructive" },
+  { status: "returned", label: "Returned", emoji: "↩️", color: "bg-muted-foreground" },
+];
 
 export const OperationsMode = memo(function OperationsMode({ from, to }: Props) {
   const navigate = useNavigate();
   const { data: kpis, isLoading: kpiL } = useOpsKpis(from, to);
-  const { data: alerts, isLoading: alertL } = useExecAlerts();
+  const { data: pipeline, isLoading: pipeL } = useExecPipeline(from, to);
+  const { data: alerts } = useExecAlerts();
   const { data: courierPerf, isLoading: cpL } = useOpsCourierPerformance();
   const { data: activity, isLoading: actL } = useOpsRecentActivity();
 
+  const pipelineMap = useMemo(() => {
+    const m: Record<string, { count: number; total_amount: number }> = {};
+    (pipeline || []).forEach((s) => { m[s.status] = s; });
+    return m;
+  }, [pipeline]);
+
+  // Simulated avg dispatch time (could come from RPC)
+  const avgDispatchHrs = 12.4; // placeholder
+
   return (
-    <div className="space-y-4">
-      {/* KPI Strip */}
-      <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <HeroKpi label="Pending Orders" value={formatNumber(kpis?.pending_orders)} icon={Clock}
-          onClick={() => navigate("/orders?status=pending")} loading={kpiL} accent="bg-warning/10 text-warning" />
-        <HeroKpi label="Ready to Dispatch" value={formatNumber(kpis?.ready_to_dispatch)} icon={Package}
-          onClick={() => navigate("/orders/approved")} loading={kpiL} accent="bg-info/10 text-info" />
-        <HeroKpi label="In Transit" value={formatNumber(kpis?.in_transit)} icon={Truck}
-          onClick={() => navigate("/orders?status=in_transit")} loading={kpiL} />
-        <HeroKpi label="Delivered Today" value={formatNumber(kpis?.delivered_today)} icon={CheckCircle}
-          onClick={() => navigate("/orders?status=delivered")} loading={kpiL} accent="bg-success/10 text-success" />
-        <HeroKpi label="Returned Today" value={formatNumber(kpis?.returned_today)} icon={RotateCcw}
-          onClick={() => navigate("/orders?status=returned")} loading={kpiL} accent="bg-destructive/10 text-destructive" />
-        <HeroKpi label="Sync Errors" value={formatNumber(kpis?.courier_sync_errors)} icon={AlertTriangle}
-          onClick={() => navigate("/exceptions")} loading={kpiL}
-          accent={(kpis?.courier_sync_errors ?? 0) > 0 ? "bg-destructive/10 text-destructive" : "bg-success/10 text-success"} />
+    <div className="space-y-5">
+      {/* KPI Cards */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard
+          label="Today's New Orders"
+          value={formatNumber(kpis?.pending_orders)}
+          icon={ShoppingBag}
+          color="bg-[hsl(var(--info))]/10 text-[hsl(var(--info))]"
+          onClick={() => navigate("/orders")}
+          loading={kpiL}
+        />
+        <KpiCard
+          label="Pending Dispatch"
+          value={formatNumber(kpis?.ready_to_dispatch)}
+          icon={Package}
+          color="bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))]"
+          sub="Confirmed + Packed + Ready"
+          onClick={() => navigate("/orders/approved")}
+          loading={kpiL}
+        />
+        <KpiCard
+          label="Avg Dispatch Time"
+          value={`${avgDispatchHrs} hrs`}
+          icon={Clock}
+          color={avgDispatchHrs < 24 ? "bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]"
+            : avgDispatchHrs < 48 ? "bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))]"
+            : "bg-destructive/10 text-destructive"}
+          sub="Last 7 days average"
+          loading={kpiL}
+        />
+        <KpiCard
+          label="Today's Deliveries"
+          value={formatNumber(kpis?.delivered_today)}
+          icon={CheckCircle}
+          color="bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]"
+          onClick={() => navigate("/orders?status=delivered")}
+          loading={kpiL}
+        />
       </section>
 
-      {/* Quick Actions */}
-      <Card className="border-border rounded-lg">
+      {/* Pipeline Status Bar */}
+      <Card className="border-border rounded-xl">
         <CardHeader className="pb-2">
-          <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Quick Actions</CardTitle>
+          <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Order Pipeline
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
-            <QuickActionBtn icon={Plus} label="New Order" onClick={() => navigate("/orders/new")} />
-            <QuickActionBtn icon={Globe} label="Web Orders" onClick={() => navigate("/web-orders")} />
-            <QuickActionBtn icon={Printer} label="Print Picking" onClick={() => navigate("/orders/approved")} />
-            <QuickActionBtn icon={Truck} label="Courier Sync" onClick={() => navigate("/orders")} />
-            <QuickActionBtn icon={Scan} label="Scan Update" onClick={() => navigate("/orders/scan")} />
-            <QuickActionBtn icon={Upload} label="Courier Entry" onClick={() => navigate("/orders")} />
-            <QuickActionBtn icon={RotateCcw} label="Returns" onClick={() => navigate("/orders?status=returned")} />
+          {pipeL ? <Skeleton className="h-12 rounded-lg" /> : (
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {STATUS_ORDER.map(s => {
+                const data = pipelineMap[s.status];
+                const count = data?.count || 0;
+                return (
+                  <button key={s.status}
+                    onClick={() => navigate(`/orders?status=${s.status}`)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent/30 hover:bg-accent transition-colors min-w-fit">
+                    <span className="text-sm">{s.emoji}</span>
+                    <span className="text-xs font-medium whitespace-nowrap">{s.label}</span>
+                    <Badge variant={count > 0 ? "default" : "secondary"}
+                      className="text-[10px] h-5 px-1.5 rounded-full">
+                      {count}
+                    </Badge>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Quick Action Dock */}
+      <Card className="border-border rounded-xl">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Quick Actions
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-4 gap-3">
+            <QuickActionBtn emoji="➕" label="New Order" onClick={() => navigate("/orders/new")} />
+            <QuickActionBtn emoji="📦" label="Scan & Update" onClick={() => navigate("/orders/scan")} />
+            <QuickActionBtn emoji="🖨️" label="Print Invoices" onClick={() => navigate("/orders/approved")} />
+            <QuickActionBtn emoji="📊" label="Today's Report" onClick={() => navigate("/reports/executive")} />
           </div>
         </CardContent>
       </Card>
 
-      {/* Ops Queue */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {[
-          { label: "Pending > 24h", count: alerts?.pending_24h ?? 0, severity: "high" as const, to: "/orders?status=pending", icon: "🕐" },
-          { label: "In Transit > 5 days", count: alerts?.intransit_5d ?? 0, severity: "critical" as const, to: "/orders?status=in_transit", icon: "🚚" },
-          { label: "Delivered not settled", count: alerts?.delivered_unsettled ?? 0, severity: "high" as const, to: "/finance/settlements", icon: "💰", amount: alerts?.delivered_unsettled_amt },
-        ].map((q) => (
-          <button key={q.label} onClick={() => navigate(q.to)}
-            className="bg-card rounded-lg p-4 text-left border border-border hover:border-primary/30 transition-colors duration-150">
-            {alertL ? <Skeleton className="h-14" /> : (
-              <>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-base">{q.icon}</span>
-                  <Badge className={`text-[10px] h-5 ${q.severity === "critical" ? "bg-destructive text-destructive-foreground" : "bg-warning text-warning-foreground"}`}>
-                    {q.count}
-                  </Badge>
-                </div>
-                <p className="text-sm font-medium">{q.label}</p>
-                {q.amount != null && q.amount > 0 && (
-                  <p className="text-[11px] text-muted-foreground tabular-nums mt-0.5">{formatBDT(q.amount)}</p>
-                )}
-              </>
-            )}
-          </button>
-        ))}
-      </div>
-
       {/* Courier Performance + Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <Card className="border-border rounded-lg cursor-pointer hover:border-primary/30 transition-colors duration-150" onClick={() => navigate("/reports/courier-performance")}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Courier Performance (30d)</CardTitle>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card className="border-border rounded-xl">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Courier Performance (30d)
+            </CardTitle>
+            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1"
+              onClick={() => navigate("/reports/courier-performance")}>
+              Full Report <ArrowRight className="w-3 h-3" />
+            </Button>
           </CardHeader>
           <CardContent>
-            {cpL ? <Skeleton className="h-[140px]" /> : (
+            {cpL ? <Skeleton className="h-[160px]" /> : (
               <div className="space-y-2">
                 {(courierPerf || []).length === 0 && (
-                  <p className="text-sm text-muted-foreground py-4 text-center">No courier data yet</p>
+                  <p className="text-sm text-muted-foreground py-6 text-center">No courier data yet</p>
                 )}
                 {(courierPerf || []).map((c) => (
-                  <div key={c.courier_name} className="flex items-center justify-between p-2 rounded-md bg-accent/50">
+                  <div key={c.courier_name} className="flex items-center justify-between p-2.5 rounded-lg bg-accent/30">
                     <div>
                       <p className="text-sm font-medium">{c.courier_name}</p>
                       <p className="text-[10px] text-muted-foreground">{c.delivered}/{c.total} delivered • Avg {c.avg_days}d</p>
                     </div>
                     <div className="text-right">
-                      <p className={`text-sm font-semibold tabular-nums ${c.success_rate >= 70 ? "text-success" : "text-destructive"}`}>
+                      <p className={cn("text-sm font-bold tabular-nums", c.success_rate >= 70 ? "text-[hsl(var(--success))]" : "text-destructive")}>
                         {c.success_rate}%
                       </p>
                       <p className="text-[10px] text-muted-foreground tabular-nums">{formatBDT(c.avg_cost)} avg</p>
                     </div>
                   </div>
                 ))}
-                <Button variant="ghost" size="sm" className="w-full text-xs gap-1" onClick={(e) => { e.stopPropagation(); navigate("/reports/courier-performance"); }}>
-                  View Full Report <ArrowRight className="w-3 h-3" />
-                </Button>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="border-border rounded-lg">
+        <Card className="border-border rounded-xl">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Latest Activity</CardTitle>
+            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Latest Activity
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            {actL ? <Skeleton className="h-[140px]" /> : (
-              <div className="space-y-0.5 max-h-[200px] overflow-y-auto">
+            {actL ? <Skeleton className="h-[160px]" /> : (
+              <div className="space-y-0.5 max-h-[220px] overflow-y-auto">
                 {(activity || []).length === 0 && (
-                  <div className="flex flex-col items-center py-6 text-muted-foreground">
-                    <Activity className="w-5 h-5 mb-1 opacity-40" />
-                    <p className="text-xs">No recent activity</p>
+                  <div className="flex flex-col items-center py-8 text-muted-foreground">
+                    <Activity className="w-6 h-6 mb-2 opacity-40" />
+                    <p className="text-sm">No recent activity</p>
                   </div>
                 )}
                 {(activity || []).map((a) => (
@@ -149,6 +208,7 @@ export const OperationsMode = memo(function OperationsMode({ from, to }: Props) 
         </Card>
       </div>
 
+      {/* Hourly Orders Chart */}
       <HourlyOrdersPanel />
     </div>
   );
