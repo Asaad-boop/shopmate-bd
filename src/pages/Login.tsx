@@ -17,7 +17,7 @@ const FEATURES = [
 ];
 
 export default function LoginPage() {
-  const { user, loading, signIn } = useAuth();
+  const { user, loading, signIn, signUp } = useAuth();
   const location = useLocation();
   const from = (location.state as any)?.from?.pathname || "/";
 
@@ -25,7 +25,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
 
   if (loading) {
     return (
@@ -40,9 +42,20 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
     setSubmitting(true);
-    const { error } = await signIn(email, password);
-    if (error) setError("Invalid email or password. Please try again.");
+    if (isSignUp) {
+      const { error } = await signUp(email, password);
+      if (error) {
+        setError(error.message);
+      } else {
+        setSuccess("Account created! Check your email for confirmation, or try signing in.");
+        setIsSignUp(false);
+      }
+    } else {
+      const { error } = await signIn(email, password);
+      if (error) setError("Invalid email or password. Please try again.");
+    }
     setSubmitting(false);
   };
 
@@ -96,8 +109,12 @@ export default function LoginPage() {
 
           {/* Header */}
           <div className="text-center lg:text-left">
-            <h1 className="text-2xl font-bold text-foreground">Welcome back</h1>
-            <p className="text-sm text-muted-foreground mt-1">Sign in to your workspace</p>
+            <h1 className="text-2xl font-bold text-foreground">
+              {isSignUp ? "Create account" : "Welcome back"}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {isSignUp ? "Sign up for your workspace" : "Sign in to your workspace"}
+            </p>
           </div>
 
           {/* Form */}
@@ -106,6 +123,13 @@ export default function LoginPage() {
               <div className="flex items-center gap-2.5 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{error}</span>
+              </div>
+            )}
+
+            {success && (
+              <div className="flex items-center gap-2.5 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-600">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{success}</span>
               </div>
             )}
 
@@ -135,7 +159,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={6}
-                  autoComplete="current-password"
+                  autoComplete={isSignUp ? "new-password" : "current-password"}
                   className="h-11 pr-10"
                 />
                 <button
@@ -149,21 +173,30 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Checkbox id="remember" />
-              <Label htmlFor="remember" className="text-sm text-muted-foreground font-normal cursor-pointer">
-                Remember me
-              </Label>
-            </div>
+            {!isSignUp && (
+              <div className="flex items-center gap-2">
+                <Checkbox id="remember" />
+                <Label htmlFor="remember" className="text-sm text-muted-foreground font-normal cursor-pointer">
+                  Remember me
+                </Label>
+              </div>
+            )}
 
             <Button type="submit" className="w-full h-11 text-sm font-semibold" disabled={submitting}>
               {submitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              Sign In
+              {isSignUp ? "Create Account" : "Sign In"}
             </Button>
           </form>
 
-          <p className="text-center text-xs text-muted-foreground">
-            Protected workspace — Admin access only
+          <p className="text-center text-sm text-muted-foreground">
+            {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+            <button
+              type="button"
+              onClick={() => { setIsSignUp(!isSignUp); setError(""); setSuccess(""); }}
+              className="text-primary font-medium hover:underline"
+            >
+              {isSignUp ? "Sign In" : "Sign Up"}
+            </button>
           </p>
         </div>
       </div>
