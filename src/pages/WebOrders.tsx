@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -7,55 +7,70 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { formatBDT, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { usePageTitle } from "@/hooks/use-page-title";
 import {
-  Search, Phone, MessageCircle, ExternalLink, Radio, ClipboardList, Clock,
-  CheckCircle2, PhoneOff, Pause, Wallet, XCircle, CircleCheck, Download,
-  Filter, X, CalendarDays, ArrowUpDown, MapPin, Copy, StickyNote, ShoppingBag,
-  CheckCheck, Ban, ShieldAlert, AlertTriangle,
+  Search, Phone, MessageCircle, ExternalLink, ClipboardList, Clock,
+  CheckCircle2, PhoneOff, Pause, Wallet, XCircle, Download,
+  Filter, X, CalendarDays, ArrowUpDown, Copy, ShoppingBag,
+  CheckCheck, Ban, ShieldAlert, AlertTriangle, Plus,
+  CreditCard, PhoneMissed, CircleCheck, MoreVertical,
+  Globe, TrendingUp, Package, BarChart3,
 } from "lucide-react";
-import { useBDCourierBulk, getSuccessColor } from "@/hooks/use-bd-courier";
+import { useBDCourierBulk } from "@/hooks/use-bd-courier";
 import {
   DropdownMenu as DropdownMenuRoot,
   DropdownMenuContent as DDContent,
   DropdownMenuItem as DDItem,
   DropdownMenuTrigger as DDTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 
+/* ═══════════════════════════════════════════════════════════════
+   WEB STATUSES — Tab config with icons & colors
+   ═══════════════════════════════════════════════════════════════ */
 const WEB_STATUSES = [
-  { key: "processing", label: "Processing", icon: Clock, badgeColor: "bg-orange-500", dotColor: "bg-orange-400" },
-  { key: "good_but_no_response", label: "Good", icon: CheckCircle2, badgeColor: "bg-emerald-500", dotColor: "bg-emerald-400" },
-  { key: "no_response", label: "No Response", icon: PhoneOff, badgeColor: "bg-slate-500", dotColor: "bg-slate-400" },
-  { key: "on_hold", label: "On Hold", icon: Pause, badgeColor: "bg-amber-500", dotColor: "bg-amber-400" },
-  { key: "advance_payment", label: "Advance", icon: Wallet, badgeColor: "bg-blue-500", dotColor: "bg-blue-400" },
-  { key: "cancel", label: "Cancel", icon: XCircle, badgeColor: "bg-red-500", dotColor: "bg-red-400" },
-  { key: "confirm", label: "Confirm", icon: CircleCheck, badgeColor: "bg-emerald-600", dotColor: "bg-emerald-500" },
-  { key: "all", label: "All", icon: ClipboardList, badgeColor: "bg-slate-700", dotColor: "bg-slate-500" },
+  { key: "processing",           label: "Processing",     icon: Clock,        color: "orange",  bg: "bg-orange-500",  bgLight: "bg-orange-50  text-orange-700 border-orange-200" },
+  { key: "good_but_no_response", label: "Good / No Resp", icon: PhoneOff,     color: "blue",    bg: "bg-blue-500",    bgLight: "bg-blue-50    text-blue-700   border-blue-200" },
+  { key: "no_response",          label: "No Response",    icon: PhoneMissed,  color: "slate",   bg: "bg-slate-500",   bgLight: "bg-slate-50   text-slate-700  border-slate-200" },
+  { key: "advance_payment",      label: "Advance",        icon: CreditCard,   color: "green",   bg: "bg-emerald-500", bgLight: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  { key: "on_hold",              label: "On Hold",        icon: Pause,        color: "purple",  bg: "bg-purple-500",  bgLight: "bg-purple-50  text-purple-700 border-purple-200" },
+  { key: "confirm",              label: "Complete",       icon: CircleCheck,  color: "emerald", bg: "bg-emerald-600", bgLight: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  { key: "cancel",               label: "Cancel",         icon: XCircle,      color: "red",     bg: "bg-red-500",     bgLight: "bg-red-50     text-red-700    border-red-200" },
+  { key: "all",                  label: "All",            icon: ClipboardList,color: "default", bg: "bg-slate-700",   bgLight: "bg-muted      text-foreground border-border" },
 ] as const;
 
 const SORT_OPTIONS = [
   { key: "newest", label: "Newest First" },
   { key: "oldest", label: "Oldest First" },
-  { key: "success_rate", label: "Success Rate" },
+  { key: "amount_high", label: "Amount: High → Low" },
+  { key: "amount_low", label: "Amount: Low → High" },
 ];
 
+const PAGE_SIZES = [20, 50, 100];
+
+/* ═══════════════════════════════════════════════════════════════ */
+
 export default function WebOrdersPage() {
+  usePageTitle("Web Orders");
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+
   const [activeTab, setActiveTab] = useState("processing");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
@@ -64,6 +79,8 @@ export default function WebOrdersPage() {
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [siteFilter, setSiteFilter] = useState<string | null>(null);
   const [syncCountdown, setSyncCountdown] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   // Auto-refresh countdown
   useEffect(() => {
@@ -88,14 +105,12 @@ export default function WebOrdersPage() {
     },
   });
 
+  // Realtime listener
   useEffect(() => {
     const channel = supabase
       .channel("web-orders-realtime")
       .on("postgres_changes", {
-        event: "INSERT",
-        schema: "public",
-        table: "orders",
-        filter: "channel=eq.shopify",
+        event: "INSERT", schema: "public", table: "orders", filter: "channel=eq.shopify",
       }, (payload) => {
         toast({ title: "🛍️ নতুন Shopify Order এসেছে!", description: `Order: ${(payload.new as any).order_number}` });
         setLastSynced(new Date());
@@ -105,6 +120,7 @@ export default function WebOrdersPage() {
     return () => { supabase.removeChannel(channel); };
   }, [queryClient, toast]);
 
+  // Fetch orders
   const { data: orders, isLoading } = useQuery({
     queryKey: ["web-orders"],
     queryFn: async () => {
@@ -117,6 +133,7 @@ export default function WebOrdersPage() {
       if (error) throw error;
       return data;
     },
+    refetchInterval: 300000,
   });
 
   // Duplicate phone detection
@@ -129,7 +146,6 @@ export default function WebOrdersPage() {
     return counts;
   }, [orders]);
 
-  // Mark suspicious mutation
   const markSuspicious = useMutation({
     mutationFn: async (orderId: string) => {
       const { error } = await supabase.from("orders").update({ web_order_status: "on_hold", notes: "⚠️ Marked suspicious" } as any).eq("id", orderId);
@@ -149,6 +165,7 @@ export default function WebOrdersPage() {
   const { data: bdCourierData, isLoading: bdLoading } = useBDCourierBulk(customerPhones, customerPhones.length > 0);
 
   const orderIds = orders?.map((o) => o.id) || [];
+
   const { data: allItems } = useQuery({
     queryKey: ["web-order-items", orderIds.length],
     queryFn: async () => {
@@ -193,6 +210,22 @@ export default function WebOrdersPage() {
     return map;
   }, [allItems]);
 
+  // KPI calculations
+  const kpis = useMemo(() => {
+    if (!orders) return { today: 0, processing: 0, monthRevenue: 0, avgSuccess: 0 };
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    let today = 0, processing = 0, monthRevenue = 0;
+    orders.forEach((o) => {
+      if (new Date(o.created_at || "") >= startOfDay) today++;
+      if ((o.web_order_status || "processing") === "processing") processing++;
+      if (new Date(o.created_at || "") >= startOfMonth) monthRevenue += Number(o.total_amount || 0);
+    });
+    return { today, processing, monthRevenue, avgSuccess: 0 };
+  }, [orders]);
+
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { all: 0 };
     const values: Record<string, number> = { all: 0 };
@@ -201,19 +234,15 @@ export default function WebOrdersPage() {
       counts.all++;
       values.all += Number(o.total_amount || 0);
       const st = o.web_order_status || "processing";
-      if (counts[st] !== undefined) {
-        counts[st]++;
-        values[st] += Number(o.total_amount || 0);
-      }
+      if (counts[st] !== undefined) { counts[st]++; values[st] += Number(o.total_amount || 0); }
     });
     return { counts, values };
   }, [orders]);
 
+  // Filtering + sorting
   const filtered = useMemo(() => {
     let list = orders || [];
-    if (activeTab !== "all") {
-      list = list.filter((o) => (o.web_order_status || "processing") === activeTab);
-    }
+    if (activeTab !== "all") list = list.filter((o) => (o.web_order_status || "processing") === activeTab);
     if (search) {
       const s = search.toLowerCase();
       list = list.filter((o) =>
@@ -222,30 +251,31 @@ export default function WebOrdersPage() {
         (o.customers as any)?.phone?.includes(s)
       );
     }
-    if (siteFilter) {
-      list = list.filter((o) => o.channel === siteFilter);
-    }
-    if (dateRange.from) {
-      list = list.filter((o) => new Date(o.created_at || "") >= dateRange.from!);
-    }
+    if (siteFilter) list = list.filter((o) => o.channel === siteFilter);
+    if (dateRange.from) list = list.filter((o) => new Date(o.created_at || "") >= dateRange.from!);
     if (dateRange.to) {
-      const endOfDay = new Date(dateRange.to);
-      endOfDay.setHours(23, 59, 59, 999);
-      list = list.filter((o) => new Date(o.created_at || "") <= endOfDay);
+      const end = new Date(dateRange.to); end.setHours(23, 59, 59, 999);
+      list = list.filter((o) => new Date(o.created_at || "") <= end);
     }
-    // Sort
-    if (sortBy === "oldest") {
-      list = [...list].sort((a, b) => new Date(a.created_at || "").getTime() - new Date(b.created_at || "").getTime());
-    }
+    if (sortBy === "oldest") list = [...list].sort((a, b) => new Date(a.created_at || "").getTime() - new Date(b.created_at || "").getTime());
+    else if (sortBy === "amount_high") list = [...list].sort((a, b) => Number(b.total_amount || 0) - Number(a.total_amount || 0));
+    else if (sortBy === "amount_low") list = [...list].sort((a, b) => Number(a.total_amount || 0) - Number(b.total_amount || 0));
     return list;
   }, [orders, activeTab, search, siteFilter, dateRange, sortBy]);
 
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginatedOrders = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page, pageSize]);
+
+  // Reset page on filter change
+  useEffect(() => { setPage(1); }, [activeTab, search, siteFilter, dateRange, sortBy]);
+
   const bulkMutation = useMutation({
     mutationFn: async (newStatus: string) => {
-      const { error } = await supabase
-        .from("orders")
-        .update({ web_order_status: newStatus })
-        .in("id", selected);
+      const { error } = await supabase.from("orders").update({ web_order_status: newStatus }).in("id", selected);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -256,22 +286,16 @@ export default function WebOrdersPage() {
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
-  const toggleSelect = (id: string) => {
-    setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
-  };
+  const toggleSelect = (id: string) => setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   const toggleAll = () => {
-    if (selected.length === filtered.length) setSelected([]);
-    else setSelected(filtered.map((o) => o.id));
+    if (selected.length === paginatedOrders.length) setSelected([]);
+    else setSelected(paginatedOrders.map((o) => o.id));
   };
 
-  const timeAgo = (dateStr: string) => {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
-  };
+  const copyToClipboard = useCallback((text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: "Copied!", description: text });
+  }, [toast]);
 
   const isNew = (dateStr: string | null) => {
     if (!dateStr) return false;
@@ -281,14 +305,14 @@ export default function WebOrdersPage() {
   const getSuccessRate = (customer: any) => {
     if (!customer?.phone) return { percent: 0, delivered: 0, total: 0, rating: 0, loading: false, noData: true };
     const bdData = bdCourierData?.[customer.phone];
-    if (!bdData || bdData.error) {
-      return { percent: 0, delivered: 0, total: 0, rating: 0, loading: bdLoading, noData: !bdData };
-    }
-    const percent = bdData.success_rate || 0;
-    const total = bdData.total_orders || 0;
-    const delivered = bdData.successful_orders || 0;
-    const rating = percent >= 90 ? 5 : percent >= 70 ? 4 : percent >= 50 ? 3 : percent >= 30 ? 2 : 1;
-    return { percent, delivered, total, rating, loading: false, noData: false };
+    if (!bdData || bdData.error) return { percent: 0, delivered: 0, total: 0, rating: 0, loading: bdLoading, noData: !bdData };
+    return {
+      percent: bdData.success_rate || 0,
+      delivered: bdData.successful_orders || 0,
+      total: bdData.total_orders || 0,
+      rating: (bdData.success_rate || 0) >= 90 ? 5 : (bdData.success_rate || 0) >= 70 ? 4 : (bdData.success_rate || 0) >= 50 ? 3 : 2,
+      loading: false, noData: false,
+    };
   };
 
   const activeFilters: { label: string; onRemove: () => void }[] = [];
@@ -299,87 +323,96 @@ export default function WebOrdersPage() {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="space-y-4 animate-fade-in">
-        {/* ═══ Sticky Header ═══ */}
-        <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl -mx-6 px-6 py-4 border-b border-border/50">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground tracking-tight">Web Orders</h1>
-              <p className="text-sm text-muted-foreground mt-0.5">Website & Shopify orders — verify via phone call</p>
-            </div>
-            <div className="flex items-center gap-2">
-              {/* Export */}
-              <Button variant="outline" size="sm" className="gap-1.5 text-xs h-9 rounded-xl">
-                <Download className="w-3.5 h-3.5" /> Export
-              </Button>
-              {/* Live Sync */}
-              {shopifyConnected && (
-                <div className="flex items-center gap-2.5 bg-emerald-50 border border-emerald-200/60 rounded-xl px-3.5 py-2">
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-                  </span>
-                  <span className="text-xs font-semibold text-emerald-700">Live Sync</span>
-                  <span className="text-[10px] text-emerald-600/70 font-medium">{syncAgoText}</span>
-                </div>
-              )}
-            </div>
+      <div className="space-y-5 animate-fade-in">
+
+        {/* ═══════════════════════════════════════════════════════════
+            PAGE HEADER
+        ═══════════════════════════════════════════════════════════ */}
+        <div className="flex items-start justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Web Orders</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Shopify store orders and fulfillment
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Live sync badge */}
+            {shopifyConnected && (
+              <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/40 rounded-xl px-3 py-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
+                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Live</span>
+                <span className="text-[10px] text-emerald-600/70 dark:text-emerald-500/70">{syncAgoText}</span>
+              </div>
+            )}
+            <Button variant="outline" size="sm" className="gap-1.5 h-9 rounded-lg text-xs">
+              <Download className="w-3.5 h-3.5" /> Export
+            </Button>
+            <Button size="sm" className="gap-1.5 h-9 rounded-lg text-xs" onClick={() => navigate("/orders/new")}>
+              <Plus className="w-3.5 h-3.5" /> New Order
+            </Button>
           </div>
         </div>
 
-        {/* ═══ Status Tab Bar ═══ */}
-        <div className="overflow-x-auto pb-1 -mx-1 px-1">
-          <div className="inline-flex items-center gap-1 p-1 bg-muted/50 rounded-2xl border border-border/40">
+        {/* ═══════════════════════════════════════════════════════════
+            KPI CARDS
+        ═══════════════════════════════════════════════════════════ */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <KpiCard icon={ShoppingBag} label="Today's Orders" value={isLoading ? null : kpis.today} color="blue" />
+          <KpiCard icon={Clock} label="Processing" value={isLoading ? null : kpis.processing} color="orange" />
+          <KpiCard icon={TrendingUp} label="Revenue (Month)" value={isLoading ? null : formatBDT(kpis.monthRevenue)} color="emerald" />
+          <KpiCard icon={BarChart3} label="Total Orders" value={isLoading ? null : statusCounts.counts.all} color="purple" />
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════════
+            STATUS TABS — Pill style with icons
+        ═══════════════════════════════════════════════════════════ */}
+        <div className="overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
+          <div className="inline-flex items-center gap-1 p-1 bg-muted/40 rounded-xl border border-border/30">
             {WEB_STATUSES.map((s) => {
               const Icon = s.icon;
               const isActive = activeTab === s.key;
               const count = statusCounts.counts[s.key] || 0;
               return (
-                <Tooltip key={s.key}>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => { setActiveTab(s.key); setSelected([]); }}
-                      className={cn(
-                        "relative flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium whitespace-nowrap",
-                        "transition-all duration-300 ease-out",
-                        isActive
-                          ? "bg-card text-foreground shadow-sm border border-border/60"
-                          : "text-muted-foreground hover:text-foreground hover:bg-card/50"
-                      )}
-                    >
-                      <Icon className="w-3.5 h-3.5" strokeWidth={isActive ? 2.2 : 1.8} />
-                      <span>{s.label}</span>
-                      {count > 0 && (
-                        <span className={cn(
-                          "ml-0.5 text-[10px] font-bold min-w-[18px] h-[18px] px-1 rounded-full inline-flex items-center justify-center transition-all duration-300",
-                          isActive
-                            ? cn(s.badgeColor, "text-white shadow-sm")
-                            : "bg-muted text-muted-foreground"
-                        )}>
-                          {count}
-                        </span>
-                      )}
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="text-xs">
-                    <p>{s.label}: {count} orders</p>
-                    <p className="text-muted-foreground">{formatBDT(statusCounts.values[s.key] || 0)}</p>
-                  </TooltipContent>
-                </Tooltip>
+                <button
+                  key={s.key}
+                  onClick={() => { setActiveTab(s.key); setSelected([]); }}
+                  className={cn(
+                    "relative flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-200",
+                    isActive
+                      ? "bg-card text-foreground shadow-sm border border-border/60"
+                      : "text-muted-foreground hover:text-foreground hover:bg-card/40"
+                  )}
+                >
+                  <Icon className={cn("w-3.5 h-3.5", isActive && s.color !== "default" && `text-${s.color}-500`)} strokeWidth={isActive ? 2.2 : 1.8} />
+                  <span>{s.label}</span>
+                  {count > 0 && (
+                    <span className={cn(
+                      "text-[10px] font-bold min-w-[18px] h-[18px] px-1 rounded-full inline-flex items-center justify-center",
+                      isActive ? cn(s.bg, "text-white") : "bg-muted text-muted-foreground"
+                    )}>
+                      {count}
+                    </span>
+                  )}
+                </button>
               );
             })}
           </div>
         </div>
 
-        {/* ═══ Search & Filters ═══ */}
+        {/* ═══════════════════════════════════════════════════════════
+            SEARCH & FILTER BAR
+        ═══════════════════════════════════════════════════════════ */}
         <div className="flex flex-wrap gap-2 items-center">
-          <div className="relative flex-1 min-w-[260px]">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <div className="relative flex-1 min-w-[260px] max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search by phone, name, order ID..."
+              placeholder="Search phone, name, order ID, SKU..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 h-10 rounded-xl"
+              className="pl-9 h-9 rounded-lg text-sm"
             />
             {search && (
               <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
@@ -391,9 +424,9 @@ export default function WebOrdersPage() {
           {/* Date Range */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className={cn("gap-1.5 text-xs h-10 rounded-xl", dateRange.from && "border-primary text-primary")}>
+              <Button variant="outline" size="sm" className={cn("gap-1.5 text-xs h-9 rounded-lg", dateRange.from && "border-primary text-primary")}>
                 <CalendarDays className="w-3.5 h-3.5" />
-                {dateRange.from ? `${format(dateRange.from, "dd MMM")}${dateRange.to ? ` - ${format(dateRange.to, "dd MMM")}` : ""}` : "Date Range"}
+                {dateRange.from ? `${format(dateRange.from, "dd MMM")}${dateRange.to ? ` – ${format(dateRange.to, "dd MMM")}` : ""}` : "Date Range"}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
@@ -407,11 +440,11 @@ export default function WebOrdersPage() {
             </PopoverContent>
           </Popover>
 
-          {/* Site filter */}
+          {/* Site Filter */}
           <DropdownMenuRoot>
             <DDTrigger asChild>
-              <Button variant="outline" size="sm" className={cn("gap-1.5 text-xs h-10 rounded-xl", siteFilter && "border-primary text-primary")}>
-                <Filter className="w-3.5 h-3.5" /> {siteFilter ? siteFilter : "Site"}
+              <Button variant="outline" size="sm" className={cn("gap-1.5 text-xs h-9 rounded-lg", siteFilter && "border-primary text-primary")}>
+                <Globe className="w-3.5 h-3.5" /> {siteFilter || "Site"}
               </Button>
             </DDTrigger>
             <DDContent align="start">
@@ -424,7 +457,7 @@ export default function WebOrdersPage() {
           {/* Sort */}
           <DropdownMenuRoot>
             <DDTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 text-xs h-10 rounded-xl">
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs h-9 rounded-lg">
                 <ArrowUpDown className="w-3.5 h-3.5" /> Sort
               </Button>
             </DDTrigger>
@@ -437,254 +470,197 @@ export default function WebOrdersPage() {
             </DDContent>
           </DropdownMenuRoot>
 
-          {/* Bulk actions inline when selected */}
+          {/* Selection count */}
           {selected.length > 0 && (
-            <Button variant="outline" size="sm" className="gap-1.5 text-xs h-10 rounded-xl ml-auto" onClick={() => setSelected([])}>
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs h-9 rounded-lg ml-auto" onClick={() => setSelected([])}>
               {selected.length} selected <X className="w-3 h-3" />
             </Button>
           )}
         </div>
 
-        {/* Active Filters Chips */}
+        {/* Active filter chips */}
         {activeFilters.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {activeFilters.map((f, i) => (
-              <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/5 border border-primary/20 text-xs font-medium text-primary">
+              <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-primary/5 border border-primary/20 text-xs font-medium text-primary">
                 {f.label}
                 <button onClick={f.onRemove} className="hover:text-primary/70"><X className="w-3 h-3" /></button>
               </span>
             ))}
-            <button
-              onClick={() => { setSiteFilter(null); setDateRange({}); setSortBy("newest"); }}
-              className="text-xs text-muted-foreground hover:text-foreground underline"
-            >
+            <button onClick={() => { setSiteFilter(null); setDateRange({}); setSortBy("newest"); }} className="text-xs text-muted-foreground hover:text-foreground underline">
               Clear all
             </button>
           </div>
         )}
 
-        {/* ═══ Table / Cards ═══ */}
-        <div className="bg-card rounded-2xl border border-border/40 shadow-sm overflow-hidden">
+        {/* ═══════════════════════════════════════════════════════════
+            TABLE
+        ═══════════════════════════════════════════════════════════ */}
+        <div className="bg-card rounded-xl border border-border/40 shadow-sm overflow-hidden">
           {isLoading ? (
-            <div className="p-6 space-y-3">
+            <div className="p-4 space-y-2">
               {Array.from({ length: 8 }).map((_, i) => (
-                <Skeleton key={i} className="h-[72px] w-full rounded-xl" />
+                <Skeleton key={i} className="h-[68px] w-full rounded-lg" />
               ))}
             </div>
           ) : isMobile ? (
-            /* ─── Mobile Card View ─── */
-            <div className="divide-y divide-border/40">
-              {filtered.map((order) => {
-                const customer = order.customers as any;
-                const items = itemsByOrder.get(order.id) || [];
-                const sr = getSuccessRate(customer);
-                const isSelected = selected.includes(order.id);
-                const firstItem = items[0];
-                const product = firstItem?.products as any;
-
-                return (
-                  <div
-                    key={order.id}
-                    className={cn(
-                      "p-4 space-y-3 transition-colors",
-                      isSelected ? "bg-primary/5" : "hover:bg-muted/30"
-                    )}
-                  >
-                    <div className="flex items-start gap-3">
-                      <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(order.id)} className="mt-1" />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-bold text-foreground">#{order.order_number}</span>
-                          <div className="flex items-center gap-1.5">
-                            {isNew(order.created_at) && (
-                              <span className="text-[9px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">NEW</span>
-                            )}
-                            {order.channel === "shopify" && (
-                              <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">🛍️ Shopify</span>
-                            )}
-                            {(order as any).needs_address_review && (
-                              <span className="text-[9px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">⚠️ Address</span>
-                            )}
-                          </div>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">{formatDateTime(order.created_at)}</p>
-                      </div>
-                    </div>
-
-                    <div className="ml-7 space-y-2">
-                      {/* Customer */}
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold">{customer?.full_name || "—"}</span>
-                        <span className="text-xs text-muted-foreground">{customer?.phone}</span>
-                      </div>
-
-                      {/* Product */}
-                      {firstItem && (
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center overflow-hidden border border-border/60">
-                            {product?.image_url ? (
-                              <img src={product.image_url} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              <ShoppingBag className="w-3.5 h-3.5 text-muted-foreground" />
-                            )}
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold text-primary">{product?.sku || "-"}</p>
-                            <p className="text-[11px] text-muted-foreground">{formatBDT(firstItem.unit_price)} × {firstItem.quantity}</p>
-                          </div>
-                          {items.length > 1 && <span className="text-[10px] text-muted-foreground">+{items.length - 1} more</span>}
-                        </div>
-                      )}
-
-                      {/* Actions */}
-                      <div className="flex items-center gap-2 pt-1">
-                        {customer?.phone && (
-                          <>
-                            <a href={`tel:${customer.phone}`} className="inline-flex items-center gap-1 text-xs text-blue-600 font-medium"><Phone className="w-3 h-3" /> Call</a>
-                            <a href={`https://wa.me/${customer.phone?.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium"><MessageCircle className="w-3 h-3" /> WhatsApp</a>
-                          </>
-                        )}
-                        <button onClick={() => navigate(`/web-orders/${order.id}`)} className="inline-flex items-center gap-1 text-xs text-primary font-semibold ml-auto">
-                          Open <ExternalLink className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-              {filtered.length === 0 && (
-                <EmptyState tab={activeTab} />
-              )}
-            </div>
+            <MobileCardList
+              orders={paginatedOrders}
+              itemsByOrder={itemsByOrder}
+              selected={selected}
+              toggleSelect={toggleSelect}
+              navigate={navigate}
+              getSuccessRate={getSuccessRate}
+              isNew={isNew}
+              copyToClipboard={copyToClipboard}
+              activeTab={activeTab}
+            />
           ) : (
-            /* ─── Desktop Table ─── */
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead>
+                <thead className="sticky top-0 bg-muted/60 backdrop-blur-sm z-10">
                   <tr className="border-b border-border/60">
-                    <th className="px-4 py-3 text-left w-12">
+                    <th className="px-3 py-3 text-left w-10">
                       <Checkbox
-                        checked={filtered.length > 0 && selected.length === filtered.length}
+                        checked={paginatedOrders.length > 0 && selected.length === paginatedOrders.length}
                         onCheckedChange={toggleAll}
                       />
                     </th>
-                    {["Created At", "Customer", "District", "Items", "Total", "Risk Score", "Auto Checks", "Site", ""].map((h) => (
-                      <th key={h} className="px-4 py-3 text-left text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        {h}
+                    {[
+                      { label: "Order Info", w: "min-w-[160px]" },
+                      { label: "Customer", w: "min-w-[200px]" },
+                      { label: "Items", w: "min-w-[160px]" },
+                      { label: "Value", w: "min-w-[100px]" },
+                      { label: "District", w: "min-w-[100px]" },
+                      { label: "Risk", w: "min-w-[80px]" },
+                      { label: "Success Rate", w: "min-w-[120px]" },
+                      { label: "Site", w: "min-w-[80px]" },
+                      { label: "", w: "w-[100px]" },
+                    ].map((h) => (
+                      <th key={h.label} className={cn("px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground", h.w)}>
+                        {h.label}
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((order, idx) => {
+                  {paginatedOrders.map((order, idx) => {
                     const customer = order.customers as any;
                     const items = itemsByOrder.get(order.id) || [];
                     const sr = getSuccessRate(customer);
                     const isSelected = selected.includes(order.id);
-                    const isRepeat = (customer?.total_orders || 0) > 1;
                     const isBlocked = customer?.is_blocked;
                     const isDuplicate = customer?.phone && (phoneCounts.get(customer.phone) || 0) > 1;
                     const riskFlags = customer?.risk_flags || [];
-                    const hasHighReturn = riskFlags.includes("high_return");
-                    const hasFreqCancel = riskFlags.includes("frequent_cancel");
-                    const riskScore = (isBlocked ? 40 : 0) + (hasHighReturn ? 30 : 0) + (hasFreqCancel ? 20 : 0) + (isDuplicate ? 10 : 0) + (sr.percent < 50 && !sr.noData ? 20 : 0);
+                    const riskScore = (isBlocked ? 40 : 0) + (riskFlags.includes("high_return") ? 30 : 0) + (riskFlags.includes("frequent_cancel") ? 20 : 0) + (isDuplicate ? 10 : 0) + (sr.percent < 50 && !sr.noData ? 20 : 0);
+                    const note = latestNotes instanceof Map ? latestNotes.get(order.id) : undefined;
 
                     return (
                       <tr
                         key={order.id}
                         className={cn(
-                          "group border-b border-border/30 transition-all duration-200",
-                          isSelected ? "bg-primary/5" : isBlocked ? "bg-red-50/30" : idx % 2 === 1 ? "bg-muted/20" : "",
-                          "hover:bg-muted/40 hover:shadow-[0_2px_8px_-2px_rgba(0,0,0,0.06)]"
+                          "group border-b border-border/20 transition-all duration-150",
+                          isSelected ? "bg-primary/5" : isBlocked ? "bg-destructive/5" : idx % 2 === 1 ? "bg-muted/15" : "",
+                          "hover:bg-accent/40"
                         )}
-                        style={{ height: '72px' }}
+                        style={{ height: "68px" }}
                       >
-                        <td className="px-4 py-3">
+                        {/* Checkbox */}
+                        <td className="px-3 py-3">
                           <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(order.id)} />
                         </td>
 
-                        {/* ── Created At ── */}
-                        <td className="px-4 py-3">
+                        {/* Order Info */}
+                        <td className="px-3 py-3">
                           <div className="space-y-1">
                             <div className="flex items-center gap-1.5">
-                              <p className="text-[13px] font-semibold text-foreground whitespace-nowrap">
-                                {new Date(order.created_at || "").toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
-                              </p>
-                              <span className="text-[11px] text-muted-foreground">
-                                {new Date(order.created_at || "").toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
-                              </span>
+                              <button onClick={() => navigate(`/web-orders/${order.id}`)} className="text-[13px] font-bold text-primary hover:underline">
+                                #{order.order_number}
+                              </button>
                               {isNew(order.created_at) && (
-                                <span className="text-[8px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full animate-pulse-subtle">NEW</span>
+                                <span className="text-[8px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full animate-pulse">NEW</span>
                               )}
                             </div>
-                            <button onClick={() => navigate(`/web-orders/${order.id}`)} className="text-[11px] text-primary font-mono hover:underline">
-                              #{order.order_number}
-                            </button>
+                            <p className="text-[11px] text-muted-foreground">
+                              {new Date(order.created_at || "").toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}{" "}
+                              <span className="text-muted-foreground/60">
+                                {new Date(order.created_at || "").toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                            </p>
                           </div>
                         </td>
 
-                        {/* ── Customer ── */}
-                        <td className="px-4 py-3">
-                          <div className="space-y-1 min-w-[170px]">
+                        {/* Customer */}
+                        <td className="px-3 py-3">
+                          <div className="space-y-0.5 min-w-[170px]">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-[13px] font-bold text-foreground tracking-tight">{customer?.phone || "—"}</span>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button onClick={() => customer?.phone && copyToClipboard(customer.phone)} className="text-[13px] font-bold text-foreground hover:text-primary transition-colors">
+                                    {customer?.phone || "—"}
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>Click to copy</TooltipContent>
+                              </Tooltip>
                               {customer?.phone && (
                                 <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <a href={`tel:${customer.phone}`} className="p-1 rounded-md text-blue-500 hover:bg-blue-50 transition-colors"><Phone className="w-3 h-3" /></a>
-                                  <a href={`https://wa.me/${customer.phone?.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer" className="p-1 rounded-md text-emerald-500 hover:bg-emerald-50 transition-colors"><MessageCircle className="w-3 h-3" /></a>
+                                  <a href={`tel:${customer.phone}`} className="p-1 rounded text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30"><Phone className="w-3 h-3" /></a>
+                                  <a href={`https://wa.me/${customer.phone?.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer" className="p-1 rounded text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"><MessageCircle className="w-3 h-3" /></a>
                                 </div>
                               )}
                             </div>
-                            <div className="flex items-center gap-1">
-                              <span className="text-[12px] text-foreground/80">{customer?.full_name || "—"}</span>
-                              {isBlocked && <span className="text-[8px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full">🚫 BLOCKED</span>}
-                              {isRepeat && <span className="text-[9px] font-semibold bg-info/10 text-info px-1.5 py-0.5 rounded-full">🔄</span>}
-                            </div>
+                            <p className="text-[11px] text-muted-foreground truncate max-w-[180px]">
+                              {customer?.full_name || "—"}
+                              {isBlocked && <span className="ml-1 text-[8px] font-bold text-destructive">🚫 BLOCKED</span>}
+                            </p>
                           </div>
                         </td>
 
-                        {/* ── District ── */}
-                        <td className="px-4 py-3">
-                          <span className="text-[12px] text-muted-foreground">{customer?.district || "—"}</span>
-                        </td>
-
-                        {/* ── Items ── */}
-                        <td className="px-4 py-3">
-                          <div className="space-y-1 min-w-[140px]">
+                        {/* Items */}
+                        <td className="px-3 py-3">
+                          <div className="space-y-1 min-w-[130px]">
                             {items.slice(0, 2).map((item) => {
                               const product = item.products as any;
                               return (
                                 <div key={item.id} className="flex items-center gap-2">
-                                  <div className="w-8 h-8 rounded-lg bg-muted/60 flex items-center justify-center overflow-hidden flex-shrink-0 border border-border/40">
-                                    {product?.image_url ? <img src={product.image_url} alt="" className="w-full h-full object-cover" /> : <ShoppingBag className="w-3 h-3 text-muted-foreground" />}
+                                  <div className="w-7 h-7 rounded-md bg-muted/60 flex items-center justify-center overflow-hidden flex-shrink-0 border border-border/30">
+                                    {product?.image_url ? <img src={product.image_url} alt="" className="w-full h-full object-cover" loading="lazy" /> : <ShoppingBag className="w-3 h-3 text-muted-foreground" />}
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className="text-[11px] font-bold text-primary truncate max-w-[90px]">{product?.sku || "-"}</p>
-                                    <span className="text-[10px] text-muted-foreground">{item.quantity}×</span>
+                                    <p className="text-[11px] font-semibold text-foreground truncate max-w-[80px]">{product?.sku || "-"}</p>
+                                    <span className="text-[10px] text-muted-foreground">{formatBDT(item.unit_price)} ×{item.quantity}</span>
                                   </div>
                                 </div>
                               );
                             })}
-                            {items.length > 2 && <span className="text-[10px] text-primary font-semibold">+{items.length - 2} more</span>}
-                            {items.length === 0 && <span className="text-[11px] text-muted-foreground italic">No items</span>}
+                            {items.length > 2 && <span className="text-[10px] text-primary font-medium">+{items.length - 2} more</span>}
+                            {items.length === 0 && <span className="text-[10px] text-muted-foreground italic">No items</span>}
                           </div>
                         </td>
 
-                        {/* ── Total ── */}
-                        <td className="px-4 py-3">
-                          <span className="text-[13px] font-bold text-foreground">{formatBDT(order.total_amount || 0)}</span>
+                        {/* Value */}
+                        <td className="px-3 py-3">
+                          <span className="text-[13px] font-bold text-emerald-600 dark:text-emerald-400">{formatBDT(order.total_amount || 0)}</span>
                         </td>
 
-                        {/* ── Risk Score ── */}
-                        <td className="px-4 py-3">
+                        {/* District */}
+                        <td className="px-3 py-3">
+                          <div>
+                            <span className="text-[12px] text-foreground">{customer?.district || "—"}</span>
+                            {customer?.thana && <p className="text-[10px] text-muted-foreground">{customer.thana}</p>}
+                          </div>
+                        </td>
+
+                        {/* Risk */}
+                        <td className="px-3 py-3">
                           {riskScore > 0 ? (
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <div className={cn(
-                                  "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold",
-                                  riskScore >= 60 ? "bg-red-100 text-red-700 border border-red-200" :
-                                  riskScore >= 30 ? "bg-amber-100 text-amber-700 border border-amber-200" :
-                                  "bg-yellow-50 text-yellow-700 border border-yellow-200"
+                                  "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold",
+                                  riskScore >= 60 ? "bg-destructive/10 text-destructive border border-destructive/20" :
+                                  riskScore >= 30 ? "bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800" :
+                                  "bg-yellow-50 text-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800"
                                 )}>
                                   <AlertTriangle className="w-3 h-3" />
                                   {riskScore >= 60 ? "HIGH" : riskScore >= 30 ? "MED" : "LOW"}
@@ -692,70 +668,82 @@ export default function WebOrdersPage() {
                               </TooltipTrigger>
                               <TooltipContent side="bottom" className="text-xs space-y-0.5">
                                 <p className="font-semibold">Risk Score: {riskScore}</p>
-                                {isBlocked && <p>🚫 Customer is blocked</p>}
-                                {hasHighReturn && <p>⚠️ High return rate</p>}
-                                {hasFreqCancel && <p>❌ Frequent cancellations</p>}
-                                {isDuplicate && <p>📋 Duplicate phone in queue</p>}
-                                {sr.percent < 50 && !sr.noData && <p>📉 Low success rate ({sr.percent}%)</p>}
+                                {isBlocked && <p>🚫 Customer blocked</p>}
+                                {isDuplicate && <p>📋 Duplicate phone</p>}
+                                {riskFlags.includes("high_return") && <p>↩️ High return rate</p>}
+                                {riskFlags.includes("frequent_cancel") && <p>❌ Frequent cancels</p>}
                               </TooltipContent>
                             </Tooltip>
                           ) : (
-                            <span className="text-[11px] text-emerald-600 font-medium">✅ OK</span>
+                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">✅ OK</span>
                           )}
                         </td>
 
-                        {/* ── Auto Checks ── */}
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-1">
-                            {isBlocked && <span className="text-[9px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full">🚫 Blocked</span>}
-                            {isDuplicate && <span className="text-[9px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">📋 Dup Phone</span>}
-                            {hasHighReturn && <span className="text-[9px] font-bold bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full">↩️ Returns</span>}
-                            {hasFreqCancel && <span className="text-[9px] font-bold bg-red-50 text-red-600 px-1.5 py-0.5 rounded-full">❌ Cancels</span>}
-                            {!isBlocked && !isDuplicate && !hasHighReturn && !hasFreqCancel && <span className="text-[10px] text-muted-foreground">—</span>}
-                          </div>
-                        </td>
-
-                        {/* ── Site ── */}
-                        <td className="px-4 py-3">
-                          {order.channel === "shopify" ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full">🛍️ Shopify</span>
+                        {/* Success Rate */}
+                        <td className="px-3 py-3">
+                          {sr.loading ? (
+                            <Skeleton className="h-10 w-16 rounded" />
+                          ) : sr.noData ? (
+                            <span className="text-[10px] text-muted-foreground">—</span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-muted text-muted-foreground px-2.5 py-1 rounded-full capitalize">{order.channel}</span>
+                            <div className="flex items-center gap-2">
+                              <SuccessRing percent={sr.percent} size={32} />
+                              <div>
+                                <p className="text-[11px] font-bold">{sr.percent}%</p>
+                                <p className="text-[9px] text-muted-foreground">{sr.delivered}/{sr.total}</p>
+                              </div>
+                            </div>
                           )}
                         </td>
 
-                        {/* ── Actions ── */}
-                        <td className="px-4 py-3">
+                        {/* Site */}
+                        <td className="px-3 py-3">
+                          {order.channel === "shopify" ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full">🛍️</span>
+                          ) : (
+                            <span className="inline-flex items-center text-[10px] font-medium bg-muted text-muted-foreground px-2 py-0.5 rounded-full capitalize">{order.channel}</span>
+                          )}
+                        </td>
+
+                        {/* Actions */}
+                        <td className="px-3 py-3">
                           <div className="flex items-center gap-1">
-                            <button onClick={() => navigate(`/web-orders/${order.id}`)} className="text-[12px] font-semibold text-primary hover:text-primary-dark inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-primary/20 hover:bg-primary/5 transition-all">
+                            <Button size="sm" variant="ghost" className="h-7 px-2.5 text-[11px] font-semibold text-primary gap-1" onClick={() => navigate(`/web-orders/${order.id}`)}>
                               Open <ExternalLink className="w-3 h-3" />
-                            </button>
-                            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <button onClick={(e) => { e.stopPropagation(); setSelected([order.id]); bulkMutation.mutate("confirm"); }} className="p-1.5 rounded-md text-emerald-600 hover:bg-emerald-50 transition-colors"><CheckCheck className="w-3.5 h-3.5" /></button>
-                                </TooltipTrigger>
-                                <TooltipContent>Confirm</TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <button onClick={(e) => { e.stopPropagation(); setSelected([order.id]); bulkMutation.mutate("cancel"); }} className="p-1.5 rounded-md text-red-500 hover:bg-red-50 transition-colors"><Ban className="w-3.5 h-3.5" /></button>
-                                </TooltipTrigger>
-                                <TooltipContent>Cancel</TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <button onClick={(e) => { e.stopPropagation(); markSuspicious.mutate(order.id); }} className="p-1.5 rounded-md text-amber-600 hover:bg-amber-50 transition-colors"><ShieldAlert className="w-3.5 h-3.5" /></button>
-                                </TooltipTrigger>
-                                <TooltipContent>Mark Suspicious</TooltipContent>
-                              </Tooltip>
-                            </div>
+                            </Button>
+                            <DropdownMenuRoot>
+                              <DDTrigger asChild>
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <MoreVertical className="w-3.5 h-3.5" />
+                                </Button>
+                              </DDTrigger>
+                              <DDContent align="end">
+                                <DDItem onClick={() => navigate(`/web-orders/${order.id}`)}>
+                                  <ExternalLink className="w-3.5 h-3.5 mr-2" /> View Detail
+                                </DDItem>
+                                {customer?.phone && (
+                                  <DDItem onClick={() => copyToClipboard(customer.phone)}>
+                                    <Copy className="w-3.5 h-3.5 mr-2" /> Copy Phone
+                                  </DDItem>
+                                )}
+                                <DropdownMenuSeparator />
+                                <DDItem onClick={() => { setSelected([order.id]); bulkMutation.mutate("confirm"); }} className="text-emerald-600">
+                                  <CheckCheck className="w-3.5 h-3.5 mr-2" /> Confirm
+                                </DDItem>
+                                <DDItem onClick={() => { setSelected([order.id]); bulkMutation.mutate("cancel"); }} className="text-destructive">
+                                  <Ban className="w-3.5 h-3.5 mr-2" /> Cancel
+                                </DDItem>
+                                <DDItem onClick={() => markSuspicious.mutate(order.id)} className="text-amber-600">
+                                  <ShieldAlert className="w-3.5 h-3.5 mr-2" /> Mark Suspicious
+                                </DDItem>
+                              </DDContent>
+                            </DropdownMenuRoot>
                           </div>
                         </td>
                       </tr>
                     );
                   })}
-                  {filtered.length === 0 && (
+                  {paginatedOrders.length === 0 && (
                     <tr>
                       <td colSpan={10}>
                         <EmptyState tab={activeTab} />
@@ -766,60 +754,62 @@ export default function WebOrdersPage() {
               </table>
             </div>
           )}
+
+          {/* ═══ Pagination ═══ */}
+          {!isLoading && filtered.length > 0 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-border/40 bg-muted/20">
+              <p className="text-xs text-muted-foreground">
+                Showing {((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, filtered.length)} of {filtered.length} orders
+              </p>
+              <div className="flex items-center gap-2">
+                <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1); }}>
+                  <SelectTrigger className="h-8 w-[70px] text-xs rounded-lg">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAGE_SIZES.map((s) => <SelectItem key={s} value={String(s)}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <div className="flex items-center gap-1">
+                  <Button variant="outline" size="sm" className="h-8 w-8 p-0 text-xs rounded-lg" disabled={page <= 1} onClick={() => setPage(page - 1)}>‹</Button>
+                  <span className="text-xs text-muted-foreground px-2">{page} / {totalPages}</span>
+                  <Button variant="outline" size="sm" className="h-8 w-8 p-0 text-xs rounded-lg" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>›</Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* ═══ Floating Bulk Action Bar ═══ */}
+        {/* ═══════════════════════════════════════════════════════════
+            FLOATING BULK ACTION BAR
+        ═══════════════════════════════════════════════════════════ */}
         {selected.length > 0 && (
-          <div
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-card rounded-2xl shadow-[0_8px_40px_-8px_rgba(0,0,0,0.2),0_0_0_1px_rgba(0,0,0,0.05)] border border-border/40 px-5 py-3 flex items-center gap-3 flex-wrap max-w-[95vw]"
-            style={{ animation: "slide-up 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards" }}
-          >
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-card/95 backdrop-blur-xl rounded-xl shadow-2xl border border-border/60 px-5 py-3 flex items-center gap-3 flex-wrap max-w-[95vw] animate-slide-up">
             <div className="flex items-center gap-2 pr-3 border-r border-border">
-              <span className="text-sm font-semibold text-foreground">{selected.length} selected</span>
-              <button onClick={() => setSelected([])} className="w-6 h-6 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center transition-colors">
-                <X className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-sm font-bold text-foreground">{selected.length}</span>
+              <span className="text-xs text-muted-foreground">selected</span>
+              <button onClick={() => setSelected([])} className="w-5 h-5 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center">
+                <X className="w-3 h-3 text-muted-foreground" />
               </button>
             </div>
-
-            <Button
-              size="sm"
-              className="gap-1.5 text-xs rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white"
-              onClick={() => bulkMutation.mutate("confirm")}
-              disabled={bulkMutation.isPending}
-            >
-              <CheckCheck className="w-3.5 h-3.5" /> Confirm All
+            <Button size="sm" className="gap-1.5 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => bulkMutation.mutate("confirm")} disabled={bulkMutation.isPending}>
+              <CheckCheck className="w-3.5 h-3.5" /> Confirm
             </Button>
-            <Button
-              size="sm"
-              variant="destructive"
-              className="gap-1.5 text-xs rounded-xl"
-              onClick={() => bulkMutation.mutate("cancel")}
-              disabled={bulkMutation.isPending}
-            >
-              <Ban className="w-3.5 h-3.5" /> Cancel All
+            <Button size="sm" variant="destructive" className="gap-1.5 text-xs rounded-lg" onClick={() => bulkMutation.mutate("cancel")} disabled={bulkMutation.isPending}>
+              <Ban className="w-3.5 h-3.5" /> Cancel
             </Button>
-
             <DropdownMenuRoot>
               <DDTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5 text-xs rounded-xl">
-                  Move to...
-                </Button>
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs rounded-lg">Move to...</Button>
               </DDTrigger>
               <DDContent side="top" className="mb-2">
                 {WEB_STATUSES.filter((s) => s.key !== "all").map((s) => {
                   const Icon = s.icon;
-                  return (
-                    <DDItem key={s.key} onClick={() => bulkMutation.mutate(s.key)}>
-                      <Icon className="w-3.5 h-3.5 mr-1.5" /> {s.label}
-                    </DDItem>
-                  );
+                  return <DDItem key={s.key} onClick={() => bulkMutation.mutate(s.key)}><Icon className="w-3.5 h-3.5 mr-1.5" /> {s.label}</DDItem>;
                 })}
               </DDContent>
             </DropdownMenuRoot>
-
-            <Button variant="outline" size="sm" className="gap-1.5 text-xs rounded-xl">
-              <Download className="w-3.5 h-3.5" /> Export
-            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs rounded-lg"><Download className="w-3.5 h-3.5" /> Export</Button>
           </div>
         )}
       </div>
@@ -827,7 +817,115 @@ export default function WebOrdersPage() {
   );
 }
 
-/* ─── Empty State Component ─── */
+/* ═══════════════════════════════════════════════════════════════
+   SUB-COMPONENTS
+   ═══════════════════════════════════════════════════════════════ */
+
+function KpiCard({ icon: Icon, label, value, color }: {
+  icon: any; label: string; value: string | number | null; color: string;
+}) {
+  const colorMap: Record<string, string> = {
+    blue: "text-blue-500", orange: "text-orange-500", emerald: "text-emerald-500", purple: "text-purple-500",
+  };
+  const bgMap: Record<string, string> = {
+    blue: "bg-blue-50 dark:bg-blue-950/20", orange: "bg-orange-50 dark:bg-orange-950/20",
+    emerald: "bg-emerald-50 dark:bg-emerald-950/20", purple: "bg-purple-50 dark:bg-purple-950/20",
+  };
+  return (
+    <Card className="p-3.5 border-border/40 hover:shadow-sm transition-shadow">
+      <div className="flex items-center gap-3">
+        <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center", bgMap[color])}>
+          <Icon className={cn("w-4 h-4", colorMap[color])} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] text-muted-foreground font-medium">{label}</p>
+          {value === null ? (
+            <Skeleton className="h-5 w-16 mt-0.5 rounded" />
+          ) : (
+            <p className="text-lg font-bold text-foreground tracking-tight">{value}</p>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function SuccessRing({ percent, size = 32 }: { percent: number; size?: number }) {
+  const r = (size - 4) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (percent / 100) * circ;
+  const color = percent >= 80 ? "text-emerald-500" : percent >= 50 ? "text-amber-500" : "text-destructive";
+  return (
+    <svg width={size} height={size} className="flex-shrink-0">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="3" className="stroke-muted" />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="3" strokeDasharray={circ} strokeDashoffset={offset}
+        strokeLinecap="round" className={cn("transition-all duration-500", color)} style={{ transform: "rotate(-90deg)", transformOrigin: "center" }}
+      />
+    </svg>
+  );
+}
+
+function MobileCardList({ orders, itemsByOrder, selected, toggleSelect, navigate, getSuccessRate, isNew, copyToClipboard, activeTab }: any) {
+  if (orders.length === 0) return <EmptyState tab={activeTab} />;
+  return (
+    <div className="divide-y divide-border/30">
+      {orders.map((order: any) => {
+        const customer = order.customers as any;
+        const items = itemsByOrder.get(order.id) || [];
+        const isSelected = selected.includes(order.id);
+        const firstItem = items[0];
+        const product = firstItem?.products as any;
+        return (
+          <div key={order.id} className={cn("p-4 space-y-2.5 transition-colors", isSelected ? "bg-primary/5" : "hover:bg-muted/30")}>
+            <div className="flex items-start gap-3">
+              <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(order.id)} className="mt-1" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={() => navigate(`/web-orders/${order.id}`)} className="text-sm font-bold text-primary">#{order.order_number}</button>
+                    {isNew(order.created_at) && <span className="text-[8px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">NEW</span>}
+                  </div>
+                  <span className="text-sm font-bold text-emerald-600">{formatBDT(order.total_amount || 0)}</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">{formatDateTime(order.created_at)}</p>
+              </div>
+            </div>
+            <div className="ml-7 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold">{customer?.full_name || "—"}</span>
+                <button onClick={() => customer?.phone && copyToClipboard(customer.phone)} className="text-xs text-muted-foreground hover:text-primary">{customer?.phone}</button>
+              </div>
+              {firstItem && (
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center overflow-hidden border border-border/40">
+                    {product?.image_url ? <img src={product.image_url} alt="" className="w-full h-full object-cover" /> : <ShoppingBag className="w-3 h-3 text-muted-foreground" />}
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold">{product?.sku || "-"}</p>
+                    <p className="text-[10px] text-muted-foreground">{formatBDT(firstItem.unit_price)} ×{firstItem.quantity}</p>
+                  </div>
+                  {items.length > 1 && <span className="text-[10px] text-muted-foreground">+{items.length - 1} more</span>}
+                </div>
+              )}
+              <div className="flex items-center gap-2 pt-0.5">
+                {customer?.phone && (
+                  <>
+                    <a href={`tel:${customer.phone}`} className="inline-flex items-center gap-1 text-xs text-blue-600 font-medium"><Phone className="w-3 h-3" /> Call</a>
+                    <a href={`https://wa.me/${customer.phone?.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium"><MessageCircle className="w-3 h-3" /> WA</a>
+                  </>
+                )}
+                <button onClick={() => navigate(`/web-orders/${order.id}`)} className="inline-flex items-center gap-1 text-xs text-primary font-semibold ml-auto">
+                  Open <ExternalLink className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function EmptyState({ tab }: { tab: string }) {
   const messages: Record<string, { icon: string; title: string; desc: string }> = {
     processing: { icon: "⏳", title: "No orders to process", desc: "New Shopify orders will appear here automatically" },
@@ -840,9 +938,8 @@ function EmptyState({ tab }: { tab: string }) {
     all: { icon: "📋", title: "No web orders yet", desc: "Connect Shopify or create manual web orders" },
   };
   const msg = messages[tab] || messages.all;
-
   return (
-    <div className="flex flex-col items-center justify-center py-20 text-center">
+    <div className="flex flex-col items-center justify-center py-16 text-center">
       <span className="text-4xl mb-3">{msg.icon}</span>
       <p className="text-sm font-semibold text-foreground">{msg.title}</p>
       <p className="text-xs text-muted-foreground mt-1 max-w-[240px]">{msg.desc}</p>
