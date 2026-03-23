@@ -17,7 +17,7 @@ const FEATURES = [
 ];
 
 export default function LoginPage() {
-  const { user, loading, signIn } = useAuth();
+  const { user, loading, signIn, signUp } = useAuth();
   const location = useLocation();
   const from = (location.state as any)?.from?.pathname || "/";
 
@@ -25,7 +25,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
 
   if (loading) {
     return (
@@ -40,9 +42,20 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
     setSubmitting(true);
-    const { error } = await signIn(email, password);
-    if (error) setError("Invalid email or password. Please try again.");
+    if (isSignUp) {
+      const { error } = await signUp(email, password);
+      if (error) {
+        setError(error.message);
+      } else {
+        setSuccess("Account created! Check your email for confirmation, or try signing in.");
+        setIsSignUp(false);
+      }
+    } else {
+      const { error } = await signIn(email, password);
+      if (error) setError("Invalid email or password. Please try again.");
+    }
     setSubmitting(false);
   };
 
