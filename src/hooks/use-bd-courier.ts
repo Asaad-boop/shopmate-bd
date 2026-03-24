@@ -17,6 +17,17 @@ export interface BDCourierResult {
   cancelled_orders: number;
 }
 
+interface CacheRow {
+  phone: string | null;
+  success_rate: number | null;
+  total_orders: number | null;
+  successful_orders: number | null;
+  returned_orders: number | null;
+  cancelled_orders: number | null;
+  last_fetched_at: string | null;
+  raw_data?: any;
+}
+
 function normalizePhone(phone: string | null | undefined): string {
   if (!phone) return "";
 
@@ -46,12 +57,12 @@ function mapResult(r: any): BDCourierResult {
   const totalCancel = r.total_cancel ?? r.cancelled_orders ?? r.returned_orders ?? 0;
 
   return {
-    risk_level: r.risk_level || "unknown",
+    risk_level: r.risk_level || (r.total_orders > 0 ? getRiskFromRate(overallRate) : "new_customer"),
     overall_success_rate: overallRate,
     total_orders: r.total_orders ?? 0,
     total_success: totalSuccess,
     total_cancel: totalCancel,
-    courier_data: r.courier_data ?? r.raw_data,
+    courier_data: r.courier_data,
     fetched_at: r.fetched_at ?? r.last_fetched_at,
     from_cache: r.from_cache ?? true,
     error: r.error,
@@ -60,6 +71,25 @@ function mapResult(r: any): BDCourierResult {
     returned_orders: r.returned_orders ?? totalCancel,
     cancelled_orders: r.cancelled_orders ?? totalCancel,
   };
+}
+
+function mapCacheRow(row: CacheRow): BDCourierResult {
+  const rate = row.success_rate ?? 0;
+  const rawData = row.raw_data && typeof row.raw_data === "object" ? row.raw_data : {};
+  const courierData = rawData?.data?.Summaries || rawData?.data?.summaries || rawData?.courier_data || {};
+
+  return mapResult({
+    risk_level: (row.total_orders ?? 0) > 0 ? getRiskFromRate(rate) : "new_customer",
+    overall_success_rate: rate,
+    total_orders: row.total_orders ?? 0,
+    total_success: row.successful_orders ?? 0,
+    total_cancel: (row.returned_orders ?? 0) + (row.cancelled_orders ?? 0),
+    returned_orders: row.returned_orders ?? 0,
+    cancelled_orders: row.cancelled_orders ?? 0,
+    courier_data: courierData,
+    last_fetched_at: row.last_fetched_at,
+    from_cache: true,
+  });
 }
 
 let rateLimitTs = 0;
@@ -91,32 +121,22 @@ export function useBDCourierBulk(phones: string[], enabled = true) {
       const allPhoneVariants = [...new Set(normalizedPhones.flatMap(getPhoneVariants))];
 
       try {
-        const { data: cached } = await supabase
+        const { data: cached, error } = await supabase
           .from("customer_qc_cache")
-          .select("phone, risk_level, overall_success_rate, success_rate, total_orders, total_success, successful_orders, total_cancel, returned_orders, cancelled_orders, fetched_at, last_fetched_at, cache_expires_at, courier_data, raw_data")
+          .select("phone, success_rate, total_orders, successful_orders, returned_orders, cancelled_orders, last_fetched_at, raw_data")
           .in("phone", allPhoneVariants);
 
-        if (cached) {
-          for (const row of cached) {
-            const normalized = normalizePhone(row.phone);
-            if (!normalized) continue;
+        if (error) throw error;
 
-            const expiresAt = row.cache_expires_at ? new Date(row.cache_expires_at).getTime() : 0;
-            const fetchedAt = row.fetched_at ?? row.last_fetched_at;
-            const fetchedTime = fetchedAt ? new Date(fetchedAt).getTime() : 0;
-            const isExpired = expiresAt
-              ? expiresAt <= Date.now()
-              : fetchedTime > 0 && Date.now() - fetchedTime > 7 * 24 * 60 * 60 * 1000;
+        for (const row of (cached ?? []) as CacheRow[]) {
+          const normalized = normalizePhone(row.phone);
+          if (!normalized) continue;
 
-            if (!isExpired) {
-              const rate = row.overall_success_rate ?? row.success_rate ?? 0;
-              results[normalized] = mapResult({
-                ...row,
-                risk_level: row.risk_level ?? getRiskFromRate(rate),
-                overall_success_rate: rate,
-                from_cache: true,
-              });
-            }
+          const fetchedTime = row.last_fetched_at ? new Date(row.last_fetched_at).getTime() : 0;
+          const isExpired = fetchedTime > 0 && Date.now() - fetchedTime > 7 * 24 * 60 * 60 * 1000;
+
+          if (!isExpired) {
+            results[normalized] = mapCacheRow(row);
           }
         }
       } catch (error) {
@@ -185,29 +205,22 @@ export function useBDCourierSingle(phone: string, enabled = true) {
 
       try {
         const variants = getPhoneVariants(normalizedPhone);
-        const { data: cached } = await supabase
+        const { data: cached, error } = await supabase
           .from("customer_qc_cache")
-          .select("phone, risk_level, overall_success_rate, success_rate, total_orders, total_success, successful_orders, total_cancel, returned_orders, cancelled_orders, fetched_at, last_fetched_at, cache_expires_at, courier_data, raw_data")
+          .select("phone, success_rate, total_orders, successful_orders, returned_orders, cancelled_orders, last_fetched_at, raw_data")
           .in("phone", variants)
           .limit(1)
           .maybeSingle();
 
+        if (error) throw error;
+
         if (cached) {
-          const expiresAt = cached.cache_expires_at ? new Date(cached.cache_expires_at).getTime() : 0;
-          const fetchedAt = cached.fetched_at ?? cached.last_fetched_at;
-          const fetchedTime = fetchedAt ? new Date(fetchedAt).getTime() : 0;
-          const isExpired = expiresAt
-            ? expiresAt <= Date.now()
-            : fetchedTime > 0 && Date.now() - fetchedTime > 7 * 24 * 60 * 60 * 1000;
+          const row = cached as CacheRow;
+          const fetchedTime = row.last_fetched_at ? new Date(row.last_fetched_at).getTime() : 0;
+          const isExpired = fetchedTime > 0 && Date.now() - fetchedTime > 7 * 24 * 60 * 60 * 1000;
 
           if (!isExpired) {
-            const rate = cached.overall_success_rate ?? cached.success_rate ?? 0;
-            return mapResult({
-              ...cached,
-              risk_level: cached.risk_level ?? getRiskFromRate(rate),
-              overall_success_rate: rate,
-              from_cache: true,
-            });
+            return mapCacheRow(row);
           }
         }
       } catch {
