@@ -29,14 +29,18 @@ export default function BDCourierSettingsSection({
   const { data: dailyUsage } = useQuery({
     queryKey: ["bdcourier-daily-usage"],
     queryFn: async () => {
-      const today = new Date().toISOString().split("T")[0];
-      const { count, error } = await supabase
-        .from("bdcourier_api_log")
-        .select("*", { count: "exact", head: true })
-        .eq("call_date", today)
-        .eq("success", true);
-      if (error) return 0;
-      return count || 0;
+      try {
+        const today = new Date().toISOString().split("T")[0];
+        const { count, error } = await (supabase as any)
+          .from("bdcourier_api_log")
+          .select("*", { count: "exact", head: true })
+          .eq("call_date", today)
+          .eq("success", true);
+        if (error) return 0;
+        return count || 0;
+      } catch {
+        return 0;
+      }
     },
     staleTime: 30_000,
   });
