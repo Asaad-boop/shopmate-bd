@@ -18,6 +18,7 @@ import SmsSettingsSection from "@/components/settings/SmsSettingsSection";
 import CompanyProfileSection from "@/components/settings/CompanyProfileSection";
 import InvoiceSettingsSection from "@/components/settings/InvoiceSettingsSection";
 import MetaAdsSettingsSection from "@/components/settings/MetaAdsSettingsSection";
+import BDCourierSettingsSection from "@/components/settings/BDCourierSettingsSection";
 import { cn } from "@/lib/utils";
 
 const SECTIONS = [
