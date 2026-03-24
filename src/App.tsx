@@ -122,7 +122,7 @@ const App = () => (
 
             <Route element={<AuthGuard />}>
               <Route element={<AppLayout />}>
-                <Route path="/" element={<E><Dashboard /></E>} />
+                <Route path="/" element={<L><Dashboard /></L>} />
                 <Route path="/search" element={<L><SearchPage /></L>} />
 
                 {/* Orders */}
