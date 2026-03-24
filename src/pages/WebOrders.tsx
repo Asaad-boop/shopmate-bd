@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, memo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -38,6 +38,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -116,6 +117,7 @@ export default function WebOrdersPage() {
 
   const [activeTab, setActiveTab] = useState("processing");
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [selected, setSelected] = useState<string[]>([]);
   const [lastSynced, setLastSynced] = useState<Date>(new Date());
   const [sortBy, setSortBy] = useState("newest");
@@ -212,10 +214,13 @@ export default function WebOrdersPage() {
     },
   });
 
+  // Only fetch courier data for current page's orders to save API quota
   const customerPhones = useMemo(() => {
     if (!orders) return [];
-    return orders.map((o) => (o.customers as any)?.phone).filter(Boolean) as string[];
-  }, [orders]);
+    const start = (page - 1) * pageSize;
+    const visible = (orders || []).slice(start, start + pageSize);
+    return visible.map((o) => (o.customers as any)?.phone).filter(Boolean) as string[];
+  }, [orders, page, pageSize]);
 
   const { data: bdCourierData, isLoading: bdLoading } = useBDCourierBulk(customerPhones, customerPhones.length > 0);
 
@@ -295,8 +300,8 @@ export default function WebOrdersPage() {
   const filtered = useMemo(() => {
     let list = orders || [];
     if (activeTab !== "all") list = list.filter((o) => (o.web_order_status || "processing") === activeTab);
-    if (search) {
-      const s = search.toLowerCase();
+    if (debouncedSearch) {
+      const s = debouncedSearch.toLowerCase();
       list = list.filter((o) =>
         o.order_number?.toLowerCase().includes(s) ||
         (o.customers as any)?.full_name?.toLowerCase().includes(s) ||
@@ -313,7 +318,7 @@ export default function WebOrdersPage() {
     else if (sortBy === "amount_high") list = [...list].sort((a, b) => Number(b.total_amount || 0) - Number(a.total_amount || 0));
     else if (sortBy === "amount_low") list = [...list].sort((a, b) => Number(a.total_amount || 0) - Number(b.total_amount || 0));
     return list;
-  }, [orders, activeTab, search, siteFilter, dateRange, sortBy]);
+  }, [orders, activeTab, debouncedSearch, siteFilter, dateRange, sortBy]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paginatedOrders = useMemo(() => {

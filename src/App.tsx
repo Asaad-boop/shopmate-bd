@@ -9,9 +9,9 @@ import { AuthGuard } from "@/components/layout/AuthGuard";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { lazy, Suspense } from "react";
-import { Loader2 } from "lucide-react";
+import { PageLoadingSkeleton } from "@/components/ui/page-skeleton";
 import LoginPage from "./pages/Login";
-import Dashboard from "./pages/Index";
+const Dashboard = lazy(() => import("./pages/Index"));
 
 /* ─── Lazy-loaded pages ─── */
 const SearchPage = lazy(() => import("./pages/Search"));
@@ -81,9 +81,12 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
+      retryDelay: 1000,
       refetchOnWindowFocus: false,
-      staleTime: 5 * 60 * 1000,   // 5 min default
-      gcTime: 10 * 60 * 1000,     // 10 min gc
+      refetchOnReconnect: false,
+      refetchOnMount: false,
+      staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
     },
   },
 });
@@ -93,11 +96,7 @@ function E({ children }: { children: React.ReactNode }) {
 }
 
 function PageFallback() {
-  return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="w-6 h-6 animate-spin text-primary" />
-    </div>
-  );
+  return <PageLoadingSkeleton />;
 }
 
 function L({ children }: { children: React.ReactNode }) {
@@ -123,7 +122,7 @@ const App = () => (
 
             <Route element={<AuthGuard />}>
               <Route element={<AppLayout />}>
-                <Route path="/" element={<E><Dashboard /></E>} />
+                <Route path="/" element={<L><Dashboard /></L>} />
                 <Route path="/search" element={<L><SearchPage /></L>} />
 
                 {/* Orders */}

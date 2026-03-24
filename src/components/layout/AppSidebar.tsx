@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext } from "react";
+import { useState, useEffect, createContext, useContext, memo, useMemo, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useCompanySettings } from "@/hooks/use-company-settings";
 import {
@@ -143,7 +143,7 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
 
 /* ─── Component ─── */
 
-export function AppSidebar() {
+export const AppSidebar = memo(function AppSidebar() {
   const location = useLocation();
   const { settings: company } = useCompanySettings();
 
@@ -151,13 +151,13 @@ export function AppSidebar() {
     try { return localStorage.getItem("shopmate_sidebar_collapsed") === "true"; } catch { return false; }
   });
 
-  const toggle = () => {
+  const toggle = useCallback(() => {
     setCollapsed(prev => {
       const next = !prev;
       try { localStorage.setItem("shopmate_sidebar_collapsed", String(next)); } catch {}
       return next;
     });
-  };
+  }, []);
 
   const [expandedGroups, setExpandedGroups] = useState<string[]>(() => {
     const initial: string[] = [];
@@ -174,14 +174,14 @@ export function AppSidebar() {
     return initial.length ? initial : ["Orders"];
   });
 
-  const toggleGroup = (group: string) => {
-    if (collapsed) return; // Don't toggle in collapsed mode
+  const toggleGroup = useCallback((group: string) => {
+    if (collapsed) return;
     setExpandedGroups(prev =>
       prev.includes(group) ? prev.filter(g => g !== group) : [...prev, group]
     );
-  };
+  }, [collapsed]);
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = useCallback((path: string) => location.pathname === path, [location.pathname]);
 
   const isGroupActive = (item: NavGroup) =>
     item.children.some(c => location.pathname === c.path || location.pathname.startsWith(c.path + "/"));
@@ -415,4 +415,4 @@ export function AppSidebar() {
       </TooltipProvider>
     </SidebarContext.Provider>
   );
-}
+});
