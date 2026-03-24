@@ -315,7 +315,7 @@ export default function WebOrdersPage() {
     else if (sortBy === "amount_high") list = [...list].sort((a, b) => Number(b.total_amount || 0) - Number(a.total_amount || 0));
     else if (sortBy === "amount_low") list = [...list].sort((a, b) => Number(a.total_amount || 0) - Number(b.total_amount || 0));
     return list;
-  }, [orders, activeTab, search, siteFilter, dateRange, sortBy]);
+  }, [orders, activeTab, debouncedSearch, siteFilter, dateRange, sortBy]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paginatedOrders = useMemo(() => {
