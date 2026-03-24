@@ -760,14 +760,40 @@ export default function WebOrdersPage() {
                         {/* Success Rate */}
                         {isColVisible("successRate") && (
                           <td className="px-3 py-3">
-                            {sr.loading ? <Skeleton className="h-10 w-16 rounded" /> : sr.noData ? (
-                              <span className="text-[10px] text-muted-foreground">—</span>
+                            {sr.loading ? (
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full border-2 border-muted animate-pulse" />
+                                <div className="space-y-1">
+                                  <Skeleton className="h-3 w-20" />
+                                  <Skeleton className="h-3 w-16" />
+                                </div>
+                              </div>
+                            ) : sr.isNew ? (
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full border-2 border-blue-300 dark:border-blue-700 flex items-center justify-center">
+                                  <span className="text-[7px] font-bold text-blue-400">NEW</span>
+                                </div>
+                                <div className="text-[10px] text-muted-foreground leading-relaxed">
+                                  <div>New Customer</div>
+                                  <div>No history</div>
+                                </div>
+                              </div>
                             ) : (
                               <div className="flex items-center gap-2">
-                                <SuccessRing percent={sr.percent} size={32} />
-                                <div>
-                                  <p className="text-[11px] font-bold">{sr.percent}%</p>
-                                  <p className="text-[9px] text-muted-foreground">{sr.delivered}/{sr.total}</p>
+                                <SuccessRing percent={sr.percent} size={36} />
+                                <div className="text-[10px] leading-relaxed">
+                                  <div>
+                                    Success:{" "}
+                                    <span className="font-semibold" style={{ color: sr.percent >= 80 ? "#22c55e" : sr.percent >= 60 ? "#f97316" : "#ef4444" }}>
+                                      {sr.percent}%
+                                    </span>
+                                  </div>
+                                  <div className="text-muted-foreground">
+                                    Order: <span className="text-foreground">{sr.delivered}/{sr.total}</span>
+                                  </div>
+                                  <div className="text-muted-foreground">
+                                    Rating: <span className="text-foreground">{sr.rating}</span>
+                                  </div>
                                 </div>
                               </div>
                             )}
