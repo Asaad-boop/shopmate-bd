@@ -224,24 +224,6 @@ export default function WebOrdersPage() {
     return digits.length === 11 ? digits : "";
   }, []);
 
-  // Only fetch courier data for the currently visible page to save API quota
-  const customerPhones = useMemo(() => {
-    return paginatedOrders
-      .map((o) => (o.customers as any)?.phone)
-      .filter(Boolean) as string[];
-  }, [paginatedOrders]);
-
-  const { data: bdCourierData, isLoading: bdLoading } = useBDCourierBulk(customerPhones, customerPhones.length > 0);
-
-  const riskMap = useMemo(() => {
-    if (!bdCourierData) return new Map<string, BDCourierResult>();
-    return new Map(
-      Object.entries(bdCourierData)
-        .filter(([, result]) => result && !result.error)
-        .map(([rawPhone, result]) => [normalizePhone(rawPhone), result]),
-    );
-  }, [bdCourierData, normalizePhone]);
-
   const orderIds = orders?.map((o) => o.id) || [];
 
   const { data: allItems } = useQuery({
