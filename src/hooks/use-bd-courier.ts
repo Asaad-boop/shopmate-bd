@@ -2,15 +2,20 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface BDCourierResult {
-  success_rate: number;
+  risk_level: string;
+  overall_success_rate: number;
   total_orders: number;
+  total_success: number;
+  total_cancel: number;
+  courier_data?: Record<string, any>;
+  fetched_at?: string;
+  from_cache?: boolean;
+  error?: string;
+  // Legacy compat fields
+  success_rate: number;
   successful_orders: number;
   returned_orders: number;
   cancelled_orders: number;
-  raw_data?: any;
-  last_fetched_at?: string;
-  cached?: boolean;
-  error?: string;
 }
 
 export function useBDCourierBulk(phones: string[], enabled = true) {
@@ -22,7 +27,6 @@ export function useBDCourierBulk(phones: string[], enabled = true) {
       const uniquePhones = [...new Set(phones.filter(Boolean))];
       if (!uniquePhones.length) return {};
 
-      // Process in batches of 5 to avoid edge function compute limits
       const results: Record<string, BDCourierResult> = {};
       const batchSize = 5;
       for (let i = 0; i < uniquePhones.length; i += batchSize) {
@@ -32,7 +36,24 @@ export function useBDCourierBulk(phones: string[], enabled = true) {
             body: { phones: batch },
           });
           if (!error && data?.results) {
-            Object.assign(results, data.results);
+            for (const [ph, r] of Object.entries(data.results as Record<string, any>)) {
+              results[ph] = {
+                risk_level: r.risk_level || "unknown",
+                overall_success_rate: r.overall_success_rate ?? 0,
+                total_orders: r.total_orders ?? 0,
+                total_success: r.total_success ?? 0,
+                total_cancel: r.total_cancel ?? 0,
+                courier_data: r.courier_data,
+                fetched_at: r.fetched_at,
+                from_cache: r.from_cache,
+                error: r.error,
+                // Legacy compat
+                success_rate: r.overall_success_rate ?? 0,
+                successful_orders: r.total_success ?? 0,
+                returned_orders: r.total_cancel ?? 0,
+                cancelled_orders: r.total_cancel ?? 0,
+              };
+            }
           }
         } catch (e) {
           console.error("BD Courier batch error:", e);
@@ -42,7 +63,7 @@ export function useBDCourierBulk(phones: string[], enabled = true) {
       return results;
     },
     enabled: enabled && phones.length > 0,
-    staleTime: 5 * 60 * 1000, // 5 min stale
+    staleTime: 5 * 60 * 1000,
     retry: 1,
   });
 }
@@ -54,7 +75,7 @@ export function useBDCourierSingle(phone: string, enabled = true) {
       if (!phone || phone.length < 8) return null;
 
       const { data, error } = await supabase.functions.invoke("bd-courier-check", {
-        body: { phones: [phone] },
+        body: { phone },
       });
 
       if (error) {
@@ -62,7 +83,23 @@ export function useBDCourierSingle(phone: string, enabled = true) {
         return null;
       }
 
-      return data?.results?.[phone] || null;
+      if (!data || data.error) return null;
+
+      return {
+        risk_level: data.risk_level || "unknown",
+        overall_success_rate: data.overall_success_rate ?? 0,
+        total_orders: data.total_orders ?? 0,
+        total_success: data.total_success ?? 0,
+        total_cancel: data.total_cancel ?? 0,
+        courier_data: data.courier_data,
+        fetched_at: data.fetched_at,
+        from_cache: data.from_cache,
+        // Legacy compat
+        success_rate: data.overall_success_rate ?? 0,
+        successful_orders: data.total_success ?? 0,
+        returned_orders: data.total_cancel ?? 0,
+        cancelled_orders: data.total_cancel ?? 0,
+      };
     },
     enabled: enabled && !!phone && phone.length >= 8,
     staleTime: 5 * 60 * 1000,

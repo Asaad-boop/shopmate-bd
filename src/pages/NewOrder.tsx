@@ -127,8 +127,8 @@ function DeliveryPerformanceSection({ phone }: { phone: string }) {
     COURIERS.forEach((c) => { cMap[c.id] = { total: 0, delivered: 0, cancelled: 0, logo: "", tracked: false }; });
     let sTotal = 0, sDelivered = 0, sCancelled = 0;
 
-    if (bdCourier?.raw_data) {
-      const cd = (bdCourier.raw_data as any)?.courierData;
+    if (bdCourier?.courier_data) {
+      const cd = bdCourier.courier_data as any;
       if (cd) {
         for (const c of COURIERS) {
           const d = cd[c.id];

@@ -18,6 +18,7 @@ import SmsSettingsSection from "@/components/settings/SmsSettingsSection";
 import CompanyProfileSection from "@/components/settings/CompanyProfileSection";
 import InvoiceSettingsSection from "@/components/settings/InvoiceSettingsSection";
 import MetaAdsSettingsSection from "@/components/settings/MetaAdsSettingsSection";
+import BDCourierSettingsSection from "@/components/settings/BDCourierSettingsSection";
 import { cn } from "@/lib/utils";
 
 const SECTIONS = [
@@ -329,42 +330,16 @@ export default function SettingsPage() {
                 </div>
               </SettingsCard>
             )}
-            {activeSection === "bdcourier" && (
-              <SettingsCard
-                icon={Shield}
-                iconBg="bg-blue-50 text-blue-600"
-                title="BD Courier — Customer QC"
-                description="Check customer delivery success rate before confirming orders."
-                badge={<ConnectionBadge status={bdStatus} />}
-              >
-                <div className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="bd-api-key" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">API Key</Label>
-                    <div className="relative">
-                      <Input id="bd-api-key" type={showBdKey ? "text" : "password"} placeholder="Enter your bdcourier.com API key" value={bdCourierApiKey} onChange={(e) => setBdCourierApiKey(e.target.value)} className="h-11 pr-10" />
-                      <button type="button" onClick={() => setShowBdKey(!showBdKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
-                        {showBdKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Get your API key from{" "}
-                      <a href="https://bdcourier.com" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:no-underline">
-                        bdcourier.com
-                      </a>
-                    </p>
-                  </div>
-                  <Separator />
-                  <div className="flex gap-3 justify-end">
-                    <Button variant="outline" onClick={testBDCourier} disabled={testingBD} className="h-10">
-                      {testingBD ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Testing...</> : "Test Connection"}
-                    </Button>
-                    <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="h-10">
-                      {saveMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</> : "Save Settings"}
-                    </Button>
-                  </div>
-                </div>
-              </SettingsCard>
-            )}
+            {activeSection === "bdcourier" && <BDCourierSettingsSection
+              bdCourierApiKey={bdCourierApiKey}
+              setBdCourierApiKey={setBdCourierApiKey}
+              showBdKey={showBdKey}
+              setShowBdKey={setShowBdKey}
+              bdStatus={bdStatus}
+              testBDCourier={testBDCourier}
+              testingBD={testingBD}
+              saveMutation={saveMutation}
+            />}
             {activeSection === "pathao" && <PathaoSettingsSection />}
             {activeSection === "sms" && (
               <SettingsCard
