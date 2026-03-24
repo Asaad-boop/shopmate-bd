@@ -214,6 +214,15 @@ export default function WebOrdersPage() {
     },
   });
 
+  // Normalize phone: strip to 11-digit BD format for consistent cache lookup
+  const normalizePhone = useCallback((phone: string | null | undefined): string => {
+    if (!phone) return "";
+    let digits = phone.replace(/\D/g, "");
+    if (digits.startsWith("880") && digits.length >= 13) digits = "0" + digits.slice(3);
+    if (digits.length === 10 && !digits.startsWith("0")) digits = "0" + digits;
+    return digits.slice(0, 11);
+  }, []);
+
   // Only fetch courier data for current page's orders to save API quota
   const customerPhones = useMemo(() => {
     if (!orders) return [];
@@ -223,6 +232,18 @@ export default function WebOrdersPage() {
   }, [orders, page, pageSize]);
 
   const { data: bdCourierData, isLoading: bdLoading } = useBDCourierBulk(customerPhones, customerPhones.length > 0);
+
+  // Build a normalized-phone → risk data map so every format matches
+  const riskMap = useMemo(() => {
+    if (!bdCourierData) return new Map<string, BDCourierResult>();
+    const map = new Map<string, BDCourierResult>();
+    for (const [rawPhone, result] of Object.entries(bdCourierData)) {
+      if (result && !result.error) {
+        map.set(normalizePhone(rawPhone), result);
+      }
+    }
+    return map;
+  }, [bdCourierData, normalizePhone]);
 
   const orderIds = orders?.map((o) => o.id) || [];
 
