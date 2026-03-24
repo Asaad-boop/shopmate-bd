@@ -139,15 +139,20 @@ export function useBDCourierSingle(phone: string, enabled = true) {
       try {
         const { data: cached } = await supabase
           .from("customer_qc_cache")
-          .select("*")
+          .select("phone, success_rate, total_orders, successful_orders, returned_orders, cancelled_orders, last_fetched_at")
           .eq("phone", phone)
           .maybeSingle();
 
         if (cached?.last_fetched_at) {
           const age = Date.now() - new Date(cached.last_fetched_at).getTime();
           if (age < 7 * 24 * 60 * 60 * 1000) {
+            const rate = cached.success_rate ?? 0;
             return mapResult({
-              ...cached,
+              risk_level: getRiskFromRate(rate),
+              overall_success_rate: rate,
+              total_orders: cached.total_orders ?? 0,
+              total_success: cached.successful_orders ?? 0,
+              total_cancel: (cached.returned_orders ?? 0) + (cached.cancelled_orders ?? 0),
               from_cache: true,
               fetched_at: cached.last_fetched_at,
             });
