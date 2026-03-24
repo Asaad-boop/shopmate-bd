@@ -143,7 +143,7 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
 
 /* ─── Component ─── */
 
-export function AppSidebar() {
+export const AppSidebar = memo(function AppSidebar() {
   const location = useLocation();
   const { settings: company } = useCompanySettings();
 
