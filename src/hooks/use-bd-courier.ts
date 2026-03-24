@@ -58,22 +58,22 @@ export function useBDCourierBulk(phones: string[], enabled = true) {
       try {
         const { data: cached } = await supabase
           .from("customer_qc_cache")
-          .select("phone, risk_level, overall_success_rate, total_orders, total_success, total_cancel, raw_data, success_rate, successful_orders, returned_orders, cancelled_orders, last_fetched_at")
+          .select("phone, success_rate, total_orders, successful_orders, returned_orders, cancelled_orders, last_fetched_at, raw_data")
           .in("phone", uniquePhones);
 
         if (cached) {
           for (const row of cached) {
-            // Consider cache valid for 7 days
             const fetchedAt = row.last_fetched_at ? new Date(row.last_fetched_at).getTime() : 0;
             const isExpired = Date.now() - fetchedAt > 7 * 24 * 60 * 60 * 1000;
 
             if (!isExpired && row.phone) {
+              const rate = row.success_rate ?? 0;
               results[row.phone] = mapResult({
-                risk_level: row.risk_level || getRiskFromRate(row.success_rate),
-                overall_success_rate: row.overall_success_rate ?? row.success_rate ?? 0,
+                risk_level: getRiskFromRate(rate),
+                overall_success_rate: rate,
                 total_orders: row.total_orders ?? 0,
-                total_success: row.total_success ?? row.successful_orders ?? 0,
-                total_cancel: row.total_cancel ?? (row.returned_orders ?? 0) + (row.cancelled_orders ?? 0),
+                total_success: row.successful_orders ?? 0,
+                total_cancel: (row.returned_orders ?? 0) + (row.cancelled_orders ?? 0),
                 from_cache: true,
                 fetched_at: row.last_fetched_at,
               });
