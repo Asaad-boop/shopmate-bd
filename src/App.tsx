@@ -96,11 +96,7 @@ function E({ children }: { children: React.ReactNode }) {
 }
 
 function PageFallback() {
-  return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="w-6 h-6 animate-spin text-primary" />
-    </div>
-  );
+  return <PageLoadingSkeleton />;
 }
 
 function L({ children }: { children: React.ReactNode }) {
