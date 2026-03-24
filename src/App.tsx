@@ -9,9 +9,9 @@ import { AuthGuard } from "@/components/layout/AuthGuard";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { lazy, Suspense } from "react";
-import { Loader2 } from "lucide-react";
+import { PageLoadingSkeleton } from "@/components/ui/page-skeleton";
 import LoginPage from "./pages/Login";
-import Dashboard from "./pages/Index";
+const Dashboard = lazy(() => import("./pages/Index"));
 
 /* ─── Lazy-loaded pages ─── */
 const SearchPage = lazy(() => import("./pages/Search"));
