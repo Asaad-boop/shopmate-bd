@@ -993,18 +993,31 @@ function OrderQuickDrawer({ order, items, getSuccessRate, latestNote, onClose, o
           </div>
 
           {/* Success Rate */}
-          {!sr.noData && (
-            <div className="space-y-2">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Success Rate</h3>
-              <div className="flex items-center gap-3 bg-muted/30 rounded-lg p-3">
-                <SuccessRing percent={sr.percent} size={48} />
-                <div>
-                  <p className="text-lg font-bold">{sr.percent}%</p>
-                  <p className="text-xs text-muted-foreground">{sr.delivered}/{sr.total} delivered</p>
-                </div>
-              </div>
+          <div className="space-y-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Success Rate</h3>
+            <div className="flex items-center gap-3 bg-muted/30 rounded-lg p-3">
+              {sr.isNew ? (
+                <>
+                  <div className="w-12 h-12 rounded-full border-2 border-blue-300 dark:border-blue-700 flex items-center justify-center">
+                    <span className="text-[9px] font-bold text-blue-400">NEW</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-blue-500">New Customer</p>
+                    <p className="text-xs text-muted-foreground">No delivery history</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <SuccessRing percent={sr.percent} size={48} />
+                  <div>
+                    <p className="text-lg font-bold" style={{ color: sr.percent >= 80 ? "#22c55e" : sr.percent >= 60 ? "#f97316" : "#ef4444" }}>{sr.percent}%</p>
+                    <p className="text-xs text-muted-foreground">{sr.delivered}/{sr.total} delivered</p>
+                    <p className="text-xs text-muted-foreground">Rating: {sr.rating}</p>
+                  </div>
+                </>
+              )}
             </div>
-          )}
+          </div>
 
           {/* Order Items */}
           <div className="space-y-2">
