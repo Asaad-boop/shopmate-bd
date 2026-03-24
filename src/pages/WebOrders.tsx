@@ -379,16 +379,27 @@ export default function WebOrdersPage() {
   };
 
   const getSuccessRate = useCallback((customer: any) => {
-    if (!customer?.phone) return { percent: 0, delivered: 0, total: 0, loading: false, noData: true };
-    const bdData = bdCourierData?.[customer.phone];
-    if (!bdData || bdData.error) return { percent: 0, delivered: 0, total: 0, loading: bdLoading, noData: !bdData };
+    if (!customer?.phone) return { percent: 0, delivered: 0, total: 0, rating: 0, loading: false, noData: true, isNew: true };
+    const norm = normalizePhone(customer.phone);
+    const bdData = riskMap.get(norm);
+    if (!bdData) {
+      // Still loading or not in cache — show loading if bulk query is running, otherwise "new"
+      return { percent: 0, delivered: 0, total: 0, rating: 0, loading: bdLoading, noData: !bdLoading, isNew: !bdLoading };
+    }
+    const total = bdData.total_orders || 0;
+    const success = bdData.successful_orders || bdData.total_success || 0;
+    const rate = bdData.success_rate || bdData.overall_success_rate || 0;
+    const rating = Math.min(150, Math.round(total * 1.5));
     return {
-      percent: bdData.success_rate || 0,
-      delivered: bdData.successful_orders || 0,
-      total: bdData.total_orders || 0,
-      loading: false, noData: false,
+      percent: rate,
+      delivered: success,
+      total,
+      rating,
+      loading: false,
+      noData: false,
+      isNew: total === 0,
     };
-  }, [bdCourierData, bdLoading]);
+  }, [riskMap, bdLoading, normalizePhone]);
 
   const handleRowClick = useCallback((e: React.MouseEvent, orderId: string) => {
     const target = e.target as HTMLElement;
