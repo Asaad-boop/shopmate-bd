@@ -54,7 +54,14 @@ export default function LoginPage() {
       }
     } else {
       const { error } = await signIn(email, password);
-      if (error) setError("Invalid email or password. Please try again.");
+      if (error) {
+        const isNetworkIssue = /fetch|network|unable to sign in/i.test(error.message);
+        setError(
+          isNetworkIssue
+            ? "Login service is temporarily unavailable. Please try again."
+            : "Invalid email or password. Please try again.",
+        );
+      }
     }
     setSubmitting(false);
   };
