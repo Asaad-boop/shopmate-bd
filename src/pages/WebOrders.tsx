@@ -218,32 +218,11 @@ export default function WebOrdersPage() {
   const normalizePhone = useCallback((phone: string | null | undefined): string => {
     if (!phone) return "";
     let digits = phone.replace(/\D/g, "");
-    if (digits.startsWith("880") && digits.length >= 13) digits = "0" + digits.slice(3);
-    if (digits.length === 10 && !digits.startsWith("0")) digits = "0" + digits;
-    return digits.slice(0, 11);
+    if (digits.startsWith("880")) digits = digits.slice(3);
+    if (digits.length === 10 && !digits.startsWith("0")) digits = `0${digits}`;
+    if (digits.length > 11) digits = digits.slice(-11);
+    return digits.length === 11 ? digits : "";
   }, []);
-
-  // Only fetch courier data for current page's orders to save API quota
-  const customerPhones = useMemo(() => {
-    if (!orders) return [];
-    const start = (page - 1) * pageSize;
-    const visible = (orders || []).slice(start, start + pageSize);
-    return visible.map((o) => (o.customers as any)?.phone).filter(Boolean) as string[];
-  }, [orders, page, pageSize]);
-
-  const { data: bdCourierData, isLoading: bdLoading } = useBDCourierBulk(customerPhones, customerPhones.length > 0);
-
-  // Build a normalized-phone → risk data map so every format matches
-  const riskMap = useMemo(() => {
-    if (!bdCourierData) return new Map<string, BDCourierResult>();
-    const map = new Map<string, BDCourierResult>();
-    for (const [rawPhone, result] of Object.entries(bdCourierData)) {
-      if (result && !result.error) {
-        map.set(normalizePhone(rawPhone), result);
-      }
-    }
-    return map;
-  }, [bdCourierData, normalizePhone]);
 
   const orderIds = orders?.map((o) => o.id) || [];
 
@@ -346,6 +325,23 @@ export default function WebOrdersPage() {
     const start = (page - 1) * pageSize;
     return filtered.slice(start, start + pageSize);
   }, [filtered, page, pageSize]);
+
+  const customerPhones = useMemo(() => {
+    return paginatedOrders
+      .map((o) => (o.customers as any)?.phone)
+      .filter(Boolean) as string[];
+  }, [paginatedOrders]);
+
+  const { data: bdCourierData, isLoading: bdLoading } = useBDCourierBulk(customerPhones, customerPhones.length > 0);
+
+  const riskMap = useMemo(() => {
+    if (!bdCourierData) return new Map<string, BDCourierResult>();
+    return new Map(
+      Object.entries(bdCourierData)
+        .filter(([, result]) => result && !result.error)
+        .map(([rawPhone, result]) => [normalizePhone(rawPhone), result]),
+    );
+  }, [bdCourierData, normalizePhone]);
 
   useEffect(() => { setPage(1); }, [activeTab, search, siteFilter, dateRange, sortBy]);
 

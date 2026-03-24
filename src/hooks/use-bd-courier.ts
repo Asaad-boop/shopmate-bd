@@ -11,137 +11,94 @@ export interface BDCourierResult {
   fetched_at?: string;
   from_cache?: boolean;
   error?: string;
-  // Legacy compat fields
   success_rate: number;
   successful_orders: number;
   returned_orders: number;
   cancelled_orders: number;
 }
 
+interface CacheRow {
+  phone: string | null;
+  success_rate: number | null;
+  total_orders: number | null;
+  successful_orders: number | null;
+  returned_orders: number | null;
+  cancelled_orders: number | null;
+  last_fetched_at: string | null;
+  raw_data?: any;
+}
+
+function normalizePhone(phone: string | null | undefined): string {
+  if (!phone) return "";
+
+  let digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("880")) digits = digits.slice(3);
+  if (digits.length === 10 && !digits.startsWith("0")) digits = `0${digits}`;
+  if (digits.length > 11) digits = digits.slice(-11);
+
+  return digits.length === 11 ? digits : "";
+}
+
+function getPhoneVariants(phone: string | null | undefined): string[] {
+  const normalized = normalizePhone(phone);
+  if (!normalized) return [];
+
+  return [...new Set([
+    phone?.trim(),
+    normalized,
+    `88${normalized}`,
+    `+88${normalized}`,
+  ].filter(Boolean) as string[])];
+}
+
 function mapResult(r: any): BDCourierResult {
+  const overallRate = r.overall_success_rate ?? r.success_rate ?? 0;
+  const totalSuccess = r.total_success ?? r.successful_orders ?? 0;
+  const totalCancel = r.total_cancel ?? r.cancelled_orders ?? r.returned_orders ?? 0;
+
   return {
-    risk_level: r.risk_level || "unknown",
-    overall_success_rate: r.overall_success_rate ?? 0,
+    risk_level: r.risk_level || (r.total_orders > 0 ? getRiskFromRate(overallRate) : "new_customer"),
+    overall_success_rate: overallRate,
     total_orders: r.total_orders ?? 0,
-    total_success: r.total_success ?? 0,
-    total_cancel: r.total_cancel ?? 0,
+    total_success: totalSuccess,
+    total_cancel: totalCancel,
     courier_data: r.courier_data,
-    fetched_at: r.fetched_at,
+    fetched_at: r.fetched_at ?? r.last_fetched_at,
     from_cache: r.from_cache ?? true,
     error: r.error,
-    success_rate: r.overall_success_rate ?? r.success_rate ?? 0,
-    successful_orders: r.total_success ?? r.successful_orders ?? 0,
-    returned_orders: r.total_cancel ?? r.returned_orders ?? 0,
-    cancelled_orders: r.total_cancel ?? r.cancelled_orders ?? 0,
+    success_rate: overallRate,
+    successful_orders: totalSuccess,
+    returned_orders: r.returned_orders ?? totalCancel,
+    cancelled_orders: r.cancelled_orders ?? totalCancel,
   };
 }
 
-// Session-level rate limit tracker — stops hammering API when daily limit reached
-let _rateLimitTs = 0;
-function _rateLimitedUntil(): boolean {
-  return Date.now() - _rateLimitTs < 30 * 60 * 1000;
-}
-function _setRateLimited() {
-  _rateLimitTs = Date.now();
-  console.warn("BD Courier API daily limit reached — pausing calls for 30 min");
-}
+function mapCacheRow(row: CacheRow): BDCourierResult {
+  const rate = row.success_rate ?? 0;
+  const rawData = row.raw_data && typeof row.raw_data === "object" ? row.raw_data : {};
+  const courierData = rawData?.data?.Summaries || rawData?.data?.summaries || rawData?.courier_data || {};
 
-/**
- * Optimized bulk courier check:
- * 1. First check Supabase cache (customer_qc_cache) for ALL phones in ONE query
- * 2. Only call edge function for uncached/expired phones
- * 3. Stagger API calls to avoid 429 rate limits
- * 4. Stop calling when daily API limit is reached
- */
-export function useBDCourierBulk(phones: string[], enabled = true) {
-  // Stabilize the key to avoid re-fetching on every render
-  const uniquePhones = [...new Set(phones.filter(Boolean))];
-  const sortedKey = uniquePhones.sort().join(",");
-
-  return useQuery({
-    queryKey: ["bd-courier-bulk", sortedKey],
-    queryFn: async (): Promise<Record<string, BDCourierResult>> => {
-      const uniquePhones = [...new Set(phones.filter(Boolean))];
-      if (!uniquePhones.length) return {};
-
-      const results: Record<string, BDCourierResult> = {};
-
-      // Step 1: Check cache first (ONE query for all phones)
-      try {
-        const { data: cached } = await supabase
-          .from("customer_qc_cache")
-          .select("phone, success_rate, total_orders, successful_orders, returned_orders, cancelled_orders, last_fetched_at, raw_data")
-          .in("phone", uniquePhones);
-
-        if (cached) {
-          for (const row of cached) {
-            const fetchedAt = row.last_fetched_at ? new Date(row.last_fetched_at).getTime() : 0;
-            const isExpired = Date.now() - fetchedAt > 7 * 24 * 60 * 60 * 1000;
-
-            if (!isExpired && row.phone) {
-              const rate = row.success_rate ?? 0;
-              results[row.phone] = mapResult({
-                risk_level: getRiskFromRate(rate),
-                overall_success_rate: rate,
-                total_orders: row.total_orders ?? 0,
-                total_success: row.successful_orders ?? 0,
-                total_cancel: (row.returned_orders ?? 0) + (row.cancelled_orders ?? 0),
-                from_cache: true,
-                fetched_at: row.last_fetched_at,
-              });
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Cache lookup error:", e);
-      }
-
-      // Step 2: Find uncached phones
-      const uncached = uniquePhones.filter((p) => !results[p]);
-
-      // Step 3: Only call edge function if we have uncached phones AND not rate-limited
-      // Check session-level rate limit flag to avoid wasting calls
-      if (uncached.length > 0 && !_rateLimitedUntil()) {
-        const batchSize = 5;
-        let hitRateLimit = false;
-        for (let i = 0; i < uncached.length && !hitRateLimit; i += batchSize) {
-          const batch = uncached.slice(i, i + batchSize);
-          try {
-            const { data, error } = await supabase.functions.invoke("bd-courier-check", {
-              body: { phones: batch },
-            });
-            if (!error && data?.results) {
-              for (const [ph, r] of Object.entries(data.results as Record<string, any>)) {
-                if (r.error === "daily_limit_reached" || r.error === "api_error") {
-                  // Stop fetching — API limit hit
-                  hitRateLimit = true;
-                  _setRateLimited();
-                } else if (!r.error) {
-                  results[ph] = mapResult(r);
-                }
-              }
-            }
-            if (data?.error === "daily_limit_reached") {
-              hitRateLimit = true;
-              _setRateLimited();
-            }
-          } catch (e) {
-            console.error("BD Courier batch error:", e);
-            break; // Stop on network errors too
-          }
-          if (i + batchSize < uncached.length && !hitRateLimit) {
-            await new Promise((r) => setTimeout(r, 300));
-          }
-        }
-      }
-
-      return results;
-    },
-    enabled: enabled && phones.length > 0,
-    staleTime: 10 * 60 * 1000, // 10 minutes - data doesn't change fast
-    gcTime: 15 * 60 * 1000,
-    retry: 0, // Don't retry on failure - saves API quota
+  return mapResult({
+    risk_level: (row.total_orders ?? 0) > 0 ? getRiskFromRate(rate) : "new_customer",
+    overall_success_rate: rate,
+    total_orders: row.total_orders ?? 0,
+    total_success: row.successful_orders ?? 0,
+    total_cancel: (row.returned_orders ?? 0) + (row.cancelled_orders ?? 0),
+    returned_orders: row.returned_orders ?? 0,
+    cancelled_orders: row.cancelled_orders ?? 0,
+    courier_data: courierData,
+    last_fetched_at: row.last_fetched_at,
+    from_cache: true,
   });
+}
+
+let rateLimitTs = 0;
+function isRateLimited(): boolean {
+  return Date.now() - rateLimitTs < 30 * 60 * 1000;
+}
+function setRateLimited() {
+  rateLimitTs = Date.now();
+  console.warn("BD Courier API daily limit reached — pausing calls for 30 min");
 }
 
 function getRiskFromRate(rate: number | null | undefined): string {
@@ -151,52 +108,139 @@ function getRiskFromRate(rate: number | null | undefined): string {
   return "high";
 }
 
-export function useBDCourierSingle(phone: string, enabled = true) {
+export function useBDCourierBulk(phones: string[], enabled = true) {
+  const normalizedPhones = [...new Set(phones.map(normalizePhone).filter(Boolean))];
+  const sortedKey = [...normalizedPhones].sort().join(",");
+
   return useQuery({
-    queryKey: ["bd-courier-single", phone],
-    queryFn: async (): Promise<BDCourierResult | null> => {
-      if (!phone || phone.length < 8) return null;
+    queryKey: ["bd-courier-bulk", sortedKey],
+    queryFn: async (): Promise<Record<string, BDCourierResult>> => {
+      if (!normalizedPhones.length) return {};
 
-      // Check cache first
+      const results: Record<string, BDCourierResult> = {};
+      const allPhoneVariants = [...new Set(normalizedPhones.flatMap(getPhoneVariants))];
+
       try {
-        const { data: cached } = await supabase
+        const { data: cached, error } = await supabase
           .from("customer_qc_cache")
-          .select("phone, success_rate, total_orders, successful_orders, returned_orders, cancelled_orders, last_fetched_at")
-          .eq("phone", phone)
-          .maybeSingle();
+          .select("phone, success_rate, total_orders, successful_orders, returned_orders, cancelled_orders, last_fetched_at, raw_data")
+          .in("phone", allPhoneVariants);
 
-        if (cached?.last_fetched_at) {
-          const age = Date.now() - new Date(cached.last_fetched_at).getTime();
-          if (age < 7 * 24 * 60 * 60 * 1000) {
-            const rate = cached.success_rate ?? 0;
-            return mapResult({
-              risk_level: getRiskFromRate(rate),
-              overall_success_rate: rate,
-              total_orders: cached.total_orders ?? 0,
-              total_success: cached.successful_orders ?? 0,
-              total_cancel: (cached.returned_orders ?? 0) + (cached.cancelled_orders ?? 0),
-              from_cache: true,
-              fetched_at: cached.last_fetched_at,
-            });
+        if (error) throw error;
+
+        for (const row of (cached ?? []) as CacheRow[]) {
+          const normalized = normalizePhone(row.phone);
+          if (!normalized) continue;
+
+          const fetchedTime = row.last_fetched_at ? new Date(row.last_fetched_at).getTime() : 0;
+          const isExpired = fetchedTime > 0 && Date.now() - fetchedTime > 7 * 24 * 60 * 60 * 1000;
+
+          if (!isExpired) {
+            results[normalized] = mapCacheRow(row);
           }
         }
-      } catch {}
+      } catch (error) {
+        console.error("Cache lookup error:", error);
+      }
 
-      // Skip API call if rate-limited
-      if (_rateLimitedUntil()) return null;
+      const uncached = normalizedPhones.filter((phone) => !results[phone]);
+      if (!uncached.length || isRateLimited()) return results;
+
+      const batchSize = 5;
+      let hitRateLimit = false;
+
+      for (let i = 0; i < uncached.length && !hitRateLimit; i += batchSize) {
+        const batch = uncached.slice(i, i + batchSize);
+
+        try {
+          const { data, error } = await supabase.functions.invoke("bd-courier-check", {
+            body: { phones: batch },
+          });
+
+          if (error) {
+            console.error("BD Courier batch error:", error);
+            break;
+          }
+
+          for (const [phone, result] of Object.entries((data?.results ?? {}) as Record<string, any>)) {
+            const normalized = normalizePhone(phone);
+            if (!normalized) continue;
+
+            if (result?.error === "daily_limit_reached" || result?.error === "api_error") {
+              hitRateLimit = true;
+              setRateLimited();
+              continue;
+            }
+
+            if (!result?.error) {
+              results[normalized] = mapResult(result);
+            }
+          }
+        } catch (error) {
+          console.error("BD Courier batch error:", error);
+          break;
+        }
+
+        if (i + batchSize < uncached.length && !hitRateLimit) {
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
+      }
+
+      return results;
+    },
+    enabled: enabled && normalizedPhones.length > 0,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    retry: 0,
+  });
+}
+
+export function useBDCourierSingle(phone: string, enabled = true) {
+  const normalizedPhone = normalizePhone(phone);
+
+  return useQuery({
+    queryKey: ["bd-courier-single", normalizedPhone],
+    queryFn: async (): Promise<BDCourierResult | null> => {
+      if (!normalizedPhone) return null;
+
+      try {
+        const variants = getPhoneVariants(normalizedPhone);
+        const { data: cached, error } = await supabase
+          .from("customer_qc_cache")
+          .select("phone, success_rate, total_orders, successful_orders, returned_orders, cancelled_orders, last_fetched_at, raw_data")
+          .in("phone", variants)
+          .limit(1)
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (cached) {
+          const row = cached as CacheRow;
+          const fetchedTime = row.last_fetched_at ? new Date(row.last_fetched_at).getTime() : 0;
+          const isExpired = fetchedTime > 0 && Date.now() - fetchedTime > 7 * 24 * 60 * 60 * 1000;
+
+          if (!isExpired) {
+            return mapCacheRow(row);
+          }
+        }
+      } catch {
+        // fall through to edge function
+      }
+
+      if (isRateLimited()) return null;
 
       const { data, error } = await supabase.functions.invoke("bd-courier-check", {
-        body: { phone },
+        body: { phone: normalizedPhone },
       });
 
       if (error || !data || data.error) {
-        if (data?.error === "daily_limit_reached") _setRateLimited();
+        if (data?.error === "daily_limit_reached" || data?.error === "api_error") setRateLimited();
         return null;
       }
 
       return mapResult(data);
     },
-    enabled: enabled && !!phone && phone.length >= 8,
+    enabled: enabled && !!normalizedPhone,
     staleTime: 10 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
     retry: 0,

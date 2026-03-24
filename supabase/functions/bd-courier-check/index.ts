@@ -5,6 +5,35 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function normalizePhone(phone: string | null | undefined): string {
+  if (!phone) return "";
+
+  let digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("880")) digits = digits.slice(3);
+  if (digits.length === 10 && !digits.startsWith("0")) digits = `0${digits}`;
+  if (digits.length > 11) digits = digits.slice(-11);
+
+  return digits.length === 11 ? digits : "";
+}
+
+function getPhoneVariants(phone: string | null | undefined): string[] {
+  const normalized = normalizePhone(phone);
+  if (!normalized) return [];
+
+  return [...new Set([
+    phone?.trim(),
+    normalized,
+    `88${normalized}`,
+    `+88${normalized}`,
+  ].filter(Boolean) as string[])];
+}
+
+function getRiskFromRate(rate: number): string {
+  if (rate >= 80) return "low";
+  if (rate >= 60) return "medium";
+  return "high";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -13,13 +42,12 @@ Deno.serve(async (req) => {
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
     const { phone, phones: rawPhones, force } = await req.json();
-
-    // Support both single phone and batch mode
-    const phoneList: string[] = phone ? [phone] : (rawPhones || []).slice(0, 5);
+    const inputPhones = phone ? [phone] : (rawPhones || []).slice(0, 5);
+    const phoneList = [...new Set(inputPhones.map(normalizePhone).filter(Boolean))];
 
     if (!phoneList.length) {
       return new Response(JSON.stringify({ error: "phone or phones required" }), {
@@ -28,7 +56,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get API key from settings
     const { data: apiKeySetting } = await supabase
       .from("settings")
       .select("value")
@@ -46,61 +73,59 @@ Deno.serve(async (req) => {
     const results: Record<string, any> = {};
     const today = new Date().toISOString().split("T")[0];
 
-    // Check cache first (unless force refresh) — 7 day cache
     if (!force) {
+      const allPhoneVariants = [...new Set(phoneList.flatMap(getPhoneVariants))];
       const { data: cached } = await supabase
         .from("customer_qc_cache")
         .select("*")
-        .in("phone", phoneList)
+        .in("phone", allPhoneVariants)
         .gt("cache_expires_at", new Date().toISOString());
 
-      cached?.forEach((c: any) => {
-        results[c.phone] = {
+      cached?.forEach((row: any) => {
+        const normalized = normalizePhone(row.phone);
+        if (!normalized) return;
+
+        results[normalized] = {
           from_cache: true,
-          risk_level: c.risk_level || "unknown",
-          overall_success_rate: c.overall_success_rate ?? c.success_rate ?? 0,
-          total_orders: c.total_orders ?? 0,
-          total_success: c.total_success ?? c.successful_orders ?? 0,
-          total_cancel: c.total_cancel ?? c.cancelled_orders ?? 0,
-          courier_data: c.courier_data || c.raw_data || {},
-          fetched_at: c.fetched_at || c.last_fetched_at,
+          risk_level: row.risk_level || "unknown",
+          overall_success_rate: row.overall_success_rate ?? row.success_rate ?? 0,
+          total_orders: row.total_orders ?? 0,
+          total_success: row.total_success ?? row.successful_orders ?? 0,
+          total_cancel: row.total_cancel ?? row.cancelled_orders ?? row.returned_orders ?? 0,
+          courier_data: row.courier_data || row.raw_data || {},
+          fetched_at: row.fetched_at || row.last_fetched_at,
         };
       });
     }
 
-    // Check daily limit BEFORE making any API calls
     const { count: dailyCount } = await supabase
       .from("bdcourier_api_log")
       .select("*", { count: "exact", head: true })
       .eq("call_date", today)
       .eq("success", true);
 
-    const uncachedPhones = phoneList.filter((p: string) => !results[p]);
+    const uncachedPhones = phoneList.filter((value) => !results[value]);
 
-    // If daily limit reached, return early with error for all uncached phones
     if ((dailyCount || 0) >= 490 && uncachedPhones.length > 0) {
-      for (const ph of uncachedPhones) {
-        results[ph] = { error: "daily_limit_reached", used: dailyCount, limit: 500 };
+      for (const currentPhone of uncachedPhones) {
+        results[currentPhone] = { error: "daily_limit_reached", used: dailyCount, limit: 500 };
       }
 
       if (phone && !rawPhones) {
-        return new Response(JSON.stringify(results[phone] || { error: "daily_limit_reached" }), {
+        return new Response(JSON.stringify(results[phoneList[0]] || { error: "daily_limit_reached" }), {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
       return new Response(JSON.stringify({ results }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    for (const ph of uncachedPhones) {
-
+    for (const currentPhone of uncachedPhones) {
       try {
-        // Normalize phone: remove +88, spaces, dashes
-        const normalizedPhone = ph.replace(/[\s\-\+]/g, "").replace(/^88/, "");
-
         const response = await fetch("https://bdcourier.com/api/courier-check", {
           method: "POST",
           headers: {
@@ -108,32 +133,26 @@ Deno.serve(async (req) => {
             "Authorization": `Bearer ${apiKey}`,
             "Accept": "application/json",
           },
-          body: JSON.stringify({ phone: normalizedPhone }),
+          body: JSON.stringify({ phone: currentPhone }),
         });
 
         if (response.ok) {
           const data = await response.json();
-
-          // Parse response — BD Courier returns data.data.summary
           const summary = data?.data?.summary || data?.data?.totalSummary || {};
           const courierSummaries = data?.data?.Summaries || data?.data?.summaries || {};
-          
+
           const totalOrders = summary.total_parcel || summary.total || 0;
           const totalSuccess = summary.success_parcel || summary.success || 0;
           const totalCancel = summary.cancelled_parcel || summary.cancel || 0;
-          const successRate = summary.success_ratio 
-            ? Math.round(summary.success_ratio) 
+          const successRate = summary.success_ratio
+            ? Math.round(summary.success_ratio)
             : (totalOrders > 0 ? Math.round((totalSuccess / totalOrders) * 100) : 0);
 
-          // Determine risk level
-          let riskLevel = "unknown";
-          if (totalOrders === 0) riskLevel = "new_customer";
-          else if (successRate >= 80) riskLevel = "low";
-          else if (successRate >= 60) riskLevel = "medium";
-          else riskLevel = "high";
+          const riskLevel = totalOrders === 0 ? "new_customer" : getRiskFromRate(successRate);
+          const fetchedAt = new Date().toISOString();
 
           const cacheData = {
-            phone: ph,
+            phone: currentPhone,
             courier_data: courierSummaries,
             risk_level: riskLevel,
             overall_success_rate: successRate,
@@ -146,22 +165,15 @@ Deno.serve(async (req) => {
             returned_orders: totalCancel,
             raw_data: data,
             data_source: "api",
-            fetched_at: new Date().toISOString(),
-            last_fetched_at: new Date().toISOString(),
+            fetched_at: fetchedAt,
+            last_fetched_at: fetchedAt,
             cache_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
           };
 
-          // Upsert cache
-          await supabase
-            .from("customer_qc_cache")
-            .upsert(cacheData, { onConflict: "phone" });
+          await supabase.from("customer_qc_cache").upsert(cacheData, { onConflict: "phone" });
+          await supabase.from("bdcourier_api_log").insert({ phone_number: currentPhone, success: true, call_date: today });
 
-          // Log successful API call
-          await supabase
-            .from("bdcourier_api_log")
-            .insert({ phone_number: ph, success: true, call_date: today });
-
-          results[ph] = {
+          results[currentPhone] = {
             from_cache: false,
             risk_level: riskLevel,
             overall_success_rate: successRate,
@@ -169,46 +181,37 @@ Deno.serve(async (req) => {
             total_success: totalSuccess,
             total_cancel: totalCancel,
             courier_data: courierSummaries,
-            fetched_at: cacheData.fetched_at,
+            fetched_at: fetchedAt,
           };
         } else {
           const errText = await response.text();
-          console.error(`BD Courier API error for ${ph}: ${response.status} ${errText}`);
-          
-          // Log failed call
-          await supabase
-            .from("bdcourier_api_log")
-            .insert({ phone_number: ph, success: false, call_date: today });
+          console.error(`BD Courier API error for ${currentPhone}: ${response.status} ${errText}`);
 
-          results[ph] = { error: "api_error", status: response.status };
+          await supabase.from("bdcourier_api_log").insert({ phone_number: currentPhone, success: false, call_date: today });
+          results[currentPhone] = { error: "api_error", status: response.status };
         }
-      } catch (err) {
-        console.error(`BD Courier fetch error for ${ph}:`, err);
-        
-        await supabase
-          .from("bdcourier_api_log")
-          .insert({ phone_number: ph, success: false, call_date: today });
+      } catch (error) {
+        console.error(`BD Courier fetch error for ${currentPhone}:`, error);
 
-        results[ph] = { error: "fetch_error" };
+        await supabase.from("bdcourier_api_log").insert({ phone_number: currentPhone, success: false, call_date: today });
+        results[currentPhone] = { error: "fetch_error" };
       }
     }
 
-    // Single phone mode returns flat result
     if (phone && !rawPhones) {
-      return new Response(JSON.stringify(results[phone] || { error: "no_result" }), {
+      return new Response(JSON.stringify(results[phoneList[0]] || { error: "no_result" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Batch mode returns { results: { ... } }
     return new Response(JSON.stringify({ results }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (err) {
-    console.error("BD Courier check error:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
+  } catch (error) {
+    console.error("BD Courier check error:", error);
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
