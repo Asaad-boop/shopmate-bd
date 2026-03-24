@@ -23,7 +23,7 @@ import {
   Globe, TrendingUp, Package, BarChart3, Settings2,
   MapPin, StickyNote, Truck, Tag,
 } from "lucide-react";
-import { useBDCourierBulk } from "@/hooks/use-bd-courier";
+import { useBDCourierBulk, type BDCourierResult } from "@/hooks/use-bd-courier";
 import {
   DropdownMenu as DropdownMenuRoot,
   DropdownMenuContent as DDContent,
