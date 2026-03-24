@@ -214,10 +214,11 @@ export default function WebOrdersPage() {
     },
   });
 
+  // Only fetch courier data for VISIBLE (paginated) orders to save API quota
   const customerPhones = useMemo(() => {
-    if (!orders) return [];
-    return orders.map((o) => (o.customers as any)?.phone).filter(Boolean) as string[];
-  }, [orders]);
+    if (!paginatedOrders) return [];
+    return paginatedOrders.map((o) => (o.customers as any)?.phone).filter(Boolean) as string[];
+  }, [paginatedOrders]);
 
   const { data: bdCourierData, isLoading: bdLoading } = useBDCourierBulk(customerPhones, customerPhones.length > 0);
 
