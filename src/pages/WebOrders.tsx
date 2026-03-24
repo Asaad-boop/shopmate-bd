@@ -326,6 +326,23 @@ export default function WebOrdersPage() {
     return filtered.slice(start, start + pageSize);
   }, [filtered, page, pageSize]);
 
+  const customerPhones = useMemo(() => {
+    return paginatedOrders
+      .map((o) => (o.customers as any)?.phone)
+      .filter(Boolean) as string[];
+  }, [paginatedOrders]);
+
+  const { data: bdCourierData, isLoading: bdLoading } = useBDCourierBulk(customerPhones, customerPhones.length > 0);
+
+  const riskMap = useMemo(() => {
+    if (!bdCourierData) return new Map<string, BDCourierResult>();
+    return new Map(
+      Object.entries(bdCourierData)
+        .filter(([, result]) => result && !result.error)
+        .map(([rawPhone, result]) => [normalizePhone(rawPhone), result]),
+    );
+  }, [bdCourierData, normalizePhone]);
+
   useEffect(() => { setPage(1); }, [activeTab, search, siteFilter, dateRange, sortBy]);
 
   const bulkMutation = useMutation({
