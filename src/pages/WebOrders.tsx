@@ -297,8 +297,8 @@ export default function WebOrdersPage() {
   const filtered = useMemo(() => {
     let list = orders || [];
     if (activeTab !== "all") list = list.filter((o) => (o.web_order_status || "processing") === activeTab);
-    if (search) {
-      const s = search.toLowerCase();
+    if (debouncedSearch) {
+      const s = debouncedSearch.toLowerCase();
       list = list.filter((o) =>
         o.order_number?.toLowerCase().includes(s) ||
         (o.customers as any)?.full_name?.toLowerCase().includes(s) ||
