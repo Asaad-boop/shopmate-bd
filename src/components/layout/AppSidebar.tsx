@@ -174,12 +174,12 @@ export const AppSidebar = memo(function AppSidebar() {
     return initial.length ? initial : ["Orders"];
   });
 
-  const toggleGroup = (group: string) => {
-    if (collapsed) return; // Don't toggle in collapsed mode
+  const toggleGroup = useCallback((group: string) => {
+    if (collapsed) return;
     setExpandedGroups(prev =>
       prev.includes(group) ? prev.filter(g => g !== group) : [...prev, group]
     );
-  };
+  }, [collapsed]);
 
   const isActive = (path: string) => location.pathname === path;
 
