@@ -88,10 +88,12 @@ export function useBDCourierBulk(phones: string[], enabled = true) {
       // Step 2: Find uncached phones
       const uncached = uniquePhones.filter((p) => !results[p]);
 
-      // Step 3: Only call edge function for uncached, in small batches with delay
-      if (uncached.length > 0) {
+      // Step 3: Only call edge function if we have uncached phones AND not rate-limited
+      // Check session-level rate limit flag to avoid wasting calls
+      if (uncached.length > 0 && !_rateLimitedUntil()) {
         const batchSize = 5;
-        for (let i = 0; i < uncached.length; i += batchSize) {
+        let hitRateLimit = false;
+        for (let i = 0; i < uncached.length && !hitRateLimit; i += batchSize) {
           const batch = uncached.slice(i, i + batchSize);
           try {
             const { data, error } = await supabase.functions.invoke("bd-courier-check", {
@@ -99,16 +101,24 @@ export function useBDCourierBulk(phones: string[], enabled = true) {
             });
             if (!error && data?.results) {
               for (const [ph, r] of Object.entries(data.results as Record<string, any>)) {
-                if (!r.error) {
+                if (r.error === "daily_limit_reached" || r.error === "api_error") {
+                  // Stop fetching — API limit hit
+                  hitRateLimit = true;
+                  _setRateLimited();
+                } else if (!r.error) {
                   results[ph] = mapResult(r);
                 }
               }
             }
+            if (data?.error === "daily_limit_reached") {
+              hitRateLimit = true;
+              _setRateLimited();
+            }
           } catch (e) {
             console.error("BD Courier batch error:", e);
+            break; // Stop on network errors too
           }
-          // Small delay between batches to avoid rate limits
-          if (i + batchSize < uncached.length) {
+          if (i + batchSize < uncached.length && !hitRateLimit) {
             await new Promise((r) => setTimeout(r, 300));
           }
         }
