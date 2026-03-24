@@ -36,11 +36,22 @@ function mapResult(r: any): BDCourierResult {
   };
 }
 
+// Session-level rate limit tracker — stops hammering API when daily limit reached
+let _rateLimitTs = 0;
+function _rateLimitedUntil(): boolean {
+  return Date.now() - _rateLimitTs < 30 * 60 * 1000;
+}
+function _setRateLimited() {
+  _rateLimitTs = Date.now();
+  console.warn("BD Courier API daily limit reached — pausing calls for 30 min");
+}
+
 /**
  * Optimized bulk courier check:
  * 1. First check Supabase cache (customer_qc_cache) for ALL phones in ONE query
  * 2. Only call edge function for uncached/expired phones
  * 3. Stagger API calls to avoid 429 rate limits
+ * 4. Stop calling when daily API limit is reached
  */
 export function useBDCourierBulk(phones: string[], enabled = true) {
   // Stabilize the key to avoid re-fetching on every render
