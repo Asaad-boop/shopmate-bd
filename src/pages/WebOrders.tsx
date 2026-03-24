@@ -214,11 +214,13 @@ export default function WebOrdersPage() {
     },
   });
 
-  // Only fetch courier data for VISIBLE (paginated) orders to save API quota
+  // Only fetch courier data for current page's orders to save API quota
   const customerPhones = useMemo(() => {
-    if (!paginatedOrders) return [];
-    return paginatedOrders.map((o) => (o.customers as any)?.phone).filter(Boolean) as string[];
-  }, [paginatedOrders]);
+    if (!orders) return [];
+    const start = (page - 1) * pageSize;
+    const visible = (orders || []).slice(start, start + pageSize);
+    return visible.map((o) => (o.customers as any)?.phone).filter(Boolean) as string[];
+  }, [orders, page, pageSize]);
 
   const { data: bdCourierData, isLoading: bdLoading } = useBDCourierBulk(customerPhones, customerPhones.length > 0);
 
