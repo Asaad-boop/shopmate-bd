@@ -181,7 +181,7 @@ export const AppSidebar = memo(function AppSidebar() {
     );
   }, [collapsed]);
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = useCallback((path: string) => location.pathname === path, [location.pathname]);
 
   const isGroupActive = (item: NavGroup) =>
     item.children.some(c => location.pathname === c.path || location.pathname.startsWith(c.path + "/"));
