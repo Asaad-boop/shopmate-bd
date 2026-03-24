@@ -151,13 +151,13 @@ export const AppSidebar = memo(function AppSidebar() {
     try { return localStorage.getItem("shopmate_sidebar_collapsed") === "true"; } catch { return false; }
   });
 
-  const toggle = () => {
+  const toggle = useCallback(() => {
     setCollapsed(prev => {
       const next = !prev;
       try { localStorage.setItem("shopmate_sidebar_collapsed", String(next)); } catch {}
       return next;
     });
-  };
+  }, []);
 
   const [expandedGroups, setExpandedGroups] = useState<string[]>(() => {
     const initial: string[] = [];
