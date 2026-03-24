@@ -606,6 +606,30 @@ export type Database = {
         }
         Relationships: []
       }
+      bdcourier_api_log: {
+        Row: {
+          call_date: string
+          created_at: string | null
+          id: string
+          phone_number: string | null
+          success: boolean | null
+        }
+        Insert: {
+          call_date?: string
+          created_at?: string | null
+          id?: string
+          phone_number?: string | null
+          success?: boolean | null
+        }
+        Update: {
+          call_date?: string
+          created_at?: string | null
+          id?: string
+          phone_number?: string | null
+          success?: boolean | null
+        }
+        Relationships: []
+      }
       campaign_products: {
         Row: {
           allocation_pct: number | null
