@@ -23,7 +23,7 @@ import {
   Globe, TrendingUp, Package, BarChart3, Settings2,
   MapPin, StickyNote, Truck, Tag,
 } from "lucide-react";
-import { useBDCourierBulk } from "@/hooks/use-bd-courier";
+import { useBDCourierBulk, type BDCourierResult } from "@/hooks/use-bd-courier";
 import {
   DropdownMenu as DropdownMenuRoot,
   DropdownMenuContent as DDContent,
@@ -214,6 +214,15 @@ export default function WebOrdersPage() {
     },
   });
 
+  // Normalize phone: strip to 11-digit BD format for consistent cache lookup
+  const normalizePhone = useCallback((phone: string | null | undefined): string => {
+    if (!phone) return "";
+    let digits = phone.replace(/\D/g, "");
+    if (digits.startsWith("880") && digits.length >= 13) digits = "0" + digits.slice(3);
+    if (digits.length === 10 && !digits.startsWith("0")) digits = "0" + digits;
+    return digits.slice(0, 11);
+  }, []);
+
   // Only fetch courier data for current page's orders to save API quota
   const customerPhones = useMemo(() => {
     if (!orders) return [];
@@ -223,6 +232,18 @@ export default function WebOrdersPage() {
   }, [orders, page, pageSize]);
 
   const { data: bdCourierData, isLoading: bdLoading } = useBDCourierBulk(customerPhones, customerPhones.length > 0);
+
+  // Build a normalized-phone → risk data map so every format matches
+  const riskMap = useMemo(() => {
+    if (!bdCourierData) return new Map<string, BDCourierResult>();
+    const map = new Map<string, BDCourierResult>();
+    for (const [rawPhone, result] of Object.entries(bdCourierData)) {
+      if (result && !result.error) {
+        map.set(normalizePhone(rawPhone), result);
+      }
+    }
+    return map;
+  }, [bdCourierData, normalizePhone]);
 
   const orderIds = orders?.map((o) => o.id) || [];
 
@@ -358,16 +379,27 @@ export default function WebOrdersPage() {
   };
 
   const getSuccessRate = useCallback((customer: any) => {
-    if (!customer?.phone) return { percent: 0, delivered: 0, total: 0, loading: false, noData: true };
-    const bdData = bdCourierData?.[customer.phone];
-    if (!bdData || bdData.error) return { percent: 0, delivered: 0, total: 0, loading: bdLoading, noData: !bdData };
+    if (!customer?.phone) return { percent: 0, delivered: 0, total: 0, rating: 0, loading: false, noData: true, isNew: true };
+    const norm = normalizePhone(customer.phone);
+    const bdData = riskMap.get(norm);
+    if (!bdData) {
+      // Still loading or not in cache — show loading if bulk query is running, otherwise "new"
+      return { percent: 0, delivered: 0, total: 0, rating: 0, loading: bdLoading, noData: !bdLoading, isNew: !bdLoading };
+    }
+    const total = bdData.total_orders || 0;
+    const success = bdData.successful_orders || bdData.total_success || 0;
+    const rate = bdData.success_rate || bdData.overall_success_rate || 0;
+    const rating = Math.min(150, Math.round(total * 1.5));
     return {
-      percent: bdData.success_rate || 0,
-      delivered: bdData.successful_orders || 0,
-      total: bdData.total_orders || 0,
-      loading: false, noData: false,
+      percent: rate,
+      delivered: success,
+      total,
+      rating,
+      loading: false,
+      noData: false,
+      isNew: total === 0,
     };
-  }, [bdCourierData, bdLoading]);
+  }, [riskMap, bdLoading, normalizePhone]);
 
   const handleRowClick = useCallback((e: React.MouseEvent, orderId: string) => {
     const target = e.target as HTMLElement;
@@ -728,14 +760,40 @@ export default function WebOrdersPage() {
                         {/* Success Rate */}
                         {isColVisible("successRate") && (
                           <td className="px-3 py-3">
-                            {sr.loading ? <Skeleton className="h-10 w-16 rounded" /> : sr.noData ? (
-                              <span className="text-[10px] text-muted-foreground">—</span>
+                            {sr.loading ? (
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full border-2 border-muted animate-pulse" />
+                                <div className="space-y-1">
+                                  <Skeleton className="h-3 w-20" />
+                                  <Skeleton className="h-3 w-16" />
+                                </div>
+                              </div>
+                            ) : sr.isNew ? (
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full border-2 border-blue-300 dark:border-blue-700 flex items-center justify-center">
+                                  <span className="text-[7px] font-bold text-blue-400">NEW</span>
+                                </div>
+                                <div className="text-[10px] text-muted-foreground leading-relaxed">
+                                  <div>New Customer</div>
+                                  <div>No history</div>
+                                </div>
+                              </div>
                             ) : (
                               <div className="flex items-center gap-2">
-                                <SuccessRing percent={sr.percent} size={32} />
-                                <div>
-                                  <p className="text-[11px] font-bold">{sr.percent}%</p>
-                                  <p className="text-[9px] text-muted-foreground">{sr.delivered}/{sr.total}</p>
+                                <SuccessRing percent={sr.percent} size={36} />
+                                <div className="text-[10px] leading-relaxed">
+                                  <div>
+                                    Success:{" "}
+                                    <span className="font-semibold" style={{ color: sr.percent >= 80 ? "#22c55e" : sr.percent >= 60 ? "#f97316" : "#ef4444" }}>
+                                      {sr.percent}%
+                                    </span>
+                                  </div>
+                                  <div className="text-muted-foreground">
+                                    Order: <span className="text-foreground">{sr.delivered}/{sr.total}</span>
+                                  </div>
+                                  <div className="text-muted-foreground">
+                                    Rating: <span className="text-foreground">{sr.rating}</span>
+                                  </div>
                                 </div>
                               </div>
                             )}
@@ -935,18 +993,31 @@ function OrderQuickDrawer({ order, items, getSuccessRate, latestNote, onClose, o
           </div>
 
           {/* Success Rate */}
-          {!sr.noData && (
-            <div className="space-y-2">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Success Rate</h3>
-              <div className="flex items-center gap-3 bg-muted/30 rounded-lg p-3">
-                <SuccessRing percent={sr.percent} size={48} />
-                <div>
-                  <p className="text-lg font-bold">{sr.percent}%</p>
-                  <p className="text-xs text-muted-foreground">{sr.delivered}/{sr.total} delivered</p>
-                </div>
-              </div>
+          <div className="space-y-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Success Rate</h3>
+            <div className="flex items-center gap-3 bg-muted/30 rounded-lg p-3">
+              {sr.isNew ? (
+                <>
+                  <div className="w-12 h-12 rounded-full border-2 border-blue-300 dark:border-blue-700 flex items-center justify-center">
+                    <span className="text-[9px] font-bold text-blue-400">NEW</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-blue-500">New Customer</p>
+                    <p className="text-xs text-muted-foreground">No delivery history</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <SuccessRing percent={sr.percent} size={48} />
+                  <div>
+                    <p className="text-lg font-bold" style={{ color: sr.percent >= 80 ? "#22c55e" : sr.percent >= 60 ? "#f97316" : "#ef4444" }}>{sr.percent}%</p>
+                    <p className="text-xs text-muted-foreground">{sr.delivered}/{sr.total} delivered</p>
+                    <p className="text-xs text-muted-foreground">Rating: {sr.rating}</p>
+                  </div>
+                </>
+              )}
             </div>
-          )}
+          </div>
 
           {/* Order Items */}
           <div className="space-y-2">
@@ -1028,15 +1099,15 @@ function KpiCard({ icon: Icon, label, value, color }: { icon: any; label: string
   );
 }
 
-function SuccessRing({ percent, size = 32 }: { percent: number; size?: number }) {
+function SuccessRing({ percent, size = 36 }: { percent: number; size?: number }) {
   const r = (size - 4) / 2;
   const circ = 2 * Math.PI * r;
   const offset = circ - (percent / 100) * circ;
-  const color = percent >= 80 ? "text-emerald-500" : percent >= 50 ? "text-amber-500" : "text-destructive";
+  const strokeColor = percent >= 80 ? "#22c55e" : percent >= 60 ? "#f97316" : "#ef4444";
   return (
     <svg width={size} height={size} className="flex-shrink-0">
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="3" className="stroke-muted" />
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="3" strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" className={cn("transition-all duration-500", color)} style={{ transform: "rotate(-90deg)", transformOrigin: "center" }} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="3" strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" stroke={strokeColor} className="transition-all duration-500" style={{ transform: "rotate(-90deg)", transformOrigin: "center" }} />
     </svg>
   );
 }
