@@ -117,6 +117,7 @@ export default function WebOrdersPage() {
 
   const [activeTab, setActiveTab] = useState("processing");
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [selected, setSelected] = useState<string[]>([]);
   const [lastSynced, setLastSynced] = useState<Date>(new Date());
   const [sortBy, setSortBy] = useState("newest");
