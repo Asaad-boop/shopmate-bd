@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check daily limit before making API calls
+    // Check daily limit BEFORE making any API calls
     const { count: dailyCount } = await supabase
       .from("bdcourier_api_log")
       .select("*", { count: "exact", head: true })
@@ -77,11 +77,25 @@ Deno.serve(async (req) => {
 
     const uncachedPhones = phoneList.filter((p: string) => !results[p]);
 
-    for (const ph of uncachedPhones) {
-      if ((dailyCount || 0) >= 490) {
+    // If daily limit reached, return early with error for all uncached phones
+    if ((dailyCount || 0) >= 490 && uncachedPhones.length > 0) {
+      for (const ph of uncachedPhones) {
         results[ph] = { error: "daily_limit_reached", used: dailyCount, limit: 500 };
-        continue;
       }
+
+      if (phone && !rawPhones) {
+        return new Response(JSON.stringify(results[phone] || { error: "daily_limit_reached" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ results }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    for (const ph of uncachedPhones) {
 
       try {
         // Normalize phone: remove +88, spaces, dashes
