@@ -1099,15 +1099,15 @@ function KpiCard({ icon: Icon, label, value, color }: { icon: any; label: string
   );
 }
 
-function SuccessRing({ percent, size = 32 }: { percent: number; size?: number }) {
+function SuccessRing({ percent, size = 36 }: { percent: number; size?: number }) {
   const r = (size - 4) / 2;
   const circ = 2 * Math.PI * r;
   const offset = circ - (percent / 100) * circ;
-  const color = percent >= 80 ? "text-emerald-500" : percent >= 50 ? "text-amber-500" : "text-destructive";
+  const strokeColor = percent >= 80 ? "#22c55e" : percent >= 60 ? "#f97316" : "#ef4444";
   return (
     <svg width={size} height={size} className="flex-shrink-0">
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="3" className="stroke-muted" />
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="3" strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" className={cn("transition-all duration-500", color)} style={{ transform: "rotate(-90deg)", transformOrigin: "center" }} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="3" strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" stroke={strokeColor} className="transition-all duration-500" style={{ transform: "rotate(-90deg)", transformOrigin: "center" }} />
     </svg>
   );
 }
