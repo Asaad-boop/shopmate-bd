@@ -415,4 +415,4 @@ export const AppSidebar = memo(function AppSidebar() {
       </TooltipProvider>
     </SidebarContext.Provider>
   );
-}
+});
