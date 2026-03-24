@@ -16,13 +16,13 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { phones: rawPhones, force } = await req.json();
+    const { phone, phones: rawPhones, force } = await req.json();
 
-    // Limit to 5 phones per invocation to avoid compute limits
-    const phones = (rawPhones || []).slice(0, 5);
+    // Support both single phone and batch mode
+    const phoneList: string[] = phone ? [phone] : (rawPhones || []).slice(0, 5);
 
-    if (!phones || !Array.isArray(phones) || phones.length === 0) {
-      return new Response(JSON.stringify({ error: "phones array required" }), {
+    if (!phoneList.length) {
+      return new Response(JSON.stringify({ error: "phone or phones required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -44,89 +44,150 @@ Deno.serve(async (req) => {
 
     const apiKey = apiKeySetting.value;
     const results: Record<string, any> = {};
+    const today = new Date().toISOString().split("T")[0];
 
-    // Check cache first (unless force refresh)
+    // Check cache first (unless force refresh) — 7 day cache
     if (!force) {
       const { data: cached } = await supabase
         .from("customer_qc_cache")
         .select("*")
-        .in("phone", phones)
-        .gte("last_fetched_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+        .in("phone", phoneList)
+        .gt("cache_expires_at", new Date().toISOString());
 
       cached?.forEach((c: any) => {
         results[c.phone] = {
-          success_rate: c.success_rate,
-          total_orders: c.total_orders,
-          successful_orders: c.successful_orders,
-          returned_orders: c.returned_orders,
-          cancelled_orders: c.cancelled_orders,
-          raw_data: c.raw_data,
-          last_fetched_at: c.last_fetched_at,
-          cached: true,
+          from_cache: true,
+          risk_level: c.risk_level || "unknown",
+          overall_success_rate: c.overall_success_rate ?? c.success_rate ?? 0,
+          total_orders: c.total_orders ?? 0,
+          total_success: c.total_success ?? c.successful_orders ?? 0,
+          total_cancel: c.total_cancel ?? c.cancelled_orders ?? 0,
+          courier_data: c.courier_data || c.raw_data || {},
+          fetched_at: c.fetched_at || c.last_fetched_at,
         };
       });
     }
 
-    // Fetch uncached phones from BD Courier API
-    const uncachedPhones = phones.filter((p: string) => !results[p]);
+    // Check daily limit before making API calls
+    const { count: dailyCount } = await supabase
+      .from("bdcourier_api_log")
+      .select("*", { count: "exact", head: true })
+      .eq("call_date", today)
+      .eq("success", true);
 
-    for (const phone of uncachedPhones) {
+    const uncachedPhones = phoneList.filter((p: string) => !results[p]);
+
+    for (const ph of uncachedPhones) {
+      if ((dailyCount || 0) >= 490) {
+        results[ph] = { error: "daily_limit_reached", used: dailyCount, limit: 500 };
+        continue;
+      }
+
       try {
         // Normalize phone: remove +88, spaces, dashes
-        const normalizedPhone = phone.replace(/[\s\-\+]/g, "").replace(/^88/, "").replace(/^0/, "0");
-        
-        const response = await fetch(
-          "https://api.bdcourier.com/courier-check",
-          {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${apiKey}`,
-              "Content-Type": "application/json",
-              "Accept": "application/json",
-            },
-            body: JSON.stringify({ phone: normalizedPhone }),
-          }
-        );
+        const normalizedPhone = ph.replace(/[\s\-\+]/g, "").replace(/^88/, "");
+
+        const response = await fetch("https://bdcourier.com/api/courier-check", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`,
+            "Accept": "application/json",
+          },
+          body: JSON.stringify({ phone: normalizedPhone }),
+        });
 
         if (response.ok) {
           const data = await response.json();
-          
-          // Parse BD Courier response - new API format: data.data.summary
-          const summary = data?.data?.summary || {};
-          const totalOrders = summary.total_parcel || 0;
-          const totalDelivered = summary.success_parcel || 0;
-          const totalCancelled = summary.cancelled_parcel || 0;
-          const totalReturned = totalCancelled;
-          const successRate = summary.success_ratio ? Math.round(summary.success_ratio) : (totalOrders > 0 ? Math.round((totalDelivered / totalOrders) * 100) : 0);
 
-          const record = {
-            phone,
+          // Parse response — BD Courier returns data.data.summary
+          const summary = data?.data?.summary || data?.data?.totalSummary || {};
+          const courierSummaries = data?.data?.Summaries || data?.data?.summaries || {};
+          
+          const totalOrders = summary.total_parcel || summary.total || 0;
+          const totalSuccess = summary.success_parcel || summary.success || 0;
+          const totalCancel = summary.cancelled_parcel || summary.cancel || 0;
+          const successRate = summary.success_ratio 
+            ? Math.round(summary.success_ratio) 
+            : (totalOrders > 0 ? Math.round((totalSuccess / totalOrders) * 100) : 0);
+
+          // Determine risk level
+          let riskLevel = "unknown";
+          if (totalOrders === 0) riskLevel = "new_customer";
+          else if (successRate >= 80) riskLevel = "low";
+          else if (successRate >= 60) riskLevel = "medium";
+          else riskLevel = "high";
+
+          const cacheData = {
+            phone: ph,
+            courier_data: courierSummaries,
+            risk_level: riskLevel,
+            overall_success_rate: successRate,
             success_rate: successRate,
             total_orders: totalOrders,
-            successful_orders: totalDelivered,
-            returned_orders: totalReturned,
-            cancelled_orders: totalCancelled,
+            total_success: totalSuccess,
+            successful_orders: totalSuccess,
+            total_cancel: totalCancel,
+            cancelled_orders: totalCancel,
+            returned_orders: totalCancel,
             raw_data: data,
+            data_source: "api",
+            fetched_at: new Date().toISOString(),
             last_fetched_at: new Date().toISOString(),
+            cache_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
           };
 
           // Upsert cache
           await supabase
             .from("customer_qc_cache")
-            .upsert(record, { onConflict: "phone" });
+            .upsert(cacheData, { onConflict: "phone" });
 
-          results[phone] = { ...record, cached: false };
+          // Log successful API call
+          await supabase
+            .from("bdcourier_api_log")
+            .insert({ phone_number: ph, success: true, call_date: today });
+
+          results[ph] = {
+            from_cache: false,
+            risk_level: riskLevel,
+            overall_success_rate: successRate,
+            total_orders: totalOrders,
+            total_success: totalSuccess,
+            total_cancel: totalCancel,
+            courier_data: courierSummaries,
+            fetched_at: cacheData.fetched_at,
+          };
         } else {
           const errText = await response.text();
-          console.error(`BD Courier API error for ${phone}: ${response.status} ${errText}`);
-          results[phone] = { error: "api_error", status: response.status };
+          console.error(`BD Courier API error for ${ph}: ${response.status} ${errText}`);
+          
+          // Log failed call
+          await supabase
+            .from("bdcourier_api_log")
+            .insert({ phone_number: ph, success: false, call_date: today });
+
+          results[ph] = { error: "api_error", status: response.status };
         }
       } catch (err) {
-        console.error(`BD Courier fetch error for ${phone}:`, err);
-        results[phone] = { error: "fetch_error" };
+        console.error(`BD Courier fetch error for ${ph}:`, err);
+        
+        await supabase
+          .from("bdcourier_api_log")
+          .insert({ phone_number: ph, success: false, call_date: today });
+
+        results[ph] = { error: "fetch_error" };
       }
     }
 
+    // Single phone mode returns flat result
+    if (phone && !rawPhones) {
+      return new Response(JSON.stringify(results[phone] || { error: "no_result" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Batch mode returns { results: { ... } }
     return new Response(JSON.stringify({ results }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
