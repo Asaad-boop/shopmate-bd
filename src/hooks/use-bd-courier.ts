@@ -44,7 +44,8 @@ function mapResult(r: any): BDCourierResult {
  */
 export function useBDCourierBulk(phones: string[], enabled = true) {
   // Stabilize the key to avoid re-fetching on every render
-  const sortedKey = [...new Set(phones.filter(Boolean))].sort().join(",");
+  const uniquePhones = [...new Set(phones.filter(Boolean))];
+  const sortedKey = uniquePhones.sort().join(",");
 
   return useQuery({
     queryKey: ["bd-courier-bulk", sortedKey],
