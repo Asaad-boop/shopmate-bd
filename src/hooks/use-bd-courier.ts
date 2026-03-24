@@ -182,11 +182,17 @@ export function useBDCourierSingle(phone: string, enabled = true) {
         }
       } catch {}
 
+      // Skip API call if rate-limited
+      if (_rateLimitedUntil()) return null;
+
       const { data, error } = await supabase.functions.invoke("bd-courier-check", {
         body: { phone },
       });
 
-      if (error || !data || data.error) return null;
+      if (error || !data || data.error) {
+        if (data?.error === "daily_limit_reached") _setRateLimited();
+        return null;
+      }
 
       return mapResult(data);
     },
