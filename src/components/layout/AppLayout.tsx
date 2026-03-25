@@ -159,6 +159,9 @@ export function AppLayout() {
         </main>
       </div>
 
+      {/* Command Bar (⌘K) */}
+      <CommandBar />
+
       {/* Keyboard Shortcuts Help Modal */}
       <Dialog open={showHelp} onOpenChange={setShowHelp}>
         <DialogContent className="sm:max-w-md">
