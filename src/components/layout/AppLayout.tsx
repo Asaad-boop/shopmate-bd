@@ -3,6 +3,7 @@ import { AppSidebar } from "./AppSidebar";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { GlobalSearchTrigger } from "./GlobalSearchTrigger";
 import { UserMenu } from "./UserMenu";
+import { CommandBar } from "./CommandBar";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { ChevronRight, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -27,6 +28,8 @@ const PAGE_TITLES: Record<string, string> = {
   "/exceptions": "Exceptions", "/system-health": "System Health",
   "/marketing": "Marketing", "/marketing/influencers": "Influencers",
   "/marketing/ugc-creators": "UGC Creators", "/marketing/external": "External Spend",
+  "/marketing/decisions": "Campaign Decisions",
+  "/go-live": "Go Live", "/optimization": "Optimization",
   "/procurement": "Procurement",
 };
 
@@ -62,6 +65,7 @@ const BREADCRUMBS: Record<string, { parent: string; parentPath: string }> = {
   "/marketing/influencers": { parent: "Marketing", parentPath: "/marketing" },
   "/marketing/ugc-creators": { parent: "Marketing", parentPath: "/marketing" },
   "/marketing/external": { parent: "Marketing", parentPath: "/marketing" },
+  "/marketing/decisions": { parent: "Marketing", parentPath: "/marketing" },
 };
 
 const SHORTCUT_SECTIONS = [
