@@ -630,6 +630,59 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_decisions: {
+        Row: {
+          campaign_id: string | null
+          created_at: string | null
+          decided_at: string | null
+          decision: string | null
+          id: string
+          override_decision: string | null
+          override_note: string | null
+          reason: string | null
+          roas: number | null
+          total_orders: number | null
+          total_revenue: number | null
+          total_spend: number | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string | null
+          decided_at?: string | null
+          decision?: string | null
+          id?: string
+          override_decision?: string | null
+          override_note?: string | null
+          reason?: string | null
+          roas?: number | null
+          total_orders?: number | null
+          total_revenue?: number | null
+          total_spend?: number | null
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string | null
+          decided_at?: string | null
+          decision?: string | null
+          id?: string
+          override_decision?: string | null
+          override_note?: string | null
+          reason?: string | null
+          roas?: number | null
+          total_orders?: number | null
+          total_revenue?: number | null
+          total_spend?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_decisions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "ad_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_products: {
         Row: {
           allocation_pct: number | null
@@ -2626,6 +2679,33 @@ export type Database = {
           },
         ]
       }
+      go_live_progress: {
+        Row: {
+          completed: boolean | null
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          metadata: Json | null
+          step_name: string
+        }
+        Insert: {
+          completed?: boolean | null
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          step_name: string
+        }
+        Update: {
+          completed?: boolean | null
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          step_name?: string
+        }
+        Relationships: []
+      }
       goods_receipt_items: {
         Row: {
           created_at: string | null
@@ -4254,6 +4334,36 @@ export type Database = {
           start_date?: string | null
           status?: string | null
           synced_at?: string | null
+        }
+        Relationships: []
+      }
+      note_presets: {
+        Row: {
+          created_at: string | null
+          display_order: number | null
+          icon: string | null
+          id: string
+          is_active: boolean | null
+          label: string
+          note_text: string
+        }
+        Insert: {
+          created_at?: string | null
+          display_order?: number | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          label: string
+          note_text: string
+        }
+        Update: {
+          created_at?: string | null
+          display_order?: number | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          label?: string
+          note_text?: string
         }
         Relationships: []
       }
