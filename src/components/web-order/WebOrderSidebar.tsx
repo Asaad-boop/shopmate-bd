@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { QuickNotePresets } from "@/components/orders/QuickNotePresets";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -189,6 +190,10 @@ export function WebOrderSidebar({
           >
             <Plus className="w-3 h-3" /> Add Note
           </Button>
+          <div className="border-t border-border pt-2">
+            <p className="text-[9px] text-muted-foreground mb-1.5 font-medium">Quick Presets</p>
+            <QuickNotePresets onPresetClick={(text) => onAddNote(text)} />
+          </div>
           <div className="grid grid-cols-2 gap-1.5">
             <Button variant="outline" size="sm" className="h-7 text-[9px] gap-1">
               <Send className="w-2.5 h-2.5" /> Send Reminder SMS
