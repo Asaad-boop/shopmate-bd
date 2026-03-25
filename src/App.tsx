@@ -75,6 +75,9 @@ const MarketingInfluencersPage = lazy(() => import("./pages/MarketingInfluencers
 const MarketingUGCPage = lazy(() => import("./pages/MarketingUGC"));
 const MarketingExternalPage = lazy(() => import("./pages/MarketingExternal"));
 const ExchangesPage = lazy(() => import("./pages/Exchanges"));
+const CampaignDecisionsPage = lazy(() => import("./pages/CampaignDecisions"));
+const GoLivePage = lazy(() => import("./pages/GoLive"));
+const OptimizationPage = lazy(() => import("./pages/Optimization"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -211,6 +214,11 @@ const App = () => (
                 <Route path="/marketing/influencers" element={<L><MarketingInfluencersPage /></L>} />
                 <Route path="/marketing/ugc-creators" element={<L><MarketingUGCPage /></L>} />
                 <Route path="/marketing/external" element={<L><MarketingExternalPage /></L>} />
+                <Route path="/marketing/decisions" element={<L><CampaignDecisionsPage /></L>} />
+
+                {/* System extras */}
+                <Route path="/go-live" element={<L><GoLivePage /></L>} />
+                <Route path="/optimization" element={<L><OptimizationPage /></L>} />
 
                 <Route path="/customers" element={<Navigate to="/crm" replace />} />
               </Route>
