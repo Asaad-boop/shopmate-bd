@@ -371,6 +371,39 @@ export default function SettingsPage() {
                 <MetaAdsSettingsSection />
               </SettingsCard>
             )}
+            {activeSection === "fxrate" && (
+              <SettingsCard
+                icon={DollarSign}
+                iconBg="bg-green-50 text-green-600"
+                title="FX Exchange Rate"
+                description="Set USD to BDT exchange rate for Meta Ads spend conversion."
+                badge={null}
+              >
+                <FxRateSection />
+              </SettingsCard>
+            )}
+            {activeSection === "mktthresholds" && (
+              <SettingsCard
+                icon={Target}
+                iconBg="bg-orange-50 text-orange-600"
+                title="Marketing Thresholds"
+                description="Configure KILL / HOLD / SCALE decision thresholds for campaign optimization."
+                badge={null}
+              >
+                <MarketingThresholdsSection />
+              </SettingsCard>
+            )}
+            {activeSection === "notepresets" && (
+              <SettingsCard
+                icon={StickyNote}
+                iconBg="bg-purple-50 text-purple-600"
+                title="Quick Note Presets"
+                description="One-click note buttons for call-center operators in order views."
+                badge={null}
+              >
+                <NotePresetsSection />
+              </SettingsCard>
+            )}
           </div>
         </div>
       </div>
