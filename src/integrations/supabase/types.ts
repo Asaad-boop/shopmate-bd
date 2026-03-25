@@ -630,6 +630,59 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_decisions: {
+        Row: {
+          campaign_id: string | null
+          created_at: string | null
+          decided_at: string | null
+          decision: string | null
+          id: string
+          override_decision: string | null
+          override_note: string | null
+          reason: string | null
+          roas: number | null
+          total_orders: number | null
+          total_revenue: number | null
+          total_spend: number | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string | null
+          decided_at?: string | null
+          decision?: string | null
+          id?: string
+          override_decision?: string | null
+          override_note?: string | null
+          reason?: string | null
+          roas?: number | null
+          total_orders?: number | null
+          total_revenue?: number | null
+          total_spend?: number | null
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string | null
+          decided_at?: string | null
+          decision?: string | null
+          id?: string
+          override_decision?: string | null
+          override_note?: string | null
+          reason?: string | null
+          roas?: number | null
+          total_orders?: number | null
+          total_revenue?: number | null
+          total_spend?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_decisions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "ad_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_products: {
         Row: {
           allocation_pct: number | null
