@@ -208,6 +208,9 @@ export default function SettingsPage() {
     pathao: pathaoStatus,
     sms: "unknown",
     metaads: "unknown",
+    fxrate: "unknown",
+    mktthresholds: "unknown",
+    notepresets: "unknown",
   };
 
   return (
