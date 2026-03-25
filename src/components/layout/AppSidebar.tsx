@@ -11,6 +11,7 @@ import {
   DollarSign, Receipt,
   Users2, AlertTriangle,
   PanelLeftClose, PanelLeft, Archive, UserCheck,
+  Zap, Rocket,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -136,6 +137,8 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
         ],
       },
       { label: "Exceptions", icon: AlertTriangle, path: "/exceptions" },
+      { label: "Optimization", icon: Zap, path: "/optimization" },
+      { label: "Go Live", icon: Rocket, path: "/go-live" },
       { label: "System Health", icon: Activity, path: "/system-health" },
       { label: "Settings", icon: Settings, path: "/settings" },
     ],
