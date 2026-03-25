@@ -41,9 +41,12 @@ export default function OptimizationPage() {
     queryKey: ["optimization-today-orders"],
     queryFn: async () => {
       const today = format(new Date(), "yyyy-MM-dd");
-      const { data } = await supabase.from("orders").select("id, phone, status, created_at, agent_name, courier_name, updated_at")
+      const { data } = await supabase.from("orders")
+        .select("id, invoice_id, status, created_at, assigned_to, courier_status, updated_at, customer_id, customers(phone)")
         .gte("created_at", `${today}T00:00:00`).order("created_at", { ascending: false }).limit(500);
-      return data || [];
+      return (data || []).map((o: any) => ({
+        ...o, phone: o.customers?.phone || "", agent_name: o.assigned_to || "",
+      }));
     },
     refetchInterval: 300_000,
   });
@@ -62,9 +65,11 @@ export default function OptimizationPage() {
     queryFn: async () => {
       const weekAgo = format(subDays(new Date(), 7), "yyyy-MM-dd");
       const { data } = await supabase.from("orders")
-        .select("id, status, created_at, agent_name, updated_at, courier_name, phone")
+        .select("id, status, created_at, assigned_to, updated_at, courier_status, customer_id, customers(phone)")
         .gte("created_at", `${weekAgo}T00:00:00`).limit(1000);
-      return data || [];
+      return (data || []).map((o: any) => ({
+        ...o, phone: o.customers?.phone || "", agent_name: o.assigned_to || "",
+      }));
     },
   });
 

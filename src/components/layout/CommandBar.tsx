@@ -107,11 +107,11 @@ export function CommandBar() {
 
       // Search orders
       const { data: orders } = await supabase.from("orders")
-        .select("id, invoice_id, phone, status")
-        .or(`invoice_id.ilike.%${query}%,phone.ilike.%${query}%`)
+        .select("id, invoice_id, order_number, status")
+        .or(`invoice_id.ilike.%${query}%,order_number.ilike.%${query}%`)
         .limit(5);
-      (orders || []).forEach(o => {
-        results.push({ label: `Order ${o.invoice_id} — ${o.phone}`, path: `/orders/${o.id}`, type: "Order" });
+      (orders || []).forEach((o: any) => {
+        results.push({ label: `Order ${o.invoice_id || o.order_number}`, path: `/orders/${o.id}`, type: "Order" });
       });
 
       // Search products

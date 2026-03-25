@@ -44,10 +44,12 @@ export function useUpsertPreset() {
   return useMutation({
     mutationFn: async (preset: Partial<NotePreset> & { id?: string }) => {
       if (preset.id) {
-        const { error } = await supabase.from("note_presets").update(preset).eq("id", preset.id);
+        const { id, ...rest } = preset;
+        const { error } = await supabase.from("note_presets").update(rest as any).eq("id", id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("note_presets").insert(preset);
+        const { id, ...rest } = preset;
+        const { error } = await supabase.from("note_presets").insert(rest as any);
         if (error) throw error;
       }
     },
