@@ -108,6 +108,7 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
         label: "Marketing", icon: Megaphone, group: "Marketing",
         children: [
           { label: "Overview", path: "/marketing", icon: BarChart2 },
+          { label: "Campaign Decisions", path: "/marketing/decisions", icon: Megaphone },
           { label: "Influencers", path: "/marketing/influencers", icon: Users },
           { label: "UGC Creators", path: "/marketing/ugc-creators", icon: Activity },
           { label: "External Spend", path: "/marketing/external", icon: Globe },
