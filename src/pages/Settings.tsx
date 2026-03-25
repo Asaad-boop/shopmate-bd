@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import {
   Building2, FileText, ShoppingBag, Shield, Truck, MessageSquare, Megaphone,
-  CheckCircle2, XCircle, Loader2, Eye, EyeOff,
+  CheckCircle2, XCircle, Loader2, Eye, EyeOff, Target, StickyNote, DollarSign,
 } from "lucide-react";
 import PathaoSettingsSection from "@/components/settings/PathaoSettingsSection";
 import SmsSettingsSection from "@/components/settings/SmsSettingsSection";
@@ -19,6 +19,8 @@ import CompanyProfileSection from "@/components/settings/CompanyProfileSection";
 import InvoiceSettingsSection from "@/components/settings/InvoiceSettingsSection";
 import MetaAdsSettingsSection from "@/components/settings/MetaAdsSettingsSection";
 import BDCourierSettingsSection from "@/components/settings/BDCourierSettingsSection";
+import MarketingThresholdsSection from "@/components/settings/MarketingThresholdsSection";
+import NotePresetsSection from "@/components/settings/NotePresetsSection";
 import { cn } from "@/lib/utils";
 
 const SECTIONS = [
@@ -29,6 +31,9 @@ const SECTIONS = [
   { id: "pathao", label: "Pathao Courier", icon: Truck, description: "Delivery booking" },
   { id: "sms", label: "Bulk SMS BD", icon: MessageSquare, description: "SMS notifications & marketing" },
   { id: "metaads", label: "Meta Ads", icon: Megaphone, description: "Facebook & Instagram ads" },
+  { id: "fxrate", label: "FX Rate", icon: DollarSign, description: "USD to BDT exchange rate" },
+  { id: "mktthresholds", label: "Marketing Thresholds", icon: Target, description: "Campaign decision rules" },
+  { id: "notepresets", label: "Note Presets", icon: StickyNote, description: "Quick note buttons for operators" },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]["id"];
