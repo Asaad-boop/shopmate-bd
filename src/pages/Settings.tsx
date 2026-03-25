@@ -21,6 +21,7 @@ import MetaAdsSettingsSection from "@/components/settings/MetaAdsSettingsSection
 import BDCourierSettingsSection from "@/components/settings/BDCourierSettingsSection";
 import MarketingThresholdsSection from "@/components/settings/MarketingThresholdsSection";
 import NotePresetsSection from "@/components/settings/NotePresetsSection";
+import FxRateSection from "@/components/settings/FxRateSection";
 import { cn } from "@/lib/utils";
 
 const SECTIONS = [
