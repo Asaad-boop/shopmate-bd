@@ -89,20 +89,20 @@ export const ExecutiveMode = memo(function ExecutiveMode({ from, to }: Props) {
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label="Total Revenue"
-          value={kpiErr ? "—" : formatBDT(revenue)}
+          value={formatBDT(revenue)}
           icon={DollarSign}
           color="bg-primary/10 text-primary"
           delta={revDelta}
-          sub={kpiErr ? "RPC error — fix needed" : "vs previous period"}
+          sub="vs previous period"
           onClick={() => navigate("/reports/pnl")}
           loading={kpiL}
         />
         <KpiCard
           label="Net Profit"
-          value={kpiErr ? "—" : formatBDT(profit)}
+          value={formatBDT(profit)}
           icon={TrendingUp}
           color={profit >= 0 ? "bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]" : "bg-destructive/10 text-destructive"}
-          sub={kpiErr ? "—" : `${profitMargin}% margin`}
+          sub={`${profitMargin}% margin`}
           subColor={profit >= 0 ? "text-[hsl(var(--success))]" : "text-destructive"}
           onClick={() => navigate("/reports/pnl")}
           loading={kpiL}
@@ -112,16 +112,16 @@ export const ExecutiveMode = memo(function ExecutiveMode({ from, to }: Props) {
           value={formatBDT(liquidCash)}
           icon={Wallet}
           color="bg-[hsl(var(--info))]/10 text-[hsl(var(--info))]"
-          sub={finance ? `Cash: ${formatBDT(finance.cash)} | Bank: ${formatBDT(finance.bank)} | Mobile: ${formatBDT((finance.bkash ?? 0) + (finance.nagad ?? 0))}` : "—"}
+          sub={finance ? `Cash: ${formatBDT(finance.cash)} | Bank: ${formatBDT(finance.bank)} | Mobile: ${formatBDT((finance.bkash ?? 0) + (finance.nagad ?? 0))}` : "Loading..."}
           onClick={() => navigate("/finance/accounts")}
           loading={finL}
         />
         <KpiCard
           label="Orders Today"
-          value={kpiErr ? "—" : formatNumber(totalOrders)}
+          value={formatNumber(totalOrders)}
           icon={ShoppingBag}
           color="bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))]"
-          sub={kpiErr ? "—" : `${delivered} delivered | ${kpis?.returned ?? 0} returned`}
+          sub={`${delivered} delivered | ${kpis?.returned ?? 0} returned`}
           onClick={() => navigate("/orders")}
           loading={kpiL}
         />
