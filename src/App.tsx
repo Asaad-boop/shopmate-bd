@@ -16,7 +16,7 @@ const Dashboard = lazy(() => import("./pages/Index"));
 /* ─── Lazy-loaded pages ─── */
 const SearchPage = lazy(() => import("./pages/Search"));
 const OrdersPage = lazy(() => import("./pages/Orders"));
-const OrderListPage = lazy(() => import("./components/order-list/OrderListPage").then(m => ({ default: m.OrderListPage })));
+const OrderListPage = lazy(() => import("./pages/OrderList"));
 const NewOrder = lazy(() => import("./pages/NewOrder"));
 const ApprovedOrders = lazy(() => import("./pages/ApprovedOrders"));
 const AllOrders = lazy(() => import("./pages/AllOrders"));

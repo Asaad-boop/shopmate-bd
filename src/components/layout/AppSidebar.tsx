@@ -45,6 +45,7 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
       {
         label: "Orders", icon: ShoppingCart, group: "Orders",
         children: [
+          { label: "Order List", path: "/orders/list", icon: List },
           { label: "All Orders", path: "/orders/all", icon: Archive },
           { label: "Add New Order", path: "/orders/new", icon: Plus },
           { label: "Approved Orders", path: "/orders/approved", icon: CheckCircle },
