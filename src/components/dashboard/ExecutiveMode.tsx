@@ -35,7 +35,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export const ExecutiveMode = memo(function ExecutiveMode({ from, to }: Props) {
   const navigate = useNavigate();
-  const { data: kpis, isLoading: kpiL, isError: kpiErr } = useExecKpis(from, to);
+  const { data: kpis, isLoading: kpiL } = useExecKpis(from, to);
   const { data: pipeline, isLoading: pipeL } = useExecPipeline(from, to);
   const { data: alerts, isLoading: alertL } = useExecAlerts();
   const { data: finance, isLoading: finL } = useExecFinance();
