@@ -4602,6 +4602,7 @@ export type Database = {
           confirmed_by: string | null
           cost_of_goods: number | null
           courier_additional_charge: number | null
+          courier_booked_at: string | null
           courier_charge: number | null
           courier_cod_fee: number | null
           courier_compensation_cost: number | null
@@ -4663,6 +4664,7 @@ export type Database = {
           return_case_id: string | null
           return_condition: string | null
           return_pending: boolean
+          return_reason: string | null
           settlement_batch_id: string | null
           settlement_journal_id: string | null
           settlement_posted: boolean | null
@@ -4674,6 +4676,7 @@ export type Database = {
           tags: string[] | null
           total_amount: number | null
           updated_at: string | null
+          web_order_id: string | null
           web_order_status: string | null
         }
         Insert: {
@@ -4691,6 +4694,7 @@ export type Database = {
           confirmed_by?: string | null
           cost_of_goods?: number | null
           courier_additional_charge?: number | null
+          courier_booked_at?: string | null
           courier_charge?: number | null
           courier_cod_fee?: number | null
           courier_compensation_cost?: number | null
@@ -4752,6 +4756,7 @@ export type Database = {
           return_case_id?: string | null
           return_condition?: string | null
           return_pending?: boolean
+          return_reason?: string | null
           settlement_batch_id?: string | null
           settlement_journal_id?: string | null
           settlement_posted?: boolean | null
@@ -4763,6 +4768,7 @@ export type Database = {
           tags?: string[] | null
           total_amount?: number | null
           updated_at?: string | null
+          web_order_id?: string | null
           web_order_status?: string | null
         }
         Update: {
@@ -4780,6 +4786,7 @@ export type Database = {
           confirmed_by?: string | null
           cost_of_goods?: number | null
           courier_additional_charge?: number | null
+          courier_booked_at?: string | null
           courier_charge?: number | null
           courier_cod_fee?: number | null
           courier_compensation_cost?: number | null
@@ -4841,6 +4848,7 @@ export type Database = {
           return_case_id?: string | null
           return_condition?: string | null
           return_pending?: boolean
+          return_reason?: string | null
           settlement_batch_id?: string | null
           settlement_journal_id?: string | null
           settlement_posted?: boolean | null
@@ -4852,6 +4860,7 @@ export type Database = {
           tags?: string[] | null
           total_amount?: number | null
           updated_at?: string | null
+          web_order_id?: string | null
           web_order_status?: string | null
         }
         Relationships: [
