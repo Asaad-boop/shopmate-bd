@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { formatBDT, formatDateTime } from "@/lib/format";
 import { ConfirmCriticalAction } from "@/components/security/ConfirmCriticalAction";
-
+import { getErrorMessage } from "@/types";
+import type { Json } from "@/integrations/supabase/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +25,7 @@ import {
 /* ── Audit helper ── */
 async function auditLog(
   entityType: string, entityId: string, action: string,
-  before: any, after: any, reason: string
+  before: Json, after: Json, reason: string
 ) {
   await supabase.from("audit_logs").insert({
     entity_type: entityType,
@@ -67,7 +68,7 @@ export default function SuperEdit() {
 
   // Edit state
   const [edits, setEdits] = useState<Record<string, any>>({});
-  const [itemEdits, setItemEdits] = useState<any[]>([]);
+  const [itemEdits, setItemEdits] = useState<Record<string, any>[]>([]);
 
   // ── Search orders ──
   const { data: searchResults, isLoading: searching } = useQuery({
@@ -123,9 +124,9 @@ export default function SuperEdit() {
     setActiveTab("customer");
   }, []);
 
-  const setEdit = (key: string, value: any) => setEdits((p) => ({ ...p, [key]: value }));
-  const getVal = (key: string) => edits[key] !== undefined ? edits[key] : (order as any)?.[key];
-  const getCustomerVal = (key: string) => edits[`c_${key}`] !== undefined ? edits[`c_${key}`] : (order as any)?.customers?.[key];
+  const setEdit = (key: string, value: string | number) => setEdits((p: Record<string, any>) => ({ ...p, [key]: value }));
+  const getVal = (key: string): any => edits[key] !== undefined ? edits[key] : (order as any)?.[key];
+  const getCustomerVal = (key: string): any => edits[`c_${key}`] !== undefined ? edits[`c_${key}`] : (order as any)?.customers?.[key];
 
   // ── Confirm wrapper ──
   const requestConfirm = (title: string, description: string, confirmLabel: string, fn: (reason: string) => Promise<void>) => {
@@ -140,8 +141,8 @@ export default function SuperEdit() {
       await pendingAction.onConfirm(reason);
       toast({ title: "✅ Action completed" });
       refetchOrder();
-    } catch (e: any) {
-      toast({ title: "❌ Failed", description: e.message, variant: "destructive" });
+    } catch (e) {
+      toast({ title: "❌ Failed", description: getErrorMessage(e), variant: "destructive" });
     } finally {
       setActionPending(false);
       setConfirmOpen(false);
@@ -153,8 +154,8 @@ export default function SuperEdit() {
   const saveCustomerInfo = () => {
     requestConfirm("Update Customer Info", "This will update the customer record linked to this order.", "Save Changes", async (reason) => {
       const cust = (order as any)?.customers;
-      const updates: any = {};
-      const before: any = {};
+      const updates: Record<string, any> = {};
+      const before: Record<string, any> = {};
       for (const key of ["full_name", "phone", "address", "district", "thana"]) {
         const edited = edits[`c_${key}`];
         if (edited !== undefined && edited !== cust?.[key]) {
@@ -165,9 +166,8 @@ export default function SuperEdit() {
       if (Object.keys(updates).length === 0) throw new Error("No changes detected");
       const { error } = await supabase.from("customers").update(updates).eq("id", cust.id);
       if (error) throw error;
-      await auditLog("customer", cust.id, "super_edit_customer", before, updates, reason);
-      // Also update order-level address fields
-      const orderUpdates: any = {};
+      await auditLog("customer", (cust as any).id, "super_edit_customer", before as Json, updates as Json, reason);
+      const orderUpdates: Record<string, any> = {};
       if (updates.district) orderUpdates.delivery_district = updates.district;
       if (updates.thana) orderUpdates.delivery_thana = updates.thana;
       if (updates.address) orderUpdates.delivery_address = updates.address;
@@ -180,8 +180,8 @@ export default function SuperEdit() {
   // ── Save Financials ──
   const saveFinancials = () => {
     requestConfirm("Update Order Financials", "Changing financial fields may affect accounting. A correction event will be logged.", "Save Financial Changes", async (reason) => {
-      const updates: any = {};
-      const before: any = {};
+      const updates: Record<string, any> = {};
+      const before: Record<string, any> = {};
       for (const key of ["total_amount", "advance_amount", "advance_method", "delivery_charge", "discount"]) {
         const edited = edits[key];
         if (edited !== undefined && edited !== (order as any)?.[key]) {
@@ -192,7 +192,7 @@ export default function SuperEdit() {
       if (Object.keys(updates).length === 0) throw new Error("No changes detected");
       const { error } = await supabase.from("orders").update({ ...updates, updated_at: new Date().toISOString() }).eq("id", order!.id);
       if (error) throw error;
-      await auditLog("order", order!.id, "super_edit_financials", before, updates, reason);
+      await auditLog("order", order!.id, "super_edit_financials", before as Json, updates as Json, reason);
     });
   };
 
@@ -200,8 +200,8 @@ export default function SuperEdit() {
   const saveCourier = () => {
     requestConfirm("Update Courier Fields", "Manual courier overrides will be logged as MANUAL_OVERRIDE.", "Save Courier Changes", async (reason) => {
       const shipment = (order as any)?._shipment;
-      const updates: any = {};
-      const before: any = {};
+      const updates: Record<string, any> = {};
+      const before: Record<string, any> = {};
       if (edits.tracking_id !== undefined) {
         // Update on order level
         await supabase.from("orders").update({ pathao_tracking_code: edits.tracking_id, updated_at: new Date().toISOString() }).eq("id", order!.id);
@@ -216,7 +216,7 @@ export default function SuperEdit() {
           }
         }
         if (Object.keys(before).length > 1 || (Object.keys(before).length === 1 && !before.tracking_id)) {
-          const shipUpdates: any = {};
+          const shipUpdates: Record<string, any> = {};
           for (const k of Object.keys(updates)) {
             if (k !== "tracking_id") shipUpdates[k] = updates[k];
           }
@@ -226,7 +226,7 @@ export default function SuperEdit() {
         }
       }
       if (Object.keys(updates).length === 0) throw new Error("No changes detected");
-      await auditLog("order", order!.id, "super_edit_courier", before, updates, reason);
+      await auditLog("order", order!.id, "super_edit_courier", before as Json, updates as Json, reason);
     });
   };
 
@@ -238,7 +238,7 @@ export default function SuperEdit() {
       const before = { status: order!.status };
       const { error } = await supabase.from("orders").update({ status: newStatus, updated_at: new Date().toISOString() }).eq("id", order!.id);
       if (error) throw error;
-      await auditLog("order", order!.id, "super_edit_status", before, { status: newStatus }, reason);
+      await auditLog("order", order!.id, "super_edit_status", before as Json, { status: newStatus } as Json, reason);
     });
   };
 
@@ -253,7 +253,7 @@ export default function SuperEdit() {
       );
       const before = { courier_net_payable: s.courier_net_payable };
       await supabase.from("courier_shipments").update({ courier_net_payable: netPayable, updated_at: new Date().toISOString() }).eq("id", s.id);
-      await auditLog("courier_shipment", s.id, "repair_net_payable", before, { courier_net_payable: netPayable }, reason);
+      await auditLog("courier_shipment", s.id, "repair_net_payable", before as Json, { courier_net_payable: netPayable } as Json, reason);
     });
   };
 
@@ -270,7 +270,7 @@ export default function SuperEdit() {
           const { error } = await supabase.rpc("reverse_journal_entry", { p_journal_id: j.id, p_reason: `Super Edit rebuild: ${reason}` });
           if (error) throw error;
         }
-        await auditLog("order", order!.id, "repair_accounting", { reversed_journals: posted.map((j: any) => j.id) }, {}, reason);
+        await auditLog("order", order!.id, "repair_accounting", { reversed_journals: posted.map((j) => j.id) } as Json, {} as Json, reason);
       }
     );
   };
@@ -278,13 +278,13 @@ export default function SuperEdit() {
   // ── Repair: Mark Exception ──
   const markException = () => {
     requestConfirm("Create Exception", "Push this order to the Exceptions Center for review.", "Create Exception", async (reason) => {
-      await supabase.from("order_exceptions" as any).insert({
+      await (supabase as any).from("order_exceptions").insert({
         order_id: order!.id,
         exception_type: "manual_flag",
         severity: "high",
         description: reason,
       });
-      await auditLog("order", order!.id, "create_exception", {}, { type: "manual_flag" }, reason);
+      await auditLog("order", order!.id, "create_exception", {} as Json, { type: "manual_flag" } as Json, reason);
     });
   };
 
@@ -338,7 +338,7 @@ export default function SuperEdit() {
               />
               {searching && <div className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="w-3 h-3 animate-spin" /> Searching...</div>}
               <div className="space-y-1 max-h-[400px] overflow-y-auto">
-                {(searchResults || []).map((r: any) => (
+                {(searchResults || []).map((r) => (
                   <button
                     key={r.id}
                     onClick={() => selectOrder(r.id)}
