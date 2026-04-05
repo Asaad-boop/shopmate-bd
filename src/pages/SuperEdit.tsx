@@ -38,7 +38,7 @@ async function auditLog(
 }
 
 /* ── Diff Row ── */
-function DiffRow({ label, before, after }: { label: string; before: unknown; after: unknown }) {
+function DiffRow({ label, before, after }: { label: string; before: any; after: any }) {
   const changed = String(before ?? "") !== String(after ?? "");
   return (
     <div className={`grid grid-cols-3 text-xs py-1.5 px-2 rounded ${changed ? "bg-amber-50 dark:bg-amber-950/30" : ""}`}>
@@ -67,8 +67,8 @@ export default function SuperEdit() {
   const [actionPending, setActionPending] = useState(false);
 
   // Edit state
-  const [edits, setEdits] = useState<Record<string, string | number>>({});
-  const [itemEdits, setItemEdits] = useState<Record<string, string | number>[]>([]);
+  const [edits, setEdits] = useState<Record<string, any>>({});
+  const [itemEdits, setItemEdits] = useState<Record<string, any>[]>([]);
 
   // ── Search orders ──
   const { data: searchResults, isLoading: searching } = useQuery({
@@ -124,9 +124,9 @@ export default function SuperEdit() {
     setActiveTab("customer");
   }, []);
 
-  const setEdit = (key: string, value: string | number) => setEdits((p) => ({ ...p, [key]: value }));
-  const getVal = (key: string) => edits[key] !== undefined ? edits[key] : (order as Record<string, unknown>)?.[key];
-  const getCustomerVal = (key: string) => edits[`c_${key}`] !== undefined ? edits[`c_${key}`] : (order as Record<string, unknown> & { customers?: Record<string, unknown> })?.customers?.[key];
+  const setEdit = (key: string, value: string | number) => setEdits((p: Record<string, any>) => ({ ...p, [key]: value }));
+  const getVal = (key: string): any => edits[key] !== undefined ? edits[key] : (order as any)?.[key];
+  const getCustomerVal = (key: string): any => edits[`c_${key}`] !== undefined ? edits[`c_${key}`] : (order as any)?.customers?.[key];
 
   // ── Confirm wrapper ──
   const requestConfirm = (title: string, description: string, confirmLabel: string, fn: (reason: string) => Promise<void>) => {
@@ -153,9 +153,9 @@ export default function SuperEdit() {
   // ── Save Customer Info ──
   const saveCustomerInfo = () => {
     requestConfirm("Update Customer Info", "This will update the customer record linked to this order.", "Save Changes", async (reason) => {
-      const cust = (order as Record<string, unknown> & { customers?: Record<string, unknown> })?.customers;
-      const updates: Record<string, unknown> = {};
-      const before: Record<string, unknown> = {};
+      const cust = (order as any)?.customers;
+      const updates: Record<string, any> = {};
+      const before: Record<string, any> = {};
       for (const key of ["full_name", "phone", "address", "district", "thana"]) {
         const edited = edits[`c_${key}`];
         if (edited !== undefined && edited !== cust?.[key]) {
@@ -164,15 +164,15 @@ export default function SuperEdit() {
         }
       }
       if (Object.keys(updates).length === 0) throw new Error("No changes detected");
-      const { error } = await supabase.from("customers").update(updates as any).eq("id", (cust as any).id);
+      const { error } = await supabase.from("customers").update(updates).eq("id", cust.id);
       if (error) throw error;
       await auditLog("customer", (cust as any).id, "super_edit_customer", before as Json, updates as Json, reason);
-      const orderUpdates: Record<string, unknown> = {};
+      const orderUpdates: Record<string, any> = {};
       if (updates.district) orderUpdates.delivery_district = updates.district;
       if (updates.thana) orderUpdates.delivery_thana = updates.thana;
       if (updates.address) orderUpdates.delivery_address = updates.address;
       if (Object.keys(orderUpdates).length > 0) {
-        await supabase.from("orders").update(orderUpdates as any).eq("id", order!.id);
+        await supabase.from("orders").update(orderUpdates).eq("id", order!.id);
       }
     });
   };
@@ -180,17 +180,17 @@ export default function SuperEdit() {
   // ── Save Financials ──
   const saveFinancials = () => {
     requestConfirm("Update Order Financials", "Changing financial fields may affect accounting. A correction event will be logged.", "Save Financial Changes", async (reason) => {
-      const updates: Record<string, unknown> = {};
-      const before: Record<string, unknown> = {};
+      const updates: Record<string, any> = {};
+      const before: Record<string, any> = {};
       for (const key of ["total_amount", "advance_amount", "advance_method", "delivery_charge", "discount"]) {
         const edited = edits[key];
-        if (edited !== undefined && edited !== (order as Record<string, unknown>)?.[key]) {
+        if (edited !== undefined && edited !== (order as any)?.[key]) {
           updates[key] = key === "advance_method" ? edited : Number(edited);
-          before[key] = (order as Record<string, unknown>)?.[key];
+          before[key] = (order as any)?.[key];
         }
       }
       if (Object.keys(updates).length === 0) throw new Error("No changes detected");
-      const { error } = await supabase.from("orders").update({ ...updates, updated_at: new Date().toISOString() } as any).eq("id", order!.id);
+      const { error } = await supabase.from("orders").update({ ...updates, updated_at: new Date().toISOString() }).eq("id", order!.id);
       if (error) throw error;
       await auditLog("order", order!.id, "super_edit_financials", before as Json, updates as Json, reason);
     });
@@ -199,9 +199,9 @@ export default function SuperEdit() {
   // ── Save Courier ──
   const saveCourier = () => {
     requestConfirm("Update Courier Fields", "Manual courier overrides will be logged as MANUAL_OVERRIDE.", "Save Courier Changes", async (reason) => {
-      const shipment = (order as Record<string, unknown>)?._shipment as Record<string, any> | null;
-      const updates: Record<string, unknown> = {};
-      const before: Record<string, unknown> = {};
+      const shipment = (order as any)?._shipment;
+      const updates: Record<string, any> = {};
+      const before: Record<string, any> = {};
       if (edits.tracking_id !== undefined) {
         // Update on order level
         await supabase.from("orders").update({ pathao_tracking_code: edits.tracking_id, updated_at: new Date().toISOString() }).eq("id", order!.id);
@@ -216,12 +216,12 @@ export default function SuperEdit() {
           }
         }
         if (Object.keys(before).length > 1 || (Object.keys(before).length === 1 && !before.tracking_id)) {
-          const shipUpdates: Record<string, unknown> = {};
+          const shipUpdates: Record<string, any> = {};
           for (const k of Object.keys(updates)) {
             if (k !== "tracking_id") shipUpdates[k] = updates[k];
           }
           if (Object.keys(shipUpdates).length > 0) {
-            await supabase.from("courier_shipments").update({ ...shipUpdates, updated_at: new Date().toISOString() } as any).eq("id", shipment.id);
+            await supabase.from("courier_shipments").update({ ...shipUpdates, updated_at: new Date().toISOString() }).eq("id", shipment.id);
           }
         }
       }
@@ -245,7 +245,7 @@ export default function SuperEdit() {
   // ── Repair: Recalculate Net Payable ──
   const repairNetPayable = () => {
     requestConfirm("Recalculate Net Payable", "This will recompute courier_net_payable from customer_total and courier charges for this shipment.", "Recalculate", async (reason) => {
-      const s = (order as Record<string, unknown>)?._shipment as Record<string, any> | null;
+      const s = (order as any)?._shipment;
       if (!s) throw new Error("No shipment found");
       const netPayable = Math.max(0,
         (order!.total_amount || 0) -
@@ -259,8 +259,8 @@ export default function SuperEdit() {
 
   // ── Repair: Rebuild Accounting ──
   const repairAccounting = () => {
-    const journals = ((order as Record<string, unknown>)?._journals || []) as Array<{ id: string; status: string; description?: string }>;
-    const posted = journals.filter((j) => j.status === "posted");
+    const journals = (order as any)?._journals || [];
+    const posted = journals.filter((j: any) => j.status === "posted");
     requestConfirm(
       "Rebuild Accounting",
       `This will reverse ${posted.length} posted journal(s) linked to this order. You must then re-trigger posting from the Posting Queue.`,
@@ -278,7 +278,7 @@ export default function SuperEdit() {
   // ── Repair: Mark Exception ──
   const markException = () => {
     requestConfirm("Create Exception", "Push this order to the Exceptions Center for review.", "Create Exception", async (reason) => {
-      await (supabase.from("order_exceptions" as any) as any).insert({
+      await (supabase as any).from("order_exceptions").insert({
         order_id: order!.id,
         exception_type: "manual_flag",
         severity: "high",
@@ -291,17 +291,17 @@ export default function SuperEdit() {
   // ── Computed diffs ──
   const diffs = useMemo(() => {
     if (!order) return [];
-    const items: { label: string; before: unknown; after: unknown }[] = [];
+    const items: { label: string; before: any; after: any }[] = [];
     // Customer
     for (const k of ["full_name", "phone", "address", "district", "thana"]) {
       if (edits[`c_${k}`] !== undefined) {
-        items.push({ label: `Customer ${k}`, before: (order as Record<string, unknown> & { customers?: Record<string, unknown> }).customers?.[k], after: edits[`c_${k}`] });
+        items.push({ label: `Customer ${k}`, before: (order as any).customers?.[k], after: edits[`c_${k}`] });
       }
     }
     // Order fields
     for (const k of ["total_amount", "advance_amount", "advance_method", "delivery_charge", "discount", "status"]) {
-      if (edits[k] !== undefined && String(edits[k]) !== String((order as Record<string, unknown>)[k] ?? "")) {
-        items.push({ label: k, before: (order as Record<string, unknown>)[k], after: edits[k] });
+      if (edits[k] !== undefined && String(edits[k]) !== String((order as any)[k] ?? "")) {
+        items.push({ label: k, before: (order as any)[k], after: edits[k] });
       }
     }
     return items;
@@ -345,7 +345,7 @@ export default function SuperEdit() {
                     className={`w-full text-left p-2 rounded-lg border text-xs transition-colors hover:bg-accent ${selectedOrderId === r.id ? "border-primary bg-primary/5" : "border-border"}`}
                   >
                     <div className="font-mono font-semibold">{r.invoice_id || r.order_number || r.id.slice(0, 8)}</div>
-                    <div className="text-muted-foreground">{(r.customers as Record<string, unknown> | null)?.full_name as string} • {(r.customers as Record<string, unknown> | null)?.phone as string}</div>
+                    <div className="text-muted-foreground">{(r.customers as any)?.full_name} • {(r.customers as any)?.phone}</div>
                     <div className="flex items-center gap-2 mt-1">
                       <Badge variant="outline" className="text-[10px] h-4">{r.status}</Badge>
                       <span className="font-semibold">{formatBDT(r.total_amount)}</span>
@@ -481,7 +481,7 @@ export default function SuperEdit() {
                   {/* ── Courier Tab ── */}
                   <TabsContent value="courier" className="space-y-3 mt-3">
                     {(() => {
-                      const s = (order as Record<string, unknown>)?._shipment as Record<string, any> | null;
+                      const s = (order as any)?._shipment;
                       return (
                         <>
                           <div className="grid grid-cols-2 gap-3">
@@ -568,7 +568,7 @@ export default function SuperEdit() {
                         </tr>
                       </thead>
                       <tbody>
-                        {((order as Record<string, unknown>).order_items as Array<Record<string, any>> || []).map((item) => (
+                        {((order as any).order_items || []).map((item: any) => (
                           <tr key={item.id} className="border-t">
                             <td className="p-2 font-mono">{item.products?.sku || "—"}</td>
                             <td className="p-2">{item.products?.name || "—"}</td>
@@ -587,13 +587,13 @@ export default function SuperEdit() {
                 </div>
 
                 {/* ── Linked Journals ── */}
-                {((order as Record<string, unknown>)._journals as Array<Record<string, any>>)?.length > 0 && (
+                {(order as any)._journals?.length > 0 && (
                   <>
                     <Separator className="my-3" />
                     <div>
                       <h4 className="text-xs font-semibold flex items-center gap-1.5 mb-2"><History className="w-3.5 h-3.5" /> Linked Journals</h4>
                       <div className="space-y-1">
-                        {((order as Record<string, unknown>)._journals as Array<Record<string, any>>).map((j) => (
+                        {(order as any)._journals.map((j: any) => (
                           <div key={j.id} className="flex items-center justify-between text-xs p-1.5 rounded border">
                             <div>
                               <span className="font-mono text-[10px]">{j.id.slice(0, 8)}</span>
