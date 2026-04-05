@@ -11,14 +11,15 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ArrowLeft, Plus, Send, Tag, MessageSquare, X } from "lucide-react";
 import { formatBDT } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import type { WebOrder, OrderItemWithProduct, WebOrderStatus } from "@/types";
 
 interface Props {
-  order: any;
-  orderItems: any[];
+  order: WebOrder;
+  orderItems: OrderItemWithProduct[];
   grandTotal: number;
   customerPhone: string;
   customerIP?: string;
-  currentStatus: string;
+  currentStatus: WebOrderStatus | string;
   onStatusChange: (status: string) => void;
   onSave: () => void;
   onBack: () => void;
@@ -74,17 +75,14 @@ export function WebOrderSidebar({
           </div>
           {orderItems.length > 0 && (
             <div className="border-t border-border pt-2 space-y-1">
-              {orderItems.map((item) => {
-                const p = item.products as any;
-                return (
-                  <div key={item.id} className="flex items-center justify-between text-[10px]">
-                    <span className="truncate flex-1 mr-2 text-muted-foreground">
-                      {p?.sku || "—"}
-                    </span>
-                    <span className="tabular-nums font-medium">×{item.quantity}</span>
-                  </div>
-                );
-              })}
+          {orderItems.map((item) => (
+                <div key={item.id} className="flex items-center justify-between text-[10px]">
+                  <span className="truncate flex-1 mr-2 text-muted-foreground">
+                    {item.products?.sku ?? "—"}
+                  </span>
+                  <span className="tabular-nums font-medium">×{item.quantity}</span>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>
