@@ -2,7 +2,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { differenceInDays, startOfDay, endOfDay, addDays } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/types";
+import type { Database } from "@/integrations/supabase/types";
 
+type QcCache = Database["public"]["Tables"]["customer_qc_cache"]["Row"];
+
+interface OrderStat { customer_id: string | null; status: string | null; }
 export interface CRMCustomer {
   id: string;
   full_name: string;
@@ -56,7 +61,7 @@ export interface Lead {
   created_at?: string | null;
 }
 
-export function computeSegment(c: any): string {
+export function computeSegment(c: CRMCustomer): string {
   if (c.manual_segment) return c.manual_segment;
   const spent = c.total_spent || 0;
   if (spent >= 10000) return "diamond";
@@ -97,7 +102,7 @@ async function fetchAllCustomers(search?: string): Promise<CRMCustomer[]> {
   }
 
   // Fetch QC cache (also paginated)
-  let allQc: any[] = [];
+  let allQc: Pick<QcCache, "phone" | "success_rate">[] = [];
   page = 0;
   hasMore = true;
   while (hasMore) {
@@ -110,7 +115,7 @@ async function fetchAllCustomers(search?: string): Promise<CRMCustomer[]> {
   const qcMap = new Map(allQc.map((q) => [q.phone, q.success_rate]));
 
   // Fetch order stats per customer (delivered, returned, cancelled counts)
-  let allOrderStats: any[] = [];
+  let allOrderStats: OrderStat[] = [];
   page = 0;
   hasMore = true;
   while (hasMore) {
@@ -123,7 +128,7 @@ async function fetchAllCustomers(search?: string): Promise<CRMCustomer[]> {
   }
 
   const statsMap = new Map<string, { delivered: number; returned: number; cancelled: number }>();
-  allOrderStats.forEach((o: any) => {
+  allOrderStats.forEach((o) => {
     if (!o.customer_id) return;
     if (!statsMap.has(o.customer_id)) statsMap.set(o.customer_id, { delivered: 0, returned: 0, cancelled: 0 });
     const s = statsMap.get(o.customer_id)!;
@@ -132,7 +137,7 @@ async function fetchAllCustomers(search?: string): Promise<CRMCustomer[]> {
     else if (o.status === "cancelled") s.cancelled++;
   });
 
-  return allRows.map((c: any) => {
+  return allRows.map((c) => {
     const os = statsMap.get(c.id) || { delivered: 0, returned: 0, cancelled: 0 };
     const totalOrders = c.total_orders || 0;
     const returnRate = totalOrders > 0 ? Math.round((os.returned / totalOrders) * 100) : 0;
@@ -195,14 +200,14 @@ export function useFollowups(filter: string) {
       const { data, error } = await query;
       if (error) throw error;
 
-      const phones = Array.from(new Set((data || []).map((f: any) => String(f.customer_phone)))) as string[];
+      const phones = Array.from(new Set((data || []).map((f) => String(f.customer_phone)))) as string[];
       let nameMap = new Map<string, string>();
       if (phones.length > 0) {
         const { data: customers } = await supabase.from("customers").select("phone, full_name").in("phone", phones);
         nameMap = new Map((customers || []).map((c) => [c.phone, c.full_name]));
       }
 
-      let followups: Followup[] = (data || []).map((f: any) => ({
+      let followups: Followup[] = (data || []).map((f) => ({
         ...f,
         customer_name: nameMap.get(f.customer_phone) || f.customer_phone,
       }));
@@ -386,7 +391,7 @@ export function useCRMMutations() {
 
   const blockCustomer = useMutation({
     mutationFn: async ({ id, is_blocked, blocked_reason }: { id: string; is_blocked: boolean; blocked_reason?: string }) => {
-      const update: any = {
+      const update: Partial<Database["public"]["Tables"]["customers"]["Update"]> = {
         is_blocked,
         blocked_at: is_blocked ? new Date().toISOString() : null,
         blocked_reason: is_blocked ? (blocked_reason || null) : null,
