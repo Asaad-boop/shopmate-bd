@@ -57,7 +57,7 @@ export type OrderSummary = Pick<
  */
 export type WebOrder = Order & {
   web_order_status: string;
-  customers?: Customer | null;
+  customers?: Partial<Customer> | null;
 };
 
 /** Status values for web/Shopify orders */
