@@ -59,7 +59,8 @@ import { AddressMapperPanel } from "@/components/orders/AddressMapperPanel";
 import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/use-pathao";
 import { useCompanySettings } from "@/hooks/use-company-settings";
 import { useInvoiceSettings } from "@/hooks/use-invoice-settings";
-import { printInvoice } from "@/components/orders/PrintInvoice";
+import { getErrorMessage } from "@/types";
+import type { OrderItemWithProduct } from "@/types";
 
 /* ─── STATUS CONFIG ─── */
 const STATUS_BUTTONS = [
@@ -157,13 +158,13 @@ export default function WebOrderDetail() {
   const [callResult, setCallResult] = useState("");
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmSending, setConfirmSending] = useState(false);
-  const [orderItems, setOrderItems] = useState<any[]>([]);
+  const [orderItems, setOrderItems] = useState<OrderItemWithProduct[]>([]);
 
   // Product search
   const [nameSearch, setNameSearch] = useState("");
   const [skuSearch, setSkuSearch] = useState("");
   const [activePill, setActivePill] = useState<string>("All Active");
-  const [editModal, setEditModal] = useState<{ open: boolean; item: any }>({ open: false, item: null });
+  const [editModal, setEditModal] = useState<{ open: boolean; item: OrderItemWithProduct | null }>({ open: false, item: null });
   const [editForm, setEditForm] = useState({ name: "", sku: "", price: 0, qty: 1, note: "" });
 
   // Delivery form state
@@ -253,7 +254,7 @@ export default function WebOrderDetail() {
         .select("key, value")
         .in("key", ["pathao_default_store", "pathao_delivery_type", "pathao_default_weight"]);
       const map: Record<string, string> = {};
-      data?.forEach((s: any) => { map[s.key] = s.value || ""; });
+      data?.forEach((s) => { map[s.key] = s.value || ""; });
       return map;
     },
     staleTime: 60 * 1000,
@@ -275,8 +276,8 @@ export default function WebOrderDetail() {
   });
 
   // Previous orders
-  const customer = order?.customers as any;
-  const customerPhone = customer?.phone || "";
+  const customer = order?.customers;
+  const customerPhone = (customer as any)?.phone || "";
 
   const { data: prevOrders } = useQuery({
     queryKey: ["customer-prev-orders-web", customerPhone],
@@ -309,7 +310,7 @@ export default function WebOrderDetail() {
 
   useEffect(() => {
     if (!order) return;
-    const c = order.customers as any;
+    const c = order.customers as Record<string, any> | null;
     setDeliveryForm({
       city: order.delivery_district || c?.district || "",
       zone: order.delivery_thana || c?.thana || "",
@@ -343,10 +344,10 @@ export default function WebOrderDetail() {
 
   const addressSaveMutation = useMutation({
     mutationFn: async ({ district, thana }: { district?: string; thana?: string }) => {
-      const updates: any = { updated_at: new Date().toISOString() };
+      const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
       if (district) updates.delivery_district = district;
       if (thana) updates.delivery_thana = thana;
-      const { error } = await supabase.from("orders").update(updates).eq("id", id!);
+      const { error } = await supabase.from("orders").update(updates as any).eq("id", id!);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -597,7 +598,7 @@ export default function WebOrderDetail() {
       queryClient.invalidateQueries({ queryKey: ["web-order-notes", id] });
       queryClient.invalidateQueries({ queryKey: ["web-orders"] });
     },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err) => toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" }),
   });
 
   /* ── Send to Pathao ── */
@@ -611,11 +612,11 @@ export default function WebOrderDetail() {
       return;
     }
     const orderItemsList = items || [];
-    const totalWeight = orderItemsList.reduce((sum: number, i: any) => sum + ((i.products as any)?.weight_kg || 0) * i.quantity, 0);
+    const totalWeight = orderItemsList.reduce((sum: number, i) => sum + ((i.products as any)?.weight_kg || 0) * i.quantity, 0);
     const weight = totalWeight > 0 ? Math.round(totalWeight * 10) / 10 : Number(defaultWeight);
     const isCOD = order.payment_method?.toLowerCase() === "cod" || order.payment_status !== "paid";
-    const totalItems = orderItemsList.reduce((sum: number, i: any) => sum + i.quantity, 0) || 1;
-    const desc = orderItemsList.map((i: any) => (i.products as any)?.name).filter(Boolean).join(", ") || "";
+    const totalItems = orderItemsList.reduce((sum: number, i) => sum + i.quantity, 0) || 1;
+    const desc = orderItemsList.map((i) => (i.products as any)?.name).filter(Boolean).join(", ") || "";
     const orderPayload = {
       orders: [{
         store_id: Number(storeId), merchant_order_id: order.order_number,
@@ -682,8 +683,8 @@ export default function WebOrderDetail() {
       if (pathaoCityId && pathaoZoneId) {
         try {
           await sendToPathao(pathaoCityId, selectedCityName, pathaoZoneId, selectedZoneName);
-        } catch (pathaoErr: any) {
-          toast({ title: "Order confirmed but Pathao send failed", description: pathaoErr.message, variant: "destructive" });
+        } catch (pathaoErr) {
+          toast({ title: "Order confirmed but Pathao send failed", description: getErrorMessage(pathaoErr), variant: "destructive" });
           await supabase.from("orders").update({ courier_status: "PATHAO_FAILED" }).eq("id", id!);
         }
       } else {
@@ -700,8 +701,8 @@ export default function WebOrderDetail() {
           if (fullMapping.success && fullMapping.cityId && fullMapping.zoneId) {
             try {
               await sendToPathao(fullMapping.cityId, fullMapping.cityName, fullMapping.zoneId, fullMapping.zoneName);
-            } catch (pathaoErr: any) {
-              toast({ title: "Order confirmed but Pathao send failed", description: pathaoErr.message, variant: "destructive" });
+            } catch (pathaoErr) {
+              toast({ title: "Order confirmed but Pathao send failed", description: getErrorMessage(pathaoErr), variant: "destructive" });
               await supabase.from("orders").update({ courier_status: "PATHAO_FAILED" }).eq("id", id!);
             }
           } else {
@@ -717,8 +718,8 @@ export default function WebOrderDetail() {
           setAddressFixOpen(true);
         }
       }
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" });
     } finally {
       setConfirmSending(false);
       setShowConfirmDialog(false);
@@ -735,8 +736,8 @@ export default function WebOrderDetail() {
     try {
       await sendToPathao(cityId, cityName, zoneId, zoneName);
       setAddressFixOpen(false);
-    } catch (err: any) {
-      toast({ title: "Pathao send failed", description: err.message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Pathao send failed", description: getErrorMessage(err), variant: "destructive" });
       await supabase.from("orders").update({ courier_status: "PATHAO_FAILED" }).eq("id", id!);
     } finally {
       setAddressFixSending(false);
@@ -758,7 +759,7 @@ export default function WebOrderDetail() {
       toast({ title: "Note added" });
       queryClient.invalidateQueries({ queryKey: ["web-order-notes", id] });
     },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err) => toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" }),
   });
 
   const callLogMutation = useMutation({
@@ -774,13 +775,13 @@ export default function WebOrderDetail() {
       toast({ title: "Call logged ✅" });
       queryClient.invalidateQueries({ queryKey: ["web-order-notes", id] });
     },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err) => toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" }),
   });
 
   /* ── Save mutation ── */
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const updates: any = {
+      const updates: Record<string, unknown> = {
         delivery_district: deliveryForm.city, delivery_thana: deliveryForm.zone,
         delivery_address: deliveryForm.address, notes: deliveryForm.note,
         updated_at: new Date().toISOString(),
@@ -801,7 +802,7 @@ export default function WebOrderDetail() {
         updates.payment_method = deliveryForm.advanceVia || "cash";
         updates.cod_amount = grandTotal - deliveryForm.advanceAmount;
       }
-      const { error } = await supabase.from("orders").update(updates).eq("id", id!);
+      const { error } = await supabase.from("orders").update(updates as any).eq("id", id!);
       if (error) throw error;
       await supabase.from("order_items").delete().eq("order_id", id!);
       if (orderItems.length > 0) {
@@ -820,7 +821,7 @@ export default function WebOrderDetail() {
       queryClient.invalidateQueries({ queryKey: ["web-order", id] });
       queryClient.invalidateQueries({ queryKey: ["web-order-items", id] });
     },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err) => toast({ title: "Error", description: getErrorMessage(err), variant: "destructive" }),
   });
 
   const handlePrintInvoice = useCallback(() => {
@@ -866,8 +867,8 @@ export default function WebOrderDetail() {
       return { ...i, discount: disc, total_price: (i.unit_price * i.quantity) - disc };
     }));
   };
-  const openEditModal = (item: any) => {
-    const p = item.products as any;
+  const openEditModal = (item: OrderItemWithProduct) => {
+    const p = item.products;
     setEditForm({ name: p?.name || item.product_name_fallback || "", sku: p?.sku || "", price: item.unit_price, qty: item.quantity, note: "" });
     setEditModal({ open: true, item });
   };
