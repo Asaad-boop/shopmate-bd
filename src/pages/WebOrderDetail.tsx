@@ -60,7 +60,6 @@ import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/use-pat
 import { useCompanySettings } from "@/hooks/use-company-settings";
 import { useInvoiceSettings } from "@/hooks/use-invoice-settings";
 import { getErrorMessage } from "@/types";
-import type { OrderItemWithProduct } from "@/types";
 
 /* ─── STATUS CONFIG ─── */
 const STATUS_BUTTONS = [
@@ -158,13 +157,13 @@ export default function WebOrderDetail() {
   const [callResult, setCallResult] = useState("");
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmSending, setConfirmSending] = useState(false);
-  const [orderItems, setOrderItems] = useState<OrderItemWithProduct[]>([]);
+  const [orderItems, setOrderItems] = useState<any[]>([]);
 
   // Product search
   const [nameSearch, setNameSearch] = useState("");
   const [skuSearch, setSkuSearch] = useState("");
   const [activePill, setActivePill] = useState<string>("All Active");
-  const [editModal, setEditModal] = useState<{ open: boolean; item: OrderItemWithProduct | null }>({ open: false, item: null });
+  const [editModal, setEditModal] = useState<{ open: boolean; item: any }>({ open: false, item: null });
   const [editForm, setEditForm] = useState({ name: "", sku: "", price: 0, qty: 1, note: "" });
 
   // Delivery form state
@@ -867,7 +866,7 @@ export default function WebOrderDetail() {
       return { ...i, discount: disc, total_price: (i.unit_price * i.quantity) - disc };
     }));
   };
-  const openEditModal = (item: OrderItemWithProduct) => {
+  const openEditModal = (item: any) => {
     const p = item.products;
     setEditForm({ name: p?.name || item.product_name_fallback || "", sku: p?.sku || "", price: item.unit_price, qty: item.quantity, note: "" });
     setEditModal({ open: true, item });
