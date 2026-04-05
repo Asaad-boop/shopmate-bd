@@ -83,7 +83,7 @@ export function computeSegment(c: CRMCustomer): string {
 
 async function fetchAllCustomers(search?: string): Promise<CRMCustomer[]> {
   const PAGE_SIZE = 1000;
-  let allRows: CRMCustomer[] = [];
+  let allRows: any[] = [];
   let page = 0;
   let hasMore = true;
 
@@ -102,7 +102,7 @@ async function fetchAllCustomers(search?: string): Promise<CRMCustomer[]> {
   }
 
   // Fetch QC cache (also paginated)
-  let allQc: QcCache[] = [];
+  let allQc: Pick<QcCache, "phone" | "success_rate">[] = [];
   page = 0;
   hasMore = true;
   while (hasMore) {
