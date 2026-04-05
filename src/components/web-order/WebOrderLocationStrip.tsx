@@ -4,6 +4,21 @@ import { Search, RefreshCw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+interface PathaoCity {
+  city_id: number;
+  city_name: string;
+}
+
+interface PathaoZone {
+  zone_id: number;
+  zone_name: string;
+}
+
+interface PathaoArea {
+  area_id: number;
+  area_name: string;
+}
+
 interface Props {
   pathaoCityId: number | null;
   pathaoZoneId: number | null;
@@ -11,9 +26,9 @@ interface Props {
   onCityChange: (v: string) => void;
   onZoneChange: (v: string) => void;
   onAreaChange: (v: string) => void;
-  filteredCities: any[];
-  filteredZones: any[];
-  pathaoAreas: any[];
+  filteredCities: PathaoCity[];
+  filteredZones: PathaoZone[];
+  pathaoAreas: PathaoArea[];
   citySearch: string;
   zoneSearch: string;
   onCitySearch: (v: string) => void;
@@ -93,7 +108,7 @@ export function WebOrderLocationStrip({
                   />
                 </div>
               </div>
-              {filteredCities.map((c: any) => (
+              {filteredCities.map((c) => (
                 <SelectItem key={c.city_id} value={String(c.city_id)} className="text-xs">{c.city_name}</SelectItem>
               ))}
             </SelectContent>
@@ -120,7 +135,7 @@ export function WebOrderLocationStrip({
                   />
                 </div>
               </div>
-              {filteredZones.map((z: any) => (
+              {filteredZones.map((z) => (
                 <SelectItem key={z.zone_id} value={String(z.zone_id)} className="text-xs">{z.zone_name}</SelectItem>
               ))}
             </SelectContent>
@@ -135,7 +150,7 @@ export function WebOrderLocationStrip({
               <SelectValue placeholder="Select an area" />
             </SelectTrigger>
             <SelectContent className="bg-popover z-50 max-h-60">
-              {pathaoAreas?.map((a: any) => (
+              {pathaoAreas?.map((a) => (
                 <SelectItem key={a.area_id} value={String(a.area_id)} className="text-xs">{a.area_name}</SelectItem>
               ))}
             </SelectContent>
