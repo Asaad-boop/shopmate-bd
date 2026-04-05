@@ -59,6 +59,7 @@ import { AddressMapperPanel } from "@/components/orders/AddressMapperPanel";
 import { usePathaoCities, usePathaoZones, usePathaoAreas } from "@/hooks/use-pathao";
 import { useCompanySettings } from "@/hooks/use-company-settings";
 import { useInvoiceSettings } from "@/hooks/use-invoice-settings";
+import { printInvoice } from "@/components/orders/PrintInvoice";
 import { getErrorMessage } from "@/types";
 
 /* ─── STATUS CONFIG ─── */
